@@ -55,6 +55,8 @@ Basy checks every push for these, and coaches check them before pushing:
 5. Correct manifest: one `manifest.json` entry per page, `path` matches the folder, `added_by` is the owning bot.
 6. Unchanged salt: `.staticrypt.json` is not edited (a new salt breaks "remember me" on every page).
 7. No password in the repo and no em dashes anywhere.
+8. Strong password: the site password must not be guessable. No family names, the kid's name, or variations of them. Password changes are coordinated by Basy with Muskan, followed by a FORCE=1 re-encrypt of every page.
+9. Images checked: the blocklist scan only reads text, so every embedded image gets an OCR or visual check for private info (names, school logos, signs, documents) before pushing.
 
 ## Rules
 
