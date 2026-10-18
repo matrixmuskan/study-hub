@@ -38,6 +38,24 @@ Each bot keeps its working files (sources, notes, builds, tests, screenshots) in
 
 Never edit another bot's workspace. Copy the finished page into `/workspace/study-hub-src/`, scrub the copy, and publish from there.
 
+## Roles
+
+- **Basy is the coordinator.** Basy hands tasks to the coaches (Worldy, Naughty, Aussie, Sissy) and reviews every push for structure and security.
+- **Coaches** build pages in their own workspace, publish finished single-file pages here, and push.
+- **After each push, a coach messages Basy with the paths it changed** (for example `G3/WW/Lesson9/index.html`, `manifest.json`) and the commit id.
+
+## Security checklist
+
+Basy checks every push for these, and coaches check them before pushing:
+
+1. Encrypted pages only: every `.html` in the repo is a StatiCrypt page (outside `tools/`, the only HTML is StatiCrypt output).
+2. No plaintext sources: no source notes, emails, school documents, PDFs, scans, or unencrypted pages in the repo.
+3. No private info: no school name, teacher names, home address, birthday, or family details. The only name allowed is the kid's first name, Krishiv.
+4. Correct folder: `G<grade>/<Subject code>/<Chapter-or-Lesson id>/index.html`.
+5. Correct manifest: one `manifest.json` entry per page, `path` matches the folder, `added_by` is the owning bot.
+6. Unchanged salt: `.staticrypt.json` is not edited (a new salt breaks "remember me" on every page).
+7. No password in the repo and no em dashes anywhere.
+
 ## Rules
 
 - `publish.sh` refuses to encrypt if a page contains any word from `STUDY_HUB_BLOCKLIST` (kept in `~/.study-hub.env`, not in the repo).
