@@ -23,7 +23,12 @@ fi
 
 mapfile -t PAGES < <(cd "$SRC" && find . -name '*.html' -type f | sed 's|^\./||' | sort)
 cd "$REPO"   # staticrypt resolves -c and -d relative to the working directory
+# Only re-encrypt pages whose plaintext changed (StatiCrypt output is random each run,
+# so re-encrypting unchanged big pages would bloat git history). Hashes live in the mirror.
+HASHES="$SRC/_state/plaintext_sha256.txt"; mkdir -p "$SRC/_state"; touch "$HASHES"
 for p in "${PAGES[@]}"; do
+  h=$(sha256sum "$SRC/$p" | cut -d' ' -f1)
+  if [ -f "$p" ] && grep -qx "$h  $p" "$HASHES" && [ "${FORCE:-0}" != 1 ]; then echo "unchanged $p"; continue; fi
   out_dir="$(dirname "$p")"
   mkdir -p "$out_dir"
   npx -y "staticrypt@$STATICRYPT_VERSION" "$SRC/$p" \
@@ -36,6 +41,7 @@ for p in "${PAGES[@]}"; do
     --template-button "Let's go!" \
     --template-remember "Remember me for 30 days" \
     --template-color-primary "#2f6fed" --template-color-secondary "#dbe7ff" >/dev/null
+  grep -v "  $p\$" "$HASHES" > "$HASHES.tmp" || true; echo "$h  $p" >> "$HASHES.tmp"; mv "$HASHES.tmp" "$HASHES"
   echo "encrypted $p"
 done
 

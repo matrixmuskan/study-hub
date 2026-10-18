@@ -11,7 +11,8 @@ from collections import OrderedDict
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.environ.get("STUDY_HUB_SRC", os.path.join(os.path.dirname(REPO), "study-hub-src"))
 SUBJECTS = {"SS": ("Social Studies", "🌎"), "WW": ("Wordly Wise", "📚"), "Math": ("Math", "➗"),
-            "Sci": ("Science", "🔬"), "LA": ("Language Arts", "✏️"), "Grammar": ("Grammar", "📝")}
+            "Sci": ("Science", "🔬"), "LA": ("Language Arts", "✏️"), "Grammar": ("Grammar", "📝"),
+            "Noetic": ("Noetic Math Contest", "🧠"), "Kangaroo": ("Math Kangaroo", "🦘"), "MOEMS": ("Math Olympiad (MOEMS)", "🏅")}
 COLORS = ["#2f6fed", "#16a34a", "#f97316", "#9333ea", "#0891b2", "#db2777"]
 REQ = ("grade", "subject", "title", "path")
 
