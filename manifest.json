@@ -6,5 +6,69 @@
     "path": "G3/SS/Final1-Ch1-2-8/",
     "test_date": "2026-10-21",
     "added_by": "Sissy"
+  },
+  {
+    "grade": "G3",
+    "subject": "WW",
+    "title": "Lesson 7: Word Quest (words, practice game, mock test)",
+    "path": "G3/WW/Lesson7/",
+    "test_date": "2026-10-15",
+    "added_by": "Worldy"
+  },
+  {
+    "grade": "G3",
+    "subject": "WW",
+    "title": "Lesson 8: Word Quest (words, practice game, mock test)",
+    "path": "G3/WW/Lesson8/",
+    "test_date": "2026-10-22",
+    "added_by": "Worldy"
+  },
+  {
+    "grade": "G3",
+    "subject": "Noetic",
+    "title": "Chapter 1: Overlaps and Organised Counting",
+    "path": "G3/Noetic/Ch1-Overlaps-Counting/",
+    "test_date": "2026-11-19",
+    "added_by": "Naughty"
+  },
+  {
+    "grade": "G3",
+    "subject": "Noetic",
+    "title": "Chapter 2: Logic and Digit Puzzles",
+    "path": "G3/Noetic/Ch2-Logic-Digit-Puzzles/",
+    "test_date": "2026-11-19",
+    "added_by": "Naughty"
+  },
+  {
+    "grade": "G3",
+    "subject": "Noetic",
+    "title": "Chapter 3: Acting It Out",
+    "path": "G3/Noetic/Ch3-Acting-It-Out/",
+    "test_date": "2026-11-19",
+    "added_by": "Naughty"
+  },
+  {
+    "grade": "G3",
+    "subject": "Noetic",
+    "title": "Chapter 4: Rewind and Rebalance",
+    "path": "G3/Noetic/Ch4-Rewind-Rebalance/",
+    "test_date": "2026-11-19",
+    "added_by": "Naughty"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 1: Mirror Magic",
+    "path": "G3/Kangaroo/Ch1-Mirror-Magic/",
+    "test_date": "",
+    "added_by": "Aussie"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 2: Number Power",
+    "path": "G3/Kangaroo/Ch2-Number-Power/",
+    "test_date": "",
+    "added_by": "Aussie"
   }
 ]
