@@ -57,6 +57,14 @@
   },
   {
     "grade": "G3",
+    "subject": "Noetic",
+    "title": "Warm-up Mock: Spring 2024 paper (45-minute timed test, results and error log)",
+    "path": "G3/Noetic/Mock-Warmup-Spring2024/",
+    "test_date": "2026-10-22",
+    "added_by": "Naughty"
+  },
+  {
+    "grade": "G3",
     "subject": "Kangaroo",
     "title": "Chapter 1: Mirror Magic",
     "path": "G3/Kangaroo/Ch1-Mirror-Magic/",
