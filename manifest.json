@@ -9,6 +9,14 @@
   },
   {
     "grade": "G3",
+    "subject": "SS",
+    "title": "Continents and Oceans: retake practice and mock test (shapes, map, mock, Fix-it)",
+    "path": "G3/SS/Continents-Oceans-Retake/",
+    "test_date": "",
+    "added_by": "Sissy"
+  },
+  {
+    "grade": "G3",
     "subject": "WW",
     "title": "Lesson 7: Word Quest (words, practice game, mock test)",
     "path": "G3/WW/Lesson7/",
