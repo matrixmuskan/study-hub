@@ -35,6 +35,7 @@ Each bot keeps its working files (sources, notes, builds, tests, screenshots) in
 | `/workspace/noetic` | Naughty | Noetic Math contest (`Noetic`) |
 | `/workspace/kangaroo` | Aussie | Math Kangaroo (`Kangaroo`) |
 | `/workspace/ss` | Sissy | Social Studies (`SS`) |
+| `/workspace/booky` | Booky | Language Arts (`LA`) |
 
 Never edit another bot's workspace. Copy the finished page into `/workspace/study-hub-src/`, scrub the copy, and publish from there.
 
