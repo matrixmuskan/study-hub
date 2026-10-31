@@ -33,6 +33,14 @@
   },
   {
     "grade": "G3",
+    "subject": "WW",
+    "title": "Lesson 9: Word Quest (words, practice game, mock test)",
+    "path": "G3/WW/Lesson9/",
+    "test_date": "2026-11-05",
+    "added_by": "Worldy"
+  },
+  {
+    "grade": "G3",
     "subject": "Noetic",
     "title": "Chapter 1: Overlaps and Organised Counting",
     "path": "G3/Noetic/Ch1-Overlaps-Counting/",
