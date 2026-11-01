@@ -1,76 +1,147 @@
 #!/usr/bin/env python3
-"""Build the plaintext hub home page from manifest.json.
+"""Build the plaintext hub pages (sh-2 design) from manifest.json.
 
 Reads  <repo>/manifest.json  (array of {grade, subject, title, path, test_date, added_by})
-Writes <src>/index.html      (plaintext; publish.sh encrypts it into the repo)
+Writes <src>/index.html             home
+       <src>/G<n>/index.html        grade page
+       <src>/G<n>/<Subject>/index.html  subject page
+All are plaintext; publish.sh encrypts them into the repo.
 Default src dir: ../study-hub-src next to the repo, or $STUDY_HUB_SRC.
 """
-import html, json, os, sys
+import json, os, re, sys
 from collections import OrderedDict
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import sh_lib as L
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.environ.get("STUDY_HUB_SRC", os.path.join(os.path.dirname(REPO), "study-hub-src"))
-SUBJECTS = {"SS": ("Social Studies", "🌎"), "WW": ("Wordly Wise", "📚"), "Math": ("Math", "➗"),
-            "Sci": ("Science", "🔬"), "LA": ("Language Arts", "✏️"), "Grammar": ("Grammar", "📝"),
-            "Noetic": ("Noetic Math Contest", "🧠"), "Kangaroo": ("Math Kangaroo", "🦘"), "MOEMS": ("Math Olympiad (MOEMS)", "🏅")}
-COLORS = ["#2f6fed", "#16a34a", "#f97316", "#9333ea", "#0891b2", "#db2777"]
+e = L.e
 REQ = ("grade", "subject", "title", "path")
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-def main():
-    items = json.load(open(os.path.join(REPO, "manifest.json")))
+
+def load_manifest(src):
+    items = json.load(open(os.path.join(L.REPO, "manifest.json"), encoding="utf-8"))
     errs = []
     for i, it in enumerate(items):
         for k in REQ:
             if not it.get(k):
                 errs.append(f"entry {i}: missing {k}")
         p = it.get("path", "")
-        if p and not os.path.exists(os.path.join(SRC, p.rstrip("/"), "index.html")) and not os.path.exists(os.path.join(SRC, p)):
-            errs.append(f"entry {i}: no plaintext page at {os.path.join(SRC, p)}")
+        if p and not os.path.exists(os.path.join(src, p.rstrip("/"), "index.html")):
+            errs.append(f"entry {i}: no plaintext page at {os.path.join(src, p)}")
+        if it.get("test_date") and not DATE_RE.match(it["test_date"]):
+            errs.append(f"entry {i}: test_date must be YYYY-MM-DD or empty")
         for k, v in it.items():
             if isinstance(v, str) and "\u2014" in v:
                 errs.append(f"entry {i}: em dash in {k}")
     if errs:
         sys.exit("manifest problems:\n  " + "\n  ".join(errs))
-    tree = OrderedDict()
-    for it in sorted(items, key=lambda x: (x["grade"], x["subject"], x.get("test_date") or "", x["title"])):
-        tree.setdefault(it["grade"], OrderedDict()).setdefault(it["subject"], []).append(it)
-    e = html.escape
-    parts = []
-    for gi, (g, subs) in enumerate(tree.items()):
-        gnum = g[1:] if g.startswith("G") else g
-        parts.append(f'<section class="grade"><h2>Grade {e(gnum)}</h2>')
-        for si, (s, lst) in enumerate(subs.items()):
-            name, emo = SUBJECTS.get(s, (s, "⭐"))
-            col = COLORS[(gi * 3 + si) % len(COLORS)]
-            parts.append(f'<div class="subj" style="--c:{col}"><h3><span class="emo">{emo}</span> {e(name)}</h3><ul>')
-            for it in lst:
-                date = f'<span class="date">Test: {e(it["test_date"])}</span>' if it.get("test_date") else ""
-                parts.append(f'<li><a href="{e(it["path"])}">{e(it["title"])}</a> {date}</li>')
-            parts.append("</ul></div>")
-        parts.append("</section>")
-    page = TEMPLATE.replace("__BODY__", "\n".join(parts) or "<p>No pages yet.</p>")
-    os.makedirs(SRC, exist_ok=True)
-    open(os.path.join(SRC, "index.html"), "w").write(page)
-    print(f"wrote {os.path.join(SRC, 'index.html')} with {len(items)} entries")
+    return items
 
-TEMPLATE = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Study Hub</title><style>
-body{margin:0;font:18px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#26214a;background:#f4f8ff}
-header{background:linear-gradient(90deg,#1e3a8a,#2f6fed,#06b6d4);color:#fff;padding:22px 18px;text-align:center}
-header h1{margin:0;font-size:32px}header p{margin:4px 0 0;opacity:.9}
-main{max-width:900px;margin:0 auto;padding:18px 14px 50px}
-.grade h2{font-size:26px;margin:18px 0 10px}
-.subj{background:#fff;border-radius:20px;border-top:7px solid var(--c);box-shadow:0 10px 26px rgba(30,40,90,.08);padding:14px 18px;margin-bottom:14px}
-.subj h3{margin:0 0 6px;color:var(--c);font-size:22px}
-ul{margin:0;padding-left:20px}li{margin:8px 0}
-a{color:#1d4ed8;font-weight:700;text-decoration:none}a:hover{text-decoration:underline}
-.date{display:inline-block;font-size:14px;background:#fff7d6;border:1px solid #fde68a;border-radius:999px;padding:1px 10px;margin-left:6px;color:#854d0e}
-.emo{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
-</style></head><body><header><h1><span class="emo">🚀</span> Study Hub</h1><p>Pick a subject and let's learn!</p></header>
-<main>
-__BODY__
-</main></body></html>
-"""
+
+def nice_date(d):
+    if not d:
+        return ""
+    import datetime
+    x = datetime.date.fromisoformat(d)
+    return x.strftime("%a, %b ") + str(x.day)
+
+
+def row(it, base, show_subject=False):
+    s = L.subject(it["subject"])
+    sub = L.short_title(it["title"])
+    rest = it["title"][len(sub):].strip().strip("()").strip()
+    chip = f'<span class="sh-chip">Test {e(nice_date(it["test_date"]))}</span>' if it.get("test_date") else ""
+    lead = f'<span class="sh-mono sh-mono--sm" style="--sh-accent:{s["accent"]};--sh-accent-soft:{s["soft"]}">{e(s["mono"])}</span>' if show_subject else ""
+    subline = (e(s["name"]) + (" &middot; " if rest else "") if show_subject else "") + e(rest)
+    return (f'<li><a class="sh-row sh-reveal" href="{e(base + it["path"])}" data-date="{e(it.get("test_date") or "")}">{lead}'
+            f'<div class="sh-row__main"><div class="sh-row__title">{e(sub)}</div>'
+            f'{"<div class=sh-row__sub>" + subline + "</div>" if subline else ""}</div>{chip}</a></li>')
+
+
+def subject_tiles(g, subs, base):
+    out = []
+    for code, lst in subs.items():
+        s = L.subject(code)
+        dates = sorted(x["test_date"] for x in lst if x.get("test_date"))
+        n = len(lst)
+        out.append(f'<a class="sh-tile sh-reveal" href="{e(base + g + "/" + code + "/")}" style="--sh-accent:{s["accent"]};--sh-accent-soft:{s["soft"]}">'
+                   f'<span class="sh-mono">{e(s["mono"])}</span><span class="sh-tile__title">{e(s["name"])}</span>'
+                   f'<span class="sh-tile__text">{n} {"page" if n == 1 else "pages"}</span>'
+                   f'<span class="sh-tile__foot">Open</span></a>')
+    return '<div class="sh-grid">' + "".join(out) + "</div>"
+
+
+def soon_list(items, base):
+    dated = sorted([x for x in items if x.get("test_date")], key=lambda x: x["test_date"])
+    return ('<ul class="sh-list sh-hide-past" id="soon">' + "".join(row(x, base, True) for x in dated) + "</ul>"
+            '<p class="sh-empty" hidden data-sh-empty>No tests coming up. Nice.</p>')
+
+
+def hero(eyebrow, title, lead, mono=None):
+    m = f'<span class="sh-mono sh-mono--sm">{e(mono)}</span>' if mono else ""
+    return (f'<header class="sh-wrap sh-hero"><p class="sh-eyebrow">{m}{e(eyebrow)}</p>'
+            f'<h1>{e(title)}</h1><p class="sh-lead">{e(lead)}</p></header>')
+
+
+def panels(tabs):
+    """tabs: list of (id, label, html)."""
+    seg = L.segmented([(i, l) for i, l, _ in tabs])
+    body = "".join(f'<section class="sh-panel sh-wrap" id="p-{i}" role="tabpanel" aria-labelledby="t-{i}">{h}</section>' for i, l, h in tabs)
+    return seg + body
+
+
+def main():
+    src = L.default_src()
+    items = load_manifest(src)
+    tree = OrderedDict()
+    for it in sorted(items, key=lambda x: (x["grade"], x["subject"], x.get("test_date") or "9999", x["title"])):
+        tree.setdefault(it["grade"], OrderedDict()).setdefault(it["subject"], []).append(it)
+    os.makedirs(src, exist_ok=True)
+    kid = L.CFG.get("kid_first_name", "")
+    written = []
+
+    # Home
+    subj_html = ""
+    for g, subs in tree.items():
+        subj_html += (f'<div class="sh-section"><div class="sh-grade-head"><h2>{e(L.grade_name(g))}</h2><a href="{e(g)}/">See all</a></div>'
+                      + subject_tiles(g, subs, "") + "</div>")
+    all_html = ""
+    for g, subs in tree.items():
+        for code, lst in subs.items():
+            all_html += f'<div class="sh-section"><h3>{e(L.grade_name(g))} &middot; {e(L.subject(code)["name"])}</h3><ul class="sh-list">' + "".join(row(x, "") for x in lst) + "</ul></div>"
+    body = hero(f"{kid}'s Study Hub" if kid else "Study Hub", "What will we learn today?",
+                "Pick a subject. Learn the ideas, practice, then try a mock test.")
+    body += panels([("subjects", "Subjects", subj_html or '<p class="sh-empty">No pages yet.</p>'),
+                    ("soon", "Coming up", '<div class="sh-section">' + soon_list(items, "") + "</div>"),
+                    ("all", "All pages", all_html)])
+    open(os.path.join(src, "index.html"), "w", encoding="utf-8").write(L.page("index.html", L.CFG["site_title"], body))
+    written.append("index.html")
+
+    for g, subs in tree.items():
+        gi = [x for x in items if x["grade"] == g]
+        body = hero("Study Hub", L.grade_name(g), "Choose a subject.")
+        body += panels([("subjects", "Subjects", '<div class="sh-section">' + subject_tiles(g, subs, "../") + "</div>"),
+                        ("soon", "Coming up", '<div class="sh-section">' + soon_list(gi, "../") + "</div>")])
+        os.makedirs(os.path.join(src, g), exist_ok=True)
+        open(os.path.join(src, g, "index.html"), "w", encoding="utf-8").write(L.page(f"{g}/index.html", L.grade_name(g), body))
+        written.append(f"{g}/index.html")
+        for code, lst in subs.items():
+            s = L.subject(code)
+            n = len(lst)
+            lid = "list"
+            seg = ('<div class="sh-tabsbar"><div class="sh-wrap"><div class="sh-seg" role="group" aria-label="Show" data-sh-filter="%s">'
+                   '<button type="button" data-f="all" aria-selected="true">All</button>'
+                   '<button type="button" data-f="soon" aria-selected="false">Coming up</button>'
+                   '<button type="button" data-f="past" aria-selected="false">Done</button>'
+                   '<button type="button" data-f="none" aria-selected="false">Any time</button></div></div></div>') % lid
+            body = hero(L.grade_name(g), s["name"], f"{n} {'page' if n == 1 else 'pages'}. Open one to learn, practice, and test yourself.", s["mono"])
+            body += seg + (f'<section class="sh-wrap sh-section"><ul class="sh-list" id="{lid}">' + "".join(row(x, "../../") for x in lst)
+                           + '</ul><p class="sh-empty" hidden>Nothing here.</p></section>')
+            os.makedirs(os.path.join(src, g, code), exist_ok=True)
+            open(os.path.join(src, g, code, "index.html"), "w", encoding="utf-8").write(L.page(f"{g}/{code}/index.html", s["name"], body, code=code))
+            written.append(f"{g}/{code}/index.html")
+    print(f"wrote {len(written)} hub pages into {src} from {len(items)} manifest entries")
+
 
 if __name__ == "__main__":
     main()
