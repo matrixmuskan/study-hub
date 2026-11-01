@@ -92,4 +92,18 @@ check("B7: localStorage-only quiz fails", any("localStorage" in x for x in V.b7_
 page_ok = '<script type="application/json" id="sh-data">{"quizzes":[{"questions":[]}],"log":true}</script><script>var SHLog=1</script>'
 check("B7: quiz page with logger passes", V.b7_problems(page_ok) == [])
 check("B7: page with no quiz passes", V.b7_problems("<p>hello</p>") == [])
+# every Contents API write is made as Study Hub Bot (never the token owner)
+import sh_scores as SC
+_sent = []
+_saved = (SC.local_dir, SC.get, SC._req)
+SC.local_dir = lambda: None
+SC.get = lambda path: None
+SC._req = lambda method, url, body=None, tries=3: (_sent.append((method, body)) or (201, {}))
+try:
+    SC.put("G3/T/x.json", b"{}", "test")
+finally:
+    SC.local_dir, SC.get, SC._req = _saved
+bot = {"name": "Study Hub Bot", "email": "study-hub-bot@users.noreply.github.com"}
+check("sh_scores.put sets author and committer to Study Hub Bot",
+      len(_sent) == 1 and _sent[0][0] == "PUT" and _sent[0][1].get("committer") == bot and _sent[0][1].get("author") == bot)
 print("provenance public-rule tests passed (%d)" % n)

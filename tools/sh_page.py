@@ -145,6 +145,8 @@ def render_block(b, base, quizzes, sec_id):
                     fail(f"quiz question {n}: 'answer' must be the index of the right option")
             elif "answer_text" not in q:
                 fail(f"quiz question {n} needs 'options' plus 'answer', or 'answer_text'")
+        for n, q in enumerate(qs, 1):   # item id: what the logger sends for a missed question (privacy v3, no text)
+            q["id"] = q.get("id") or "q%d-%d" % (len(quizzes) + 1, n)
         quizzes.append({"kind": kind, "mode": b.get("mode", "practice" if kind == "game" else "test"), "section": sec_id,
                         "questions": qs})
         head = ("<h2>%s</h2>" % e(b["title"])) if b.get("title") else ""

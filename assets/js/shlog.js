@@ -1,6 +1,6 @@
 /* SHLog v1: study-hub score logger. Dependency-free. Paste inside the page's <script>.
    SHLog.init({grade:'G3', subject:'WW', lesson:'Lesson8', token:'(build-time placeholder, see README)'})
-   SHLog.record({kind:'mock'|'game'|'retest', score, total, missed:[{q,word,sense,picked,correct,trap}], details:{}})
+   SHLog.record({kind:'mock'|'game'|'retest', score, total, missed:[{n,id,picked,correct}], details:{numbers, booleans, ids}})
    Writes one JSON file per attempt to matrixmuskan/study-hub-scores via the GitHub contents API.
    Queue first (localStorage 'shlog_queue'), then PUT. Never throws, never blocks the page. */
 var SHLog=(function(){
@@ -33,7 +33,7 @@ var SHLog=(function(){
   function put(item){
     return fetch(API+item.path.split('/').map(encodeURIComponent).join('/'),{method:'PUT',
       headers:{'Authorization':'Bearer '+cfg.token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'},
-      body:JSON.stringify({message:item.message,content:item.content})})
+      body:JSON.stringify({message:item.message,content:item.content,committer:BOT,author:BOT})})
     .then(function(r){return r.status},function(){return 0})}
   function flush(){
     try{
@@ -53,43 +53,25 @@ var SHLog=(function(){
       }
       return Promise.resolve(next()).catch(function(){busy=false;return {sent:sent,left:load().length}});
     }catch(e){busy=false;return Promise.resolve({sent:0,left:-1})}}
-  /*sh-privacy v2*/
-  // Privacy: a typed (free-text) answer is logged as its first 40 characters only. Option picks ('B. ...') stay whole.
-  function cut(v){v=String(v);return v.length>40?v.slice(0,40)+'...':v}
-  function clean(m){m=m||{};var o={};['n','part','q','word','sense','topic','picked','correct','trap','type'].forEach(function(k){if(m[k]!==undefined)o[k]=m[k]});
-    if(typeof o.picked==='string'&&!/^[A-H][.)] /.test(o.picked))o.picked=cut(o.picked);return o}
-  // Privacy: a word (or 2-3 word run) whose salted SHA-256 is on the page's private list becomes [name] before anything
-  // leaves the page. The page holds only the hashes (JSON element with id sh-redact, written by tools/sh_stage.py from
-  // STUDY_HUB_BLOCKLIST and kid_first_name), never the words themselves.
-  function sha256(s){s=unescape(encodeURIComponent(s));var K=[],H=[],i,j,p=2,n=0,w=[],l=s.length*8;
-    function f(x){return (x-Math.floor(x))*4294967296|0}
-    function r(x,k){return (x>>>k)|(x<<(32-k))}
-    while(n<64){for(j=2;j*j<=p;j++)if(p%j===0)break;if(j*j>p){if(n<8)H[n]=f(Math.pow(p,1/2));K[n++]=f(Math.pow(p,1/3))}p++}
-    s+='\x80';while(s.length%64!==56)s+='\x00';
-    for(i=0;i<s.length;i++)w[i>>2]|=s.charCodeAt(i)<<(24-(i%4)*8);
-    w.push(0,l);
-    for(i=0;i<w.length;i+=16){var W=w.slice(i,i+16),a=H.slice(0);
-      for(j=0;j<64;j++){if(j>=16){var x=W[j-15],y=W[j-2];W[j]=(W[j-16]+(r(x,7)^r(x,18)^(x>>>3))+W[j-7]+(r(y,17)^r(y,19)^(y>>>10)))|0}
-        var t1=(a[7]+(r(a[4],6)^r(a[4],11)^r(a[4],25))+((a[4]&a[5])^(~a[4]&a[6]))+K[j]+W[j])|0,
-            t2=((r(a[0],2)^r(a[0],13)^r(a[0],22))+((a[0]&a[1])^(a[0]&a[2])^(a[1]&a[2])))|0;
-        a=[(t1+t2)|0].concat(a.slice(0,7));a[4]=(a[4]+t1)|0}
-      for(j=0;j<8;j++)H[j]=(H[j]+a[j])|0}
-    var o='';for(j=0;j<8;j++)o+=('0000000'+(H[j]>>>0).toString(16)).slice(-8);return o}
-  function redact(t){
-    try{var el=document.getElementById('sh-redact'),c=el?JSON.parse(el.textContent):null,set={},toks=[],spans=[],i,n,m;
-      if(c&&c.h&&c.h.length){var N=c.n||1,W='A-Za-z0-9\u00C0-\u024F\'\u2019',re=new RegExp('\\\\(?:u[0-9a-fA-F]{4}|[^u])|['+W+']+','g'),
-          one=new RegExp('^['+W+']+(?: ['+W+']+)*$');
-        c.h.forEach(function(x){set[x]=1});
-        var hit=function(w){w=w.toLowerCase().replace(/['\u2019]+$/,'');if(set[sha256(c.salt+':'+w)])return true;
-          var b=w.replace(/['\u2019]s$/,'');return b!==w&&!!set[sha256(c.salt+':'+b)]};
-        while((m=re.exec(t)))if(m[0].charAt(0)!=='\\')toks.push([m.index,m[0].length]);
-        for(i=0;i<toks.length;i++)for(n=Math.min(N,toks.length-i);n>=1;n--){
-          var s0=toks[i][0],e0=toks[i+n-1][0]+toks[i+n-1][1],seg=t.slice(s0,e0);
-          if(n>1&&!one.test(seg))continue;
-          if(hit(seg)){spans.push([s0,e0]);i+=n-1;break}}
-        for(i=spans.length-1;i>=0;i--)t=t.slice(0,spans[i][0])+'[name]'+t.slice(spans[i][1])}
-    }catch(x){}
-    return t}
+  /*sh-privacy v3*/
+  // Privacy: the logger sends no free text at all. A missed item is sent as its number, its item id, the picked and the
+  // right option letters, and two booleans (blank, typed). A typed answer is never sent, and neither is question text.
+  // details keep only numbers, booleans and short ids. Commits are made as Study Hub Bot, never as a person.
+  var BOT={name:'Study Hub Bot',email:'study-hub-bot@users.noreply.github.com'};
+  function idv(v){v=v==null?'':String(v);return /^[A-Za-z0-9_.:-]{1,40}$/.test(v)?v:null}
+  function letter(v){if(typeof v==='number')return v>=0&&v<8&&v%1===0?'ABCDEFGH'.charAt(v):null;
+    var m=/^\s*([A-H])(?:[.)](?:\s|$)|\s*$)/.exec(v==null?'':String(v));return m?m[1]:null}
+  function clean(m){m=m||{};var o={},id=idv(m.id),pk=m.picked,b=pk==null||String(pk).trim()===''||String(pk)==='(blank)';
+    if(+m.n>0)o.n=Math.floor(+m.n);if(id)o.id=id;
+    if(!b&&letter(pk))o.picked=letter(pk);if(letter(m.correct))o.correct=letter(m.correct);
+    o.blank=m.blank===true||b;o.typed=typeof m.typed==='boolean'?m.typed:(!o.blank&&!o.picked);return o}
+  function facts(d,depth){var o={};depth=depth||0;if(!d||typeof d!=='object'||depth>2)return o;
+    Object.keys(d).slice(0,50).forEach(function(k){var v=d[k],key=idv(k);if(!key)return;
+      if(typeof v==='number'&&isFinite(v)||typeof v==='boolean')o[key]=v;
+      else if(typeof v==='string'&&idv(v))o[key]=v;
+      else if(Array.isArray(v))o[key]=v.slice(0,50).filter(function(x){return typeof x==='number'&&isFinite(x)||typeof x==='boolean'||(typeof x==='string'&&idv(x))});
+      else if(v&&typeof v==='object')o[key]=facts(v,depth+1)});
+    return o}
   /*sh-privacy end*/
   function record(r){
     try{
@@ -99,10 +81,10 @@ var SHLog=(function(){
       var path=[seg(cfg.grade),seg(cfg.subject),seg(cfg.lesson),stamp(d)+'-'+kind+'-'+rand4()+'.json'].join('/');
       var payload={v:1,grade:cfg.grade,subject:cfg.subject,lesson:cfg.lesson,kind:kind,score:score,total:total,
         pct:total?Math.round(score*1000/total)/10:null,
-        missed:(r.missed||[]).map(clean),details:r.details||{},
+        missed:(r.missed||[]).map(clean),details:facts(r.details),
         clientTime:isoLocal(d),tz:(function(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone}catch(e){return ''}})(),
         page:pagePath()};
-      var item={path:path,message:cfg.grade+' '+cfg.subject+' '+cfg.lesson+' '+kind+' '+score+'/'+total,content:b64(redact(JSON.stringify(payload,null,1))+'\n'),tries:0};
+      var item={path:path,message:cfg.grade+' '+cfg.subject+' '+cfg.lesson+' '+kind+' '+score+'/'+total,content:b64(JSON.stringify(payload,null,1)+'\n'),tries:0};
       var q=load();q.push(item);store(q);
       setTimeout(flush,0);
       return {path:path,payload:payload};

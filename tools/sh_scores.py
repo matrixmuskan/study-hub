@@ -85,6 +85,9 @@ def _sha(path):
     return d.get("sha") if st == 200 and isinstance(d, dict) else None
 
 
+BOT = {"name": "Study Hub Bot", "email": "study-hub-bot@users.noreply.github.com"}
+
+
 def put(path, data, message):
     """Create or update one file. Returns 'created', 'updated' or 'same'."""
     if isinstance(data, str):
@@ -97,7 +100,8 @@ def put(path, data, message):
         os.makedirs(os.path.dirname(p), exist_ok=True)
         open(p, "wb").write(data)
         return "updated" if old is not None else "created"
-    body = {"message": message, "content": base64.b64encode(data).decode()}
+    # Every commit in study-hub-scores is made as Study Hub Bot, never as the token owner.
+    body = {"message": message, "content": base64.b64encode(data).decode(), "committer": dict(BOT), "author": dict(BOT)}
     sha = _sha(path) if old is not None else None
     if sha:
         body["sha"] = sha

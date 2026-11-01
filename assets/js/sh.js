@@ -102,8 +102,9 @@ var SH=(function(){
         if(finished)return;finished=true;
         var f=$('[data-finish]',root);if(f)f.disabled=true;
         var score=0,missed=[];
-        qs.forEach(function(q,i){var st=state[i];if(isRight(q,st))score++;else missed.push({n:i+1,q:q.q,word:q.word,sense:q.sense,topic:q.topic,trap:q.trap,
-          picked:q.options?(st.pick==null?'(blank)':LET[st.pick]+'. '+q.options[st.pick]):(String(st.pick||'').trim()||'(blank)'),correct:rightText(q)})});
+        qs.forEach(function(q,i){var st=state[i];if(isRight(q,st))score++;else missed.push({n:i+1,id:q.id||('q'+(i+1)),
+          picked:q.options&&st.pick!=null?LET[st.pick]:null,correct:q.options?LET[q.answer]:null,
+          blank:st.pick==null||String(st.pick).trim()==='',typed:!q.options})});
         var sc=$('.sh-score',root);sc.hidden=false;
         var pct=qs.length?Math.round(100*score/qs.length):0;
         sc.innerHTML='<div class="sh-score__big">'+score+' / '+qs.length+'</div><div class="sh-score__text">'+(pct>=90?'Excellent work.':pct>=70?'Good work. Look again at the red ones.':'Keep going. Read the red ones, then try again.')+'</div><div class="sh-actions" style="justify-content:center"><button type="button" class="sh-btn sh-btn--ghost" data-again>Try again</button></div>';

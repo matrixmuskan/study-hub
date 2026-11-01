@@ -357,19 +357,25 @@ def md(text):
 
 
 # ---------- score logger privacy (applied at publish time to every page that logs) ----------
-# The page gets only salted SHA-256 hashes of the lowercase private words (never the words, never base64 of them).
+# Privacy v3: the logger sends no free text. A missed item is its number, item id, option letters and 2 booleans;
+# details keep numbers, booleans and short ids. No private-word list (plain, hashed or encoded) is on any page.
 _CLEAN_RE = re.compile(r"function clean\(m\)\{m=m\|\|\{\};var o=\{\};\[[^\]]*\]\.forEach\(function\(k\)\{if\(m\[k\]!==undefined\)o\[k\]=m\[k\]\}\);(?:\s*if\(typeof o\.picked[^\n]*?)?return o\}")
 _REDACT_RE = re.compile(r"function redact\(t\)\{.*?return t\}", re.S)
 _CUT_RE = re.compile(r"function cut\(v\)\{[^\n]*?\}\s*")
 _PRIV_RE = re.compile(r"/\*sh-privacy v\d+\*/.*?/\*sh-privacy end\*/", re.S)
 _OLD_COMMENT_RE = re.compile(r"[ \t]*// Privacy:[^\n]*\n(?:[ \t]*//[^\n]*\n)*")
-REDACT_ELEM_RE = re.compile(r'<script type="application/json" id="sh-redact">(.*?)</script>', re.S)
-PRIVACY_VERSION = "/*sh-privacy v2*/"
+REDACT_ELEM_RE = re.compile(r'[ \t]*<script type="application/json" id="sh-redact">(.*?)</script>\n?', re.S)
+PRIVACY_VERSION = "/*sh-privacy v3*/"
 STAGE_MARK = ".sh-staged"
+_PUT_OLD = "body:JSON.stringify({message:item.message,content:item.content})"
+_PUT_NEW = "body:JSON.stringify({message:item.message,content:item.content,committer:BOT,author:BOT})"
+_REC_OLD = ("content:b64(redact(JSON.stringify(payload,null,1))+'\\n')", "content:b64(JSON.stringify(payload,null,1)+'\\n')")
+BOT_IDENTITY = {"name": "Study Hub Bot", "email": "study-hub-bot@users.noreply.github.com"}
 
 
 def redact_terms(blocklist=""):
-    """Lowercase private terms: every alternative of STUDY_HUB_BLOCKLIST plus kid_first_name from tools/sh_config.json."""
+    """Lowercase private terms: every alternative of STUDY_HUB_BLOCKLIST plus kid_first_name from tools/sh_config.json.
+    Used by the plaintext scans (R7, the error-log scan), never written to a page."""
     terms = set()
     for t in re.split(r"\|", blocklist or ""):
         t = re.sub(r"\\b|[()^$?*+\[\]{}\\]", "", t).strip().lower()
@@ -381,31 +387,13 @@ def redact_terms(blocklist=""):
     return sorted(terms)
 
 
-def redact_salt(rel_path=""):
-    import hashlib
-    return hashlib.sha256(("sh-redact-v2|" + (rel_path or "")).encode()).hexdigest()[:32]
-
-
-def redact_hash(salt, term):
-    import hashlib
-    return hashlib.sha256((salt + ":" + term.lower()).encode("utf-8")).hexdigest()
-
-
-def redact_element(blocklist="", rel_path=""):
-    terms = redact_terms(blocklist)
-    salt = redact_salt(rel_path)
-    val = {"v": 2, "salt": salt, "n": max([len(t.split(" ")) for t in terms] + [1]),
-           "h": sorted(redact_hash(salt, t) for t in terms)}
-    return '<script type="application/json" id="sh-redact">%s</script>' % json.dumps(val, separators=(",", ":"))
-
-
 def _privacy_block():
     return _PRIV_RE.search(asset("js/shlog.js")).group(0)
 
 
 def patch_logger(h, blocklist="", rel_path=""):
-    """Bring every inline copy of SHLog up to the current privacy rules (40-character typed answers, hashed name
-    redaction) and write the page's private hash list (the real element, matched with a regex)."""
+    """Bring every inline copy of SHLog up to privacy v3 (no free text, bot commit identity) and remove the old
+    sh-redact hash list. blocklist and rel_path are unused (kept for callers)."""
     if "var SHLog=" not in h:
         return h
     start = h.find("var SHLog=")
@@ -422,19 +410,16 @@ def patch_logger(h, blocklist="", rel_path=""):
         body = _REDACT_RE.sub("", body, count=1)
         body = _CLEAN_RE.sub("", body, count=1)
         body = body.replace("function record(r){", block.strip() + "\n  function record(r){", 1)
-    body = body.replace("content:b64(JSON.stringify(payload,null,1)+'\\n')", "content:b64(redact(JSON.stringify(payload,null,1))+'\\n')")
+    body = body.replace(*_REC_OLD)
+    body = body.replace("details:r.details||{}", "details:facts(r.details)")
+    body = body.replace(_PUT_OLD, _PUT_NEW)
     h = h[:start] + body + h[end:]
-    tag = redact_element(blocklist, rel_path)
-    if REDACT_ELEM_RE.search(h):
-        h = REDACT_ELEM_RE.sub(lambda m: tag, h, count=1)
-    else:
-        k = h.lower().rfind("</body>")
-        h = (h[:k] + tag + "\n" + h[k:]) if k >= 0 else h + tag
-    return h
+    return REDACT_ELEM_RE.sub("", h)
 
 
 def logger_problems(h, blocklist=""):
-    """Empty list when every SHLog copy in the page has the current privacy rules and a real, non-empty hash list."""
+    """Empty list when the page's SHLog copy has privacy v3: clean() and facts() on everything sent, no redact code,
+    bot commit identity, and no sh-redact element."""
     if "var SHLog=" not in h:
         return []
     out = []
@@ -442,26 +427,12 @@ def logger_problems(h, blocklist=""):
         out.append("more than one SHLog copy")
     i = h.find("var SHLog=")
     body = h[i:h.find("return {init:init", i)]
-    if PRIVACY_VERSION not in body or "function cut(v)" not in body or "o.picked=cut(o.picked)" not in body \
-            or "function sha256(s)" not in body or "content:b64(redact(" not in body:
-        out.append("logger does not have the current privacy code (sh-privacy v2)")
-    m = REDACT_ELEM_RE.findall(h)
-    if len(m) != 1:
-        out.append("needs exactly one real sh-redact element (found %d)" % len(m))
-    else:
-        try:
-            v = json.loads(m[0])
-            if not isinstance(v, dict):
-                raise ValueError("not an object")
-            hs = v.get("h") or []
-            if not v.get("salt") or not all(re.fullmatch(r"[0-9a-f]{64}", x) for x in hs):
-                out.append("sh-redact element is not a salted hash list")
-            elif blocklist and len(hs) < len(redact_terms(blocklist)):
-                out.append("sh-redact hash list is empty or short (%d hashes, %d private terms)" % (len(hs), len(redact_terms(blocklist))))
-            elif not hs:
-                out.append("sh-redact hash list is empty")
-        except ValueError:
-            out.append("sh-redact element is not JSON (old base64 list?)")
+    need = [PRIVACY_VERSION, "function clean(m)", "function facts(d,depth)", "missed:(r.missed||[]).map(clean)",
+            "details:facts(r.details)", _PUT_NEW, _REC_OLD[1]]
+    if not all(x in body for x in need) or "redact(" in body or "function sha256(" in body:
+        out.append("logger does not have the current privacy code (sh-privacy v3: no free text, bot identity)")
+    if REDACT_ELEM_RE.search(h):
+        out.append("page still has an sh-redact element (privacy v3 has no private-word list)")
     return out
 
 

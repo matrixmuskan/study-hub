@@ -121,7 +121,7 @@ For a comic, a `.jpg` or `.webp` at about 1200 px wide is usually much smaller t
    - `options` (a list) and `answer` (the index of the right option, starting at 0).
    - `answer_text` (a string or a list of strings that are correct). Add `"numeric": true` for a number keyboard.
 4. Add `explain` to show a short reason after the answer.
-5. Add `word`, `sense`, `topic`, or `trap` when they help. The logger sends them for missed questions.
+5. Add `word`, `sense`, `topic`, or `trap` when they help the page. The logger does not send them (privacy v3): a missed question is sent by its item id, and the build record in study-hub-scores maps the id back to the question.
 6. Do not put names or private information in questions.
 
 When the child finishes a quiz, the page calls `SHLog.record`. The logger writes one file to the private repo `matrixmuskan/study-hub-scores`:
@@ -196,11 +196,11 @@ Do these checks before each push:
 8. A page folder holds a file that is not `index.html`.
 9. A page uses purple or violet, a gradient with more than one color, or a color outside the palette (white, grays, the one accent `#0066cc`, and the green, red, and amber status colors). Older pages get the palette applied for them at publish time. A new page from `sh_page.py` must pass as written.
 10. A link, an anchor (`#id`), an image, a video, a poster, or a captions file does not work. Every `data:` URI must decode and have the right MIME type. Every video must have H.264 (or VP9 or AV1) video and AAC (or Opus) audio. Every manifest page must have a link on its subject hub page.
-11. A page that logs scores does not have the privacy rules (privacy v2). Typed answers must be cut to 40 characters. The page must have exactly one real `sh-redact` JSON element that holds only salted SHA-256 hashes of the lowercase private words (one per word in `STUDY_HUB_BLOCKLIST` plus the first name). The logger splits each attempt into words, hashes each word with the same salt, and writes `[name]` for a match. The words themselves, or base64 of them, are never in a page. `tools/sh_stage.py` writes this element at publish time, so do not write it by hand. The only reference logger is `assets/js/shlog.js`.
+11. A page that logs scores does not have the privacy rules (privacy v3). The logger sends no free text at all: no question text, no typed answer, no option text. A missed item is sent as its number `n`, its item id `id` (`q<quiz>-<n>`, which `sh_page.py` gives each question), the `picked` and `correct` option letters, and the booleans `blank` and `typed`. `details` keep only numbers, booleans and short ids. Each file is committed as Study Hub Bot. No page holds a private-word list in any form (no `sh-redact` element). `tools/sh_stage.py` brings older logger copies up to v3 at publish time. The only reference logger is `assets/js/shlog.js`.
 
 `validate.py --src <dir>` runs only on staged output (a folder made by `tools/sh_stage.py`, as `publish.sh` does). It refuses the raw mirror with a clear message, because older pages in the mirror get their skin and logger patch only at stage time. To check by hand: `python3 tools/sh_stage.py <mirror> <tmpdir> && python3 tools/validate.py --src <tmpdir>`, then delete `<tmpdir>`.
 
-To test the redaction in pages: `node tools/test_redact.js <decrypted or staged pages>` (it reads `STUDY_HUB_BLOCKLIST` from the env and prints counts only).
+To test the logger privacy in pages: `node tools/test_redact.js <decrypted or staged pages>`. It records an attempt full of free text and private words (from `STUDY_HUB_BLOCKLIST` in the env) and checks that only ids, letters, numbers and booleans leave the page, as Study Hub Bot. It prints counts only.
 
 Provenance (section 11):
 
@@ -316,3 +316,7 @@ format vs 2 school test(s):                        mock  school
 
 3. The mock must match within these limits (`F1_TOL` in `tools/sh_provenance.py`): question count within 20% or 3 questions (the larger), share of multiple-choice questions within 15 points, options per question within 0.5, words per question within 40%.
 4. Out of range gives a warning from `sh_page.py` and from `publish.sh` (`WARNING: F1 ...`). It does not stop the build, because a coach can have a reason (for example a short practice mock). Write the reason in the coach SOURCE file. Basy reads the warnings.
+
+### 11.6 Pages from before the rules (attach)
+
+A page in `legacy_provenance` that was not built with `sh_page.py` can get a record without a rebuild. Write a fragment `{"page", "provenance": {"sources", "results_ingested", "weak_spots_from"}, "questions": [{"id", "q", "src" or "inferred": true, "retests"}], "prompts"}` (for example `/workspace/ss/provenance/Final1-Ch1-2-8.provenance.json`), then run `python3 tools/sh_provenance.py attach <fragment.json>` on the box. It checks the fragment (B1, B2, P2, real `retests` ids, B6), writes the record with `"attached": true` to study-hub-scores, adds the hash and counts to the manifest entry, and takes the page out of `legacy_provenance`. Commit `manifest.json` and `tools/sh_config.json` in a PR. B3, B4 and the B5 rotation do not apply to an attached record, because they are rules for new builds. `attach` refuses a page that is not in `legacy_provenance`, and the list can only get shorter.

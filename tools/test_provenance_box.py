@@ -125,6 +125,22 @@ check("B6: last_correct_dates must list the days", P.box_problems(entry, S), "B6
 log([ROW1, ROW2])
 check("fixture passes again after the fixes", P.box_problems(entry, S))
 
+# attach: a record for a page that existed before the rules (no B3/B4/B5 rotation; B1, B2, retests ids and B6 apply)
+frag = {"page": "G3/Sci/Old/", "provenance": {"sources": [{"id": "file:" + src, "kind": "word_list", "sha256": SRC_SHA}]},
+        "questions": [{"id": "Q1", "q": "What does melt mean?", "src": "file:%s#row=2" % src, "retests": ["Sci-2"]},
+                      {"id": "Q2", "q": "Which is a solid?", "src": "file:%s#row=2" % src}]}
+OLD = {"path": "G3/Sci/Old/", "grade": "G3", "subject": "Sci", "added_by": "fixture"}
+raw, pr = P.attach_record(frag, OLD, S, "2026-10-31T10:00:00-07:00")
+rec = json.loads(raw)
+check("attach: an old page with sourced questions attaches (B3/B4/B5 rotation do not apply)",
+      pr + ([] if rec["attached"] and P.manifest_fields(raw)["n_questions"] == 2 and rec["questions"][0]["id"] == "Q1" else ["bad record"]))
+bad = copy.deepcopy(frag); bad["questions"][1]["src"] = "file:/nope.csv#row=1"
+pr = P.attach_record(bad, OLD, S, "2026-10-31T10:00:00-07:00")[1]
+check("attach: a question whose src is not a listed source fails", [] if any("src" in m for m in pr) else ["no problem found: %s" % pr])
+bad = copy.deepcopy(frag); bad["questions"][0]["retests"] = ["Sci-77"]
+pr = P.attach_record(bad, OLD, S, "2026-10-31T10:00:00-07:00")[1]
+check("attach: retests must name real error-log rows", [] if any("Sci-77" in m for m in pr) else ["no problem found: %s" % pr])
+
 # ---------- B5 rotation: fixture subject 'Math' with 20 open rows ----------
 MSRC = os.path.join(T, "math.csv"); open(MSRC, "w").write("fact\n1+1=2\n")
 MSHA = hashlib.sha256(open(MSRC, "rb").read()).hexdigest()
@@ -177,6 +193,12 @@ need3 = IDS[10:15] + IDS[:10]
 pr = P.box_problems(publish(mpage("W3", need3, weak=(AM,)), "2026-10-31T10:00:00-07:00"), S)
 check("B5 (c): a row missed again since the last build must be re-tested", [] if b5(pr) and all("(c) row M-18" in m for _, m in b5(pr)) else ["got %s" % pr])
 check("B5 (c): passes when it is re-tested", P.box_problems(publish(mpage("W3", need3 + ["M-18"], weak=(AM,)), "2026-10-31T10:00:00-07:00"), S))
+# the same with a privacy v3 attempt: no question text, only the item id (W2 question 3 re-tests M-18)
+w(AM, {"lesson": "W2", "clientTime": "2026-10-29T17:00:00.000-07:00", "missed": [{"n": 3, "id": "q1-3", "picked": "B", "correct": "A", "blank": False, "typed": False}]})
+pr = P.box_problems(publish(mpage("W3", need3, weak=(AM,)), "2026-10-31T10:00:00-07:00"), S)
+check("B5 (c): a v3 attempt (item id, no text) that missed the row's question is found", [] if b5(pr) and all("(c) row M-18" in m for _, m in b5(pr)) else ["got %s" % pr])
+w(AM, {"lesson": "W2", "clientTime": "2026-10-29T17:00:00.000-07:00", "missed": [{"n": 16, "id": "q1-16", "picked": "B", "correct": "A", "blank": False, "typed": False}]})
+check("B5 (c): a v3 attempt that missed only the warm-up (no retests) does not count", P.box_problems(publish(mpage("W3", need3, weak=(AM,)), "2026-10-31T10:00:00-07:00"), S))
 
 # (b) with a smaller minimum, so the 3-build window bites on its own
 P.B5_MIN = 1
