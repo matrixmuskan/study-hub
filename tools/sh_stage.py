@@ -36,12 +36,14 @@ def main():
                 out, how = L.refresh(h, rel), "refresh-legacy"
             else:
                 out, how = L.wrap_legacy(h, rel, titles.get(rel)), "skin"
-            out = L.patch_logger(out, os.environ.get("STUDY_HUB_BLOCKLIST", ""))
+            out = L.patch_logger(out, os.environ.get("STUDY_HUB_BLOCKLIST", ""), rel)
             dst = os.path.join(stage, rel)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             open(dst, "w", encoding="utf-8").write(out)
             n += 1
             print(f"{how:15s} {rel}")
+    # Marker: validate.py --src runs only on a folder made here (the raw mirror is not staged output).
+    open(os.path.join(stage, L.STAGE_MARK), "w").write(L.VERSION + "\n")
     print(f"staged {n} pages")
 
 

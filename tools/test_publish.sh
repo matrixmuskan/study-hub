@@ -3,7 +3,9 @@
 # and a dummy password, so it never touches the real pages or the real password.
 #   1. a good sample page (text + image + video) must publish and commit, with the 'Validated: sh-2' trailer;
 #   2. a page with a purple gradient must be refused (no commit);
-#   3. a page with a broken link must be refused (no commit).
+#   3. a page with a broken link must be refused (no commit);
+#   4. an sh-2 page with the score logger must publish with a hashed private-word list, and its own logger must turn
+#      each private word into [name] (node, tools/test_redact.js) with no base64 or plain copy of the words in the page.
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 T="$(mktemp -d "${TMPDIR:-/tmp}/sh-e2e.XXXXXX")"
@@ -15,6 +17,8 @@ cd "$WT"
 git config user.name "Study Hub Bot"; git config user.email "study-hub-bot@users.noreply.github.com"
 export PYTHONUSERBASE="${PYTHONUSERBASE:-$HOME/.local}" npm_config_cache="${npm_config_cache:-$HOME/.npm}"
 export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}"
+# Browser: sh_browsercheck.py tries Playwright's Chromium, then /usr/bin/google-chrome. Say which one up front.
+python3 "$REPO/tools/sh_browsercheck.py" --probe || { [ "${CI:-}" = "true" ] || { echo "FAIL: no browser for the publish test"; exit 1; }; }
 export HOME="$T/home"; mkdir -p "$HOME"            # no ~/.study-hub.env: only the dummy password below
 export STATICRYPT_PASSWORD="ci-dummy-$RANDOM-$RANDOM-pw" STUDY_HUB_SRC="$T/src" STUDY_HUB_BLOCKLIST=""
 unset STUDY_HUB_SCORES_TOKEN || true
@@ -90,4 +94,39 @@ for bad in purple broken; do
   ok "$bad page refused ($(grep -m1 -E 'BROKEN|DESIGN' "$T/out-$bad.txt" | cut -c1-110))"
 done
 git checkout -q manifest.json
+
+# 4. logger page: private words are redacted by the page's own logger, and the page holds only hashes
+# The two dummy private words are built at run time, so this file does not hold them (R7 scans tools/ too).
+export STUDY_HUB_BLOCKLIST="Zorb""laxion|Quint""aviusz" STUDY_HUB_SCORES_TOKEN="ci-dummy-scores-token"
+python3 - "$T/content" <<'PY2'
+import json, os, sys
+c = {"grade": "G3", "subject": "SS", "id": "CI-Logger", "title": "CI logger page", "added_by": "CI", "sections": [
+     {"id": "quiz", "label": "Quiz", "blocks": [{"type": "quiz", "kind": "mock", "questions": [
+       {"q": "Pick B.", "options": ["A", "B"], "answer": 1, "topic": "t"},
+       {"q": "Type a word.", "answer_text": ["yes"], "topic": "t"}]}]}]}
+json.dump(c, open(os.path.join(sys.argv[1], "logger.json"), "w"))
+PY2
+python3 tools/sh_page.py "$T/content/logger.json" >/dev/null
+tools/publish.sh "CI: logger page" > "$T/out4.txt" 2>&1 || { cat "$T/out4.txt"; die "publish.sh failed on the logger page"; }
+git log -1 --format=%B | grep -qx "Validated: sh-2" || die "logger page commit has no trailer"
+python3 - "$WT" "$T/logger-plain.html" <<'PY2' || die "logger page: hash list missing, or private words in plain/base64 form"
+import os, sys, json
+sys.path.insert(0, os.path.join(sys.argv[1], "tools")); import sh_decrypt as D, sh_lib as L
+t = open(os.path.join(sys.argv[1], "G3/SS/CI-Logger/index.html")).read()
+salt = json.loads(D.CFG_RE.search(t).group(1))["staticryptSaltUniqueVariableName"]
+plain = D.decrypt_html(t, D.hash_password(os.environ["STATICRYPT_PASSWORD"], salt))
+open(sys.argv[2], "w").write(plain)
+bl = os.environ["STUDY_HUB_BLOCKLIST"]
+assert L.logger_problems(plain, bl) == [], L.logger_problems(plain, bl)
+assert len(L.REDACT_ELEM_RE.findall(plain)) == 1
+for w in bl.split("|"):
+    assert w.lower() not in plain.lower(), "plain word in page"
+    assert not any(f in plain for f in L.encoded_forms(w)), "encoded word in page"
+# the old trap: comment text that names the element must not count as the element
+fake = "<body><script>var SHLog=(function(){ // <script id=\"sh-redact\"> \n function record(r){}\n return {init:init}})();</script></body>"
+assert L.logger_problems(fake, bl), "logger_ok passed a page with no real sh-redact element"
+assert len(L.REDACT_ELEM_RE.findall(L.patch_logger(fake, bl, "x"))) == 1, "patch_logger did not insert the element"
+PY2
+node tools/test_redact.js "$T/logger-plain.html" > "$T/out4b.txt" || { cat "$T/out4b.txt"; die "logger page leaks a private word"; }
+ok "logger page: $(tail -1 "$T/out4b.txt")"
 echo "publish end-to-end test passed"
