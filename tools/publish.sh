@@ -9,7 +9,11 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="${STUDY_HUB_SRC:-$(dirname "$REPO")/study-hub-src}"
 export STUDY_HUB_SRC="$SRC"
 # One session per mirror: publish runs under tools/sh_lock.sh (the same lock as sh_page.py and attach).
-[ -n "${SH_LOCK_HELD:-}" ] || exec "$REPO/tools/sh_lock.sh" "$0" "$@"
+if [ -n "${SH_LOCK_HELD:-}" ]; then   # inside a session: check it is real (right lock, held by this process tree)
+  "$REPO/tools/sh_lock.sh" true || exit 77
+else
+  exec "$REPO/tools/sh_lock.sh" "$0" "$@"
+fi
 STATICRYPT_VERSION="3.5.4"   # pinned: tools/password_template.html is from this version
 if { [ -z "${STATICRYPT_PASSWORD:-}" ] || [ -z "${STUDY_HUB_KID_FIRST_NAME:-}" ]; } && [ -f "$HOME/.study-hub.env" ]; then set -a; . "$HOME/.study-hub.env"; set +a; fi
 : "${STATICRYPT_PASSWORD:?Set STATICRYPT_PASSWORD (ask Muskan) or create ~/.study-hub.env}"
