@@ -144,14 +144,14 @@ def content_problems(c):
     return out
 
 
-def record_bytes(c, rel_dir, built_at, error_log_sha256="", open_rows=None):
+def record_bytes(c, rel_dir, built_at, error_log_sha256="", open_rows=None, build_id=""):
     p = dict(c["provenance"])
     p.setdefault("results_ingested", [])
     p.setdefault("weak_spots_from", [])
     p["error_log"] = "scores:%s/%s/_error_log.csv" % (c["grade"], c["subject"])
     p["error_log_sha256"] = error_log_sha256
     rec = {"v": 1, "page": rel_dir, "built_at": built_at, "added_by": c.get("added_by", ""), "provenance": p,
-           "questions": questions_of(c), "open_rows": sorted(open_rows or [])}
+           "questions": questions_of(c), "open_rows": sorted(open_rows or []), "build_id": build_id}
     return (json.dumps(rec, indent=1, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
 
 
@@ -609,7 +609,7 @@ def box_problems(entry, S, check_files=True):
     return out
 
 
-def attach_record(frag, entry, S, built_at, check_files=True):
+def attach_record(frag, entry, S, built_at, check_files=True, drop_closed=True):
     """(record bytes, problems) for a provenance fragment of a page that already exists (not built by sh_page.py).
     frag: {"page", "provenance": {sources, results_ingested, weak_spots_from}, "questions": [{id, q, src | inferred,
     retests}], optional "prompts"}."""
@@ -628,6 +628,9 @@ def attach_record(frag, entry, S, built_at, check_files=True):
         if sid.startswith("file:") and not re.fullmatch(r"[0-9a-f]{64}", x.get("sha256", "")):
             out.append("source %d: a file: source needs its sha256" % k)
         ids.add(sid)
+    log0 = S.get("%s/%s/_error_log.csv" % (grade, subj)) or b""
+    closed = {r.get("id") for r in (read_log(log0.decode("utf-8")) or []) if status(r) == "closed"} if drop_closed else set()
+    dropped = set()
     qs = []
     for n, q in enumerate(frag.get("questions") or [], 1):
         inf = q.get("inferred") is True
@@ -636,7 +639,8 @@ def attach_record(frag, entry, S, built_at, check_files=True):
             out.append("question %s: src is missing or not a listed source" % q.get("id", n))
         qs.append({"quiz": 0, "kind": "mock", "section": "", "n": n, "id": str(q.get("id") or "q1-%d" % n), "q": q.get("q", ""),
                    "topic": q.get("fact", ""), "src": "" if inf else src, "inferred": inf,
-                   "retests": list(q.get("retests") or []), "type": "unknown", "n_options": 0})
+                   "retests": [x for x in (q.get("retests") or []) if x not in closed], "type": "unknown", "n_options": 0})
+        dropped |= {x for x in (q.get("retests") or []) if x in closed}
     if not qs:
         out.append("no questions")
     elif sum(q["inferred"] for q in qs) > 0.2 * len(qs):
@@ -647,7 +651,7 @@ def attach_record(frag, entry, S, built_at, check_files=True):
     rows = read_log(log.decode("utf-8")) or []
     p["error_log"] = "scores:%s/%s/_error_log.csv" % (grade, subj)
     p["error_log_sha256"] = hashlib.sha256(log).hexdigest() if log else ""
-    rec = {"v": 1, "page": path, "built_at": built_at, "attached": True, "added_by": entry.get("added_by", ""),
+    rec = {"v": 1, "page": path, "built_at": built_at, "attached": True, "dropped_closed_retests": sorted(dropped), "added_by": entry.get("added_by", ""),
            "provenance": p, "questions": qs, "prompts": frag.get("prompts") or [],
            "open_rows": sorted(r["id"] for r in rows if (r.get("resolved") or "").strip().lower() == "no")}
     raw = (json.dumps(rec, indent=1, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
@@ -740,7 +744,9 @@ def attach_main(a, S):
     ent = [it for it in items if it.get("path") == frag.get("page")]
     if len(ent) != 1:
         sys.exit("ATTACH FAILED: %s is not one manifest page" % frag.get("page"))
-    if not is_legacy(frag["page"]):
+    old = S.get(scores_path(frag["page"]))
+    re_attach = bool(old) and json.loads(old).get("attached") is True
+    if not is_legacy(frag["page"]) and not re_attach:
         sys.exit("ATTACH FAILED: %s is not in legacy_provenance; attach is only for pages built before the rules "
                  "(a new page is built with sh_page.py)" % frag["page"])
     try:
@@ -766,6 +772,9 @@ def attach_main(a, S):
     f = manifest_fields(raw)
     print("attached %s: record %s in study-hub-scores; %d sources, %d questions, %d inferred, %d retests; manifest updated, "
           "removed from legacy_provenance" % (frag["page"], how, f["n_sources"], f["n_questions"], f["n_inferred"], f.get("n_retests", 0)))
+    dr = json.loads(raw).get("dropped_closed_retests") or []
+    if dr:
+        print("  closed rows taken out of retests (school test already happened): %d: %s" % (len(dr), ", ".join(dr)))
 
 
 if __name__ == "__main__":

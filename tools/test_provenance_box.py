@@ -277,6 +277,12 @@ glog(GROWS)
 rec = json.loads(S.get(P.scores_path(publish(gpage("U1", ["G-4", "G-5"]), GB)["path"])))
 check("F1 lists the closed rows as pattern input (trap types, question styles)",
       [] if any("patterns from 2 closed rows" in x and "look-alike word (2)" in x for x in P.f1_report(rec, S)[0]) else ["got %s" % (P.f1_report(rec, S),)])
+frag = {"page": "G3/Grammar/Old/", "provenance": {"sources": [{"id": "file:" + MSRC, "kind": "study_guide", "sha256": MSHA}]},
+        "questions": [{"id": "Q1", "q": "Item?", "src": "file:%s#row=2" % MSRC, "retests": ["G-1", "G-4"]}]}
+raw, pr = P.attach_record(frag, {"path": "G3/Grammar/Old/", "grade": "G3", "subject": "Grammar"}, S, GB)
+rec = json.loads(raw)
+check("attach drops closed rows from retests (school test already happened)",
+      pr + ([] if rec["questions"][0]["retests"] == ["G-4"] and rec["dropped_closed_retests"] == ["G-1"] else ["got %s" % rec["questions"][0]]))
 import shutil
 shutil.rmtree(T)
 print("provenance box-rule tests passed (%d)" % n)
