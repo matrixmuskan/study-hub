@@ -390,7 +390,7 @@ BOT_IDENTITY = {"name": "Study Hub Bot", "email": "study-hub-bot@users.noreply.g
 
 
 def redact_terms(blocklist=""):
-    """Lowercase private terms: every alternative of STUDY_HUB_BLOCKLIST plus kid_first_name from tools/sh_config.json.
+    """Lowercase private terms: every alternative of STUDY_HUB_BLOCKLIST plus the child's first name (STUDY_HUB_KID_FIRST_NAME, ~/.study-hub.env).
     Used by the plaintext scans (R7, the error-log scan), never written to a page."""
     terms = set()
     for t in re.split(r"\|", blocklist or ""):
@@ -398,9 +398,46 @@ def redact_terms(blocklist=""):
         t = re.sub(r"\s+", " ", t)
         if len(t) >= 2:
             terms.add(t)
-    if CFG.get("kid_first_name"):
-        terms.add(CFG["kid_first_name"].strip().lower())
+    kid = kid_first_name(required=bool(terms))   # on the box (blocklist set) the name must be set too: fail closed
+    if kid:
+        terms.add(kid.lower())
     return sorted(terms)
+
+
+def kid_first_name(required=False):
+    """The child's first name: STUDY_HUB_KID_FIRST_NAME from the environment, else from ~/.study-hub.env (box, mode
+    600). Never in this repo (validate.py R12 checks). required=True exits when it is missing."""
+    n = os.environ.get("STUDY_HUB_KID_FIRST_NAME", "").strip()
+    envf = os.path.expanduser("~/.study-hub.env")
+    if not n and os.path.exists(envf):
+        for line in open(envf, encoding="utf-8"):
+            if line.startswith("STUDY_HUB_KID_FIRST_NAME="):
+                n = line.split("=", 1)[1].strip().strip("'\"")
+    if required and not n:
+        raise SystemExit("STUDY_HUB_KID_FIRST_NAME is not set (add it to ~/.study-hub.env, mode 600; never to the repo)")
+    return n
+
+
+NAME_TOKEN_RE = re.compile(r"[A-Za-z]{2,24}")
+BLOB_RE = re.compile(r"[A-Za-z0-9+/=]{60,}")   # ciphertext, base64 and hex runs: no words in them
+
+
+def name_guard_hits(texts, guard=None):
+    """(R12) Words in texts whose salted PBKDF2-SHA256 equals CFG name_guard. texts: {label: str}. Returns labels."""
+    import hashlib
+    g = guard or CFG.get("name_guard") or {}
+    if not g.get("salt") or not g.get("sha256"):
+        return ["tools/sh_config.json has no name_guard"]
+    salt, it, want = bytes.fromhex(g["salt"]), int(g.get("iterations", 5000)), g["sha256"]
+    cache, hits = {}, []
+    for label, t in texts.items():
+        for w in set(x.lower() for x in NAME_TOKEN_RE.findall(BLOB_RE.sub(" ", t))):
+            if w not in cache:
+                cache[w] = hashlib.pbkdf2_hmac("sha256", w.encode(), salt, it).hex() == want
+            if cache[w]:
+                hits.append(label)
+                break
+    return hits
 
 
 def build_id(h):

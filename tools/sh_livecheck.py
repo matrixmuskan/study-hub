@@ -7,7 +7,8 @@ Without the password (CI default):
   - every hub page and every manifest page answers HTTP 200 (3 tries), is StatiCrypt output with the sh-2 login,
     and carries the template marker;
   - with --repo, every live page is byte-identical to the committed file (the deploy is current);
-  - manifest.json on the site matches the repo.
+  - manifest.json on the site matches the repo; every other site file (tools/site_files.py) is byte-identical,
+    and repo-only files (README.md, tools/, ...) answer 404.
 With $STATICRYPT_PASSWORD (env or ~/.study-hub.env): every page is also decrypted in memory and gets the full
 static link, anchor, media, video-codec, and design checks from tools/sh_checks.py.
 The password is never printed. Exit code 1 when anything is broken.
@@ -127,6 +128,17 @@ def main():
             print("plaintext kept in", tmp)
         else:
             shutil.rmtree(tmp, ignore_errors=True)
+    if a.repo:   # every served file is the committed file; repo-only files are not served (pages.yml artifact)
+        import site_files as SF
+        for f in SF.site_files(a.repo):
+            if f in pages or f == "manifest.json":
+                continue
+            st, body = get(base + f)
+            same = st == 200 and body == open(os.path.join(a.repo, f), "rb").read()
+            add(f, base + f, "deploy", same, "" if same else "HTTP %s or differs from the committed file" % st)
+        for f in SF.NOT_SERVED:
+            st, _ = get(base + f, tries=1)
+            add(f, base + f, "not-served", st == 404, "" if st == 404 else "repo-only file is served (HTTP %s)" % st)
     broken = [r for r in rows if r[3] != "ok"]
     print("live check %s: %d pages, %d checks, %d broken%s" % (base, len(pages), len(rows), len(broken), "" if pw else " (no password: decrypt checks skipped)"))
     for r in broken:

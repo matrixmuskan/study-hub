@@ -97,7 +97,7 @@ def main():
     for it in sorted(items, key=lambda x: (x["grade"], x["subject"], x.get("test_date") or "9999", x["title"])):
         tree.setdefault(it["grade"], OrderedDict()).setdefault(it["subject"], []).append(it)
     os.makedirs(src, exist_ok=True)
-    kid = L.CFG.get("kid_first_name", "")
+    kid = L.kid_first_name(required=not os.environ.get("CI"))   # fail closed on the box
     written = []
 
     # Home

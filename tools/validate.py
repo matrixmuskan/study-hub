@@ -27,6 +27,8 @@ With --src: the staged or mirror plaintext pages also must carry the template ma
       decodes with the right MIME type, every video has playable H.264/VP9/AV1 + AAC/Opus streams (ffprobe), and
       every manifest page is linked from its subject hub page.
   R7  (also) no base64 (any offset) or hex encoding of a private word in any plaintext file or page.
+  R12 The child's first name is in no tracked file (CI: a salted PBKDF2 hash in sh_config.json name_guard, never the
+      name; box: also the name itself from STUDY_HUB_KID_FIRST_NAME).
   R11 Every page that logs scores has privacy v4: the logger sends no free text (a missed item is its number, a known
       item id, the option letter, a number or listed wrong answer, a trap key, blank and typed; details are a fixed list
       of keys), it commits as Study Hub Bot, the page has an sh-build id, and no sh-redact element.
@@ -92,7 +94,7 @@ def main():
     pw = os.environ.get("STATICRYPT_PASSWORD", "")
     bl = os.environ.get("STUDY_HUB_BLOCKLIST", "")
     bl_re = re.compile(r"\b(?:%s)\b" % bl, re.I) if bl else None
-    enc = sorted({f for t in L.redact_terms(bl) if bl and t != (L.CFG.get("kid_first_name") or "").lower() for f in L.encoded_forms(t)})
+    enc = sorted({f for t in L.redact_terms(bl) if bl and t != L.kid_first_name().lower() for f in L.encoded_forms(t)})
     enc_re = re.compile("|".join(re.escape(f) for f in enc)) if enc else None
     if a.src and not os.path.exists(os.path.join(a.src, L.STAGE_MARK)):
         print("validate.py --src runs only on staged output (a folder made by tools/sh_stage.py), not on the raw mirror.\n"
@@ -241,6 +243,26 @@ def main():
                             warnings.append(f"{rel}: legacy page, B7 not met: {pr}")
                         else:
                             err("B7", f"plaintext {rel}: {pr}")
+
+    # R12: the child's first name in no tracked file (README, tools, docs, pages, ...)
+    tracked = subprocess.run(["git", "-C", L.REPO, "ls-files", "-z"], capture_output=True, text=True).stdout.split("\0")
+    texts = {}
+    for f in filter(None, tracked):
+        fp = os.path.join(L.REPO, f)
+        if not os.path.isfile(fp) or f.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4", ".webm", ".pdf")):
+            continue
+        try:
+            texts[f] = open(fp, encoding="utf-8").read()
+        except UnicodeDecodeError:
+            continue
+    for f in L.name_guard_hits(texts):
+        err("R12", f"{f} holds the child's first name (or name_guard is missing). Write 'the child' instead")
+    kid = L.kid_first_name()
+    if kid:
+        kr = re.compile(r"\b%s\b" % re.escape(kid), re.I)
+        for f, t in texts.items():
+            if kr.search(t):
+                err("R12", f"{f} holds the child's first name. Write 'the child' instead")
 
     for w in warnings:
         print("WARNING: " + w)

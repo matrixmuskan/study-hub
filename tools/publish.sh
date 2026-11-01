@@ -9,9 +9,11 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="${STUDY_HUB_SRC:-$(dirname "$REPO")/study-hub-src}"
 export STUDY_HUB_SRC="$SRC"
 STATICRYPT_VERSION="3.5.4"   # pinned: tools/password_template.html is from this version
-if [ -z "${STATICRYPT_PASSWORD:-}" ] && [ -f "$HOME/.study-hub.env" ]; then set -a; . "$HOME/.study-hub.env"; set +a; fi
+if { [ -z "${STATICRYPT_PASSWORD:-}" ] || [ -z "${STUDY_HUB_KID_FIRST_NAME:-}" ]; } && [ -f "$HOME/.study-hub.env" ]; then set -a; . "$HOME/.study-hub.env"; set +a; fi
 : "${STATICRYPT_PASSWORD:?Set STATICRYPT_PASSWORD (ask Muskan) or create ~/.study-hub.env}"
-export STATICRYPT_PASSWORD
+# The child's first name (hub title, private-word scrub) lives only in ~/.study-hub.env, never in the repo. Fail closed.
+: "${STUDY_HUB_KID_FIRST_NAME:?Set STUDY_HUB_KID_FIRST_NAME in ~/.study-hub.env (mode 600, never in the repo)}"
+export STATICRYPT_PASSWORD STUDY_HUB_KID_FIRST_NAME
 
 # tools/sh_config.json: attach (sh_provenance.py) takes pages out of legacy_provenance. That change is committed with
 # the manifest below; any other uncommitted config change stops the publish (it goes through a PR).

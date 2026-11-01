@@ -23,7 +23,7 @@ export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-pla
 # Browser: sh_browsercheck.py tries Playwright's Chromium, then /usr/bin/google-chrome. Say which one up front.
 python3 "$REPO/tools/sh_browsercheck.py" --probe || { [ "${CI:-}" = "true" ] || { echo "FAIL: no browser for the publish test"; exit 1; }; }
 export HOME="$T/home"; mkdir -p "$HOME"            # no ~/.study-hub.env: only the dummy password below
-export STATICRYPT_PASSWORD="ci-dummy-$RANDOM-$RANDOM-pw" STUDY_HUB_SRC="$T/src" STUDY_HUB_BLOCKLIST=""
+export STATICRYPT_PASSWORD="ci-dummy-$RANDOM-$RANDOM-pw" STUDY_HUB_SRC="$T/src" STUDY_HUB_BLOCKLIST="" STUDY_HUB_KID_FIRST_NAME="Testkid"
 # The private score repo is a local folder here (provenance records, error logs, receipts), and the token is a dummy.
 export STUDY_HUB_SCORES_DIR="$T/scores" STUDY_HUB_SCORES_TOKEN="ci-dummy-scores-token"
 mkdir -p "$STUDY_HUB_SCORES_DIR/G3/_receipts"
