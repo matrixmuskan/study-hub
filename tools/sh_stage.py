@@ -31,11 +31,12 @@ def main():
             h = open(os.path.join(root, f), encoding="utf-8").read()
             m = L.MARKER_RE.search(h)
             if m and m.group(1) == L.VERSION:
-                out, how = L.refresh(h), "refresh"
+                out, how = L.refresh(h, rel), "refresh"
             elif m:
-                out, how = L.refresh(h), "refresh-legacy"
+                out, how = L.refresh(h, rel), "refresh-legacy"
             else:
                 out, how = L.wrap_legacy(h, rel, titles.get(rel)), "skin"
+            out = L.patch_logger(out, os.environ.get("STUDY_HUB_BLOCKLIST", ""))
             dst = os.path.join(stage, rel)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             open(dst, "w", encoding="utf-8").write(out)

@@ -191,3 +191,10 @@ Do these checks before each push:
 6. A plaintext file holds an em dash, or the salt changed, or `.nojekyll` is missing.
 7. A file holds a private word from `STUDY_HUB_BLOCKLIST`. This check runs only on the box, because the list is not in the repo.
 8. A page folder holds a file that is not `index.html`.
+9. A page uses purple or violet, a gradient with more than one color, or a color outside the palette (white, grays, the one accent `#0066cc`, and the green, red, and amber status colors). Older pages get the palette applied for them at publish time. A new page from `sh_page.py` must pass as written.
+10. A link, an anchor (`#id`), an image, a video, a poster, or a captions file does not work. Every `data:` URI must decode and have the right MIME type. Every video must have H.264 (or VP9 or AV1) video and AAC (or Opus) audio. Every manifest page must have a link on its subject hub page.
+11. A page that logs scores does not have the privacy rules: typed answers are cut to 40 characters, and names are replaced with `[name]`.
+
+`publish.sh` runs checks 9 and 10 on the plaintext before it encrypts anything. Then it opens every changed page in headless Chrome (`tools/sh_browsercheck.py`): it opens each tab, and it makes sure that every link works, every image loads, every video plays (readyState 1 or more), and no script error occurs. If a check fails, the script encrypts nothing and commits nothing.
+
+After each push to `main` and every day, the `live-check` workflow crawls the live site (`tools/sh_livecheck.py`). The `validate` workflow also runs the end-to-end publish test (`tools/test_publish.sh`) and makes sure that every `Validated: sh-2` trailer is true.

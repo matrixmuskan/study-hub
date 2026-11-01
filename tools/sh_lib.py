@@ -115,24 +115,35 @@ def page(rel_path, title, body, code=None, data=None, log=False, crumb_title=Non
 
 # ---------- refresh and legacy wrap ----------
 BLOCKS = {"sh-css": ("style", "css/sh.css"), "sh-legacy-css": ("style", "css/sh-legacy.css"),
-          "sh-js": ("script", "js/sh.js"), "sh-log": ("script", "js/shlog.js")}
+          "sh-js": ("script", "js/sh.js"), "sh-log": ("script", "js/shlog.js"), "sh-legacy-js": ("script", "js/sh-legacy.js")}
 
 
-def refresh(h):
-    """Replace the content of inlined design-system blocks with the current assets/ files."""
+def refresh(h, rel_path=None):
+    """Replace the content of inlined design-system blocks with the current assets/ files.
+    With rel_path, the subject color block (sh-vars) is also rebuilt from tools/sh_config.json."""
     for bid, (tag, name) in BLOCKS.items():
         pat = re.compile(r'(<%s id="%s">)(.*?)(</%s>)' % (tag, bid, tag), re.S)
         if pat.search(h):
             new = asset(name)
             h = pat.sub(lambda m: m.group(1) + new + m.group(3), h, count=1)
-    return h
+    if rel_path:
+        code = rel_path.split("/")[1] if rel_path.count("/") >= 2 else None
+        pat = re.compile(r'(<style id="sh-vars">)(.*?)(</style>)', re.S)
+        m = pat.search(h)
+        if m:
+            legacy = "--o:" in m.group(2)
+            new = head_assets(code, legacy=legacy).rsplit('<style id="sh-vars">', 1)[1].rsplit("</style>", 1)[0]
+            h = h[:m.start(2)] + new + h[m.end(2):]
+    mk = MARKER_RE.search(h)
+    # Older pages get the palette applied for them. Pages from sh_page.py must pass the design check as written.
+    return neutralize(h) if mk and mk.group(1).endswith("-legacy") else h
 
 
 def wrap_legacy(h, rel_path, title=None):
     """Give a pre-sh-2 page the sh-2 skin and breadcrumb. Content and scripts stay the same."""
     m = MARKER_RE.search(h)
     if m:
-        return refresh(h)
+        return refresh(h, rel_path)
     code = rel_path.split("/")[1] if rel_path.count("/") >= 2 else None
     i = h.lower().find("</head>")
     j = h.lower().find("<body")
@@ -148,6 +159,174 @@ def wrap_legacy(h, rel_path, title=None):
         attrs += ' class="sh-legacy"'
     bar = appbar(rel_path, title, static=True)
     h = h[:m.start()] + "<body%s>\n%s" % (attrs, bar) + h[m.end():]
+    k = h.lower().rfind("</body>")
+    tag = '<script id="sh-legacy-js">%s</script>\n' % asset("js/sh-legacy.js")
+    h = (h[:k] + tag + h[k:]) if k >= 0 else h + tag
+    return neutralize(h)
+
+
+# ---------- neutral palette (design standard) ----------
+# The only colors a page may use in its styles: neutrals, one accent, and the three status colors.
+PALETTE = {
+    "ink": "#1d1d1f", "ink2": "#515154", "ink3": "#6e6e73", "line": "#d2d2d7", "bg": "#f5f5f7", "white": "#ffffff",
+    "accent": "#0066cc", "accent_soft": "#e8f1fb",
+    "good": "#1d7d3f", "good_soft": "#e7f5ec", "bad": "#c9182b", "bad_soft": "#fdecee", "warn": "#9a6200", "warn_soft": "#fff5e0",
+}
+PALETTE_HEX = set(PALETTE.values()) | {"#fff", "#000", "#000000", "#a1a1a6", "#7f1d1d", "#14532d"}
+COLOR_RE = re.compile(r"#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b|rgba?\(\s*[\d.]+%?\s*[, ]\s*[\d.]+%?\s*[, ]\s*[\d.]+%?\s*(?:[,/]\s*[\d.]+%?\s*)?\)|hsla?\([^)]*\)")
+GRAD_RE = re.compile(r"(?:repeating-)?(?:linear|radial|conic)-gradient\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)")
+NAMED = {"purple": "#800080", "violet": "#ee82ee", "magenta": "#ff00ff", "fuchsia": "#ff00ff", "indigo": "#4b0082",
+         "orchid": "#da70d6", "plum": "#dda0dd", "lavender": "#e6e6fa", "pink": "#ffc0cb", "hotpink": "#ff69b4", "orange": "#ffa500",
+         "gold": "#ffd700", "cyan": "#00ffff", "aqua": "#00ffff", "teal": "#008080", "lime": "#00ff00", "blueviolet": "#8a2be2",
+         "mediumpurple": "#9370db", "darkviolet": "#9400d3", "rebeccapurple": "#663399", "deeppink": "#ff1493"}
+NAMED_RE = re.compile(r"(?<![\w-])(%s)(?![\w-])" % "|".join(sorted(NAMED, key=len, reverse=True)), re.I)
+
+
+def parse_color(c):
+    """Return (r, g, b, a) with r, g, b in 0..255, or None."""
+    import colorsys
+    c = c.strip().lower()
+    if c in NAMED:
+        c = NAMED[c]
+    if c.startswith("#"):
+        x = c[1:]
+        if len(x) in (3, 4):
+            x = "".join(ch * 2 for ch in x)
+        try:
+            r, g, b = int(x[0:2], 16), int(x[2:4], 16), int(x[4:6], 16)
+        except ValueError:
+            return None
+        return r, g, b, (int(x[6:8], 16) / 255 if len(x) == 8 else 1.0)
+    nums = re.findall(r"[\d.]+%?", c)
+    if c.startswith("rgb") and len(nums) >= 3:
+        v = [float(n[:-1]) * 2.55 if n.endswith("%") else float(n) for n in nums[:3]]
+        a = nums[3] if len(nums) > 3 else "1"
+        return v[0], v[1], v[2], float(a[:-1]) / 100 if a.endswith("%") else float(a)
+    if c.startswith("hsl") and len(nums) >= 3:
+        hh, ss, ll = float(nums[0].rstrip("%")), float(nums[1].rstrip("%")) / 100, float(nums[2].rstrip("%")) / 100
+        r, g, b = colorsys.hls_to_rgb(hh / 360, ll, ss)
+        a = nums[3] if len(nums) > 3 else "1"
+        return r * 255, g * 255, b * 255, float(a[:-1]) / 100 if a.endswith("%") else float(a)
+    return None
+
+
+def hsl(rgb):
+    import colorsys
+    h, l, s = colorsys.rgb_to_hls(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255)
+    return h * 360, s, l
+
+
+def is_neutral(rgb):
+    h, s, l = hsl(rgb)
+    return s < 0.12 or l < 0.06 or l > 0.97
+
+
+def is_purple(rgb):
+    """Purple, violet, magenta, and pink-violet hues that are visibly colored."""
+    h, s, l = hsl(rgb)
+    return 255 <= h <= 335 and s >= 0.2 and 0.08 < l < 0.96
+
+
+def family(rgb):
+    h, s, l = hsl(rgb)
+    if is_neutral(rgb):
+        return "neutral"
+    if 80 <= h < 170:
+        return "good"
+    if h >= 345 or h < 12:
+        return "bad"
+    if 36 <= h < 62:
+        return "warn"
+    return "accent"
+
+
+def map_color(c, kind="auto"):
+    """Map any color to the neutral palette. kind: 'bg' (backgrounds), 'fg' (text, borders), or 'auto'."""
+    rgb = parse_color(c)
+    if rgb is None:
+        return c
+    a = rgb[3]
+    fam = family(rgb)
+    h, s, l = hsl(rgb)
+    if fam == "neutral":
+        return c
+    if fam == "warn" and kind != "bg" and l >= 0.5 and l < 0.86:
+        fam = "accent"     # bright yellow dots, stars, and icons become the accent; dark amber text stays a warning
+    if l <= 0.22:
+        out = PALETTE["ink"]
+    else:
+        soft = l >= 0.86 or (kind == "bg" and l >= 0.6) or (kind == "auto" and l >= 0.8)
+        out = PALETTE[fam + "_soft"] if soft else PALETTE[fam]
+    if a < 1:
+        r, g, b = int(out[1:3], 16), int(out[3:5], 16), int(out[5:7], 16)
+        return "rgba(%d,%d,%d,%s)" % (r, g, b, ("%.2f" % a).rstrip("0").rstrip("."))
+    return out
+
+
+def _grad(m, kind):
+    """Replace a gradient with one flat palette color (its first real color stop)."""
+    cols = [x.group(0) for x in COLOR_RE.finditer(m.group(0))] + [x.group(0) for x in NAMED_RE.finditer(m.group(0))]
+    cols = [c for c in cols if parse_color(c) and parse_color(c)[3] > 0.05]
+    if not cols:
+        return m.group(0)
+    hues = {family(parse_color(c)) for c in cols}
+    if len(cols) <= 2 and hues <= {"neutral"}:
+        return m.group(0)      # a plain neutral fade (for example a sticky bar) is fine
+    first = map_color(cols[0], kind)
+    return "linear-gradient(%s,%s)" % (first, first)
+
+
+BG_PROPS = re.compile(r"^(background(-color|-image)?|--[\w-]*(bg|soft|light|tint|back|paper|card|panel)[\w-]*)$", re.I)
+SKIP_PROPS = re.compile(r"^(fill|stroke|stop-color|flood-color|lighting-color)$", re.I)
+DECL_RE = re.compile(r"(?<![\w-])(--[\w-]+|[a-zA-Z-]+)\s*:\s*([^;{}\"'`]*(?:\$\{[^}]*\}[^;{}\"'`]*)*)")
+CSS_PROPS = re.compile(r"^(color|background(-color|-image)?|border(-(top|right|bottom|left))?(-color)?|outline(-color)?|box-shadow|text-shadow|"
+                       r"accent-color|caret-color|text-decoration-color|column-rule-color|--[\w-]+)$", re.I)
+
+
+def neutralize_css(css, js=False):
+    """Rewrite colors in CSS text (or CSS inside JS strings) to the palette. Leaves fill/stroke (diagrams) alone."""
+    def decl(m):
+        prop, val = m.group(1), m.group(2)
+        if SKIP_PROPS.match(prop) or not CSS_PROPS.match(prop):
+            return m.group(0)
+        if js and not prop.startswith("--") and prop.lower() not in ("color", "background", "background-color", "border", "border-color",
+                                                                   "border-left", "border-top", "border-bottom", "border-right",
+                                                                   "box-shadow", "outline", "text-shadow", "accent-color"):
+            return m.group(0)
+        kind = "bg" if BG_PROPS.match(prop) else ("auto" if prop.startswith("--") else "fg")
+        v = GRAD_RE.sub(lambda g: _grad(g, kind), val)
+        v = COLOR_RE.sub(lambda c: map_color(c.group(0), kind), v)
+        v = NAMED_RE.sub(lambda c: map_color(c.group(0), kind), v)
+        return m.group(0)[: m.start(2) - m.start(0)] + v
+    return DECL_RE.sub(decl, css)
+
+
+JS_COLOR_PROP = re.compile(r"""(\b(?:col|color|colour|bg|accent|tint|hue|c1|c2|fg|light|dark|soft)\s*:\s*)(["'])(#[0-9a-fA-F]{3,8})\2""")
+CONFETTI_ARR = re.compile(r"""\[\s*(?:["']#[0-9a-fA-F]{3,8}["']\s*,\s*){3,}["']#[0-9a-fA-F]{3,8}["']\s*\]""")
+
+
+def neutralize(h):
+    """Apply the neutral palette to a page's own styles: <style> blocks, style="" attributes, and CSS or color values
+    inside its scripts. Never touches the shared sh-* blocks, data: URIs, or inline <svg> diagrams."""
+    keep = []
+
+    def hold(m):
+        keep.append(m.group(0))
+        return "\x00%d\x00" % (len(keep) - 1)
+    h = re.sub(r"data:[^\"'()\s]+", hold, h)
+    h = re.sub(r'<(style|script) id="sh-[\w-]+">.*?</\1>', hold, h, flags=re.S)
+    h = re.sub(r"<svg\b.*?</svg>", hold, h, flags=re.S | re.I)
+    h = re.sub(r"(<style\b[^>]*>)(.*?)(</style>)", lambda m: m.group(1) + neutralize_css(m.group(2)) + m.group(3), h, flags=re.S | re.I)
+    h = re.sub(r"""(\sstyle\s*=\s*)(["'])(.*?)\2""", lambda m: m.group(1) + m.group(2) + neutralize_css(m.group(3), js=True) + m.group(2), h, flags=re.S)
+
+    def script(m):
+        body = neutralize_css(m.group(2), js=True)
+        body = JS_COLOR_PROP.sub(lambda c: c.group(1) + c.group(2) + map_color(c.group(3), "auto") + c.group(2), body)
+        body = CONFETTI_ARR.sub(lambda c: re.sub(r"#[0-9a-fA-F]{3,8}", lambda x: map_color(x.group(0), "fg"), c.group(0)), body)
+        return m.group(1) + body + m.group(3)
+    h = re.sub(r"(<script\b(?![^>]*\bid=\"sh-)[^>]*>)(.*?)(</script>)", script, h, flags=re.S | re.I)
+    for _ in range(3):   # nested holds (an svg inside a held block) unwind in a few passes
+        h = re.sub(r"\x00(\d+)\x00", lambda m: keep[int(m.group(1))], h)
     return h
 
 
@@ -175,3 +354,56 @@ def md(text):
         else:
             out.append("<p>%s</p>" % inline(" ".join(lines)))
     return '<div class="sh-prose">%s</div>' % "".join(out)
+
+
+# ---------- score logger privacy (applied at publish time to every page that logs) ----------
+_CLEAN_RE = re.compile(r"function clean\(m\)\{m=m\|\|\{\};var o=\{\};\[[^\]]*\]\.forEach\(function\(k\)\{if\(m\[k\]!==undefined\)o\[k\]=m\[k\]\}\);(?:\s*if\(typeof o\.picked[^\n]*?)?return o\}")
+_REDACT_RE = re.compile(r"function redact\(t\)\{.*?return t\}", re.S)
+_CUT_RE = re.compile(r"function cut\(v\)\{[^\n]*?\}\s*")
+
+
+def _logger_parts():
+    src = asset("js/shlog.js")
+    return _CUT_RE.search(src).group(0).strip(), _CLEAN_RE.search(src).group(0), _REDACT_RE.search(src).group(0)
+
+
+def patch_logger(h, blocklist=""):
+    """Bring every inline copy of SHLog up to the current privacy rules (40-character typed answers, name redaction),
+    and add the private redaction list (base64, inside the page only, so it is encrypted with the page)."""
+    if "var SHLog=" not in h:
+        return h
+    import base64 as _b64
+    cut, clean, redact = _logger_parts()
+    start = h.find("var SHLog=")
+    end = h.find("return {init:init", start)
+    if end < 0:
+        return h
+    body = h[start:end]
+    if "function cut(v)" not in body:
+        body = _CLEAN_RE.sub(lambda m: cut + "\n  " + clean, body, count=1)
+    else:
+        body = _CLEAN_RE.sub(lambda m: clean, body, count=1)
+    if _REDACT_RE.search(body):
+        body = _REDACT_RE.sub(lambda m: redact, body, count=1)
+    else:
+        body = body.replace("function record(r){", redact + "\n  function record(r){", 1)
+    body = body.replace("content:b64(JSON.stringify(payload,null,1)+'\\n')", "content:b64(redact(JSON.stringify(payload,null,1))+'\\n')")
+    h = h[:start] + body + h[end:]
+    val = json.dumps(_b64.b64encode(blocklist.encode()).decode() if blocklist else "")
+    tag = '<script type="application/json" id="sh-redact">%s</script>' % val
+    if 'id="sh-redact"' in h:
+        h = re.sub(r'<script type="application/json" id="sh-redact">.*?</script>', lambda m: tag, h, count=1, flags=re.S)
+    else:
+        k = h.lower().rfind("</body>")
+        h = (h[:k] + tag + "\n" + h[k:]) if k >= 0 else h + tag
+    return h
+
+
+def logger_ok(h):
+    """True when every SHLog copy in the page has the current privacy rules."""
+    if "var SHLog=" not in h:
+        return True
+    i = h.find("var SHLog=")
+    body = h[i:h.find("return {init:init", i)]
+    return ("function cut(v)" in body and "o.picked=cut(o.picked)" in body and "sh-redact" in body
+            and "content:b64(redact(" in body and 'id="sh-redact"' in h)
