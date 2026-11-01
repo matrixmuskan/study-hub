@@ -73,7 +73,7 @@ Basy checks every push for these, and coaches check them before pushing:
 - `manifest.json`: list of content pages shown on the hub pages.
 - `assets/css/sh.css`, `assets/js/sh.js`: the shared design system (sh-2). Inlined into every page at publish time.
 - `assets/css/sh-legacy.css`: the sh-2 skin for pages built before sh-2 (looks only, scripts unchanged).
-- `assets/js/shlog.js`: the score logger (the only reference; `/workspace/study-hub-scores-kit/logger.js` is a copy). Privacy v2: typed answers cut to 40 characters, private words replaced with [name] using a salted SHA-256 list that `tools/sh_stage.py` writes into each page (never the words).
+- `assets/js/shlog.js`: the score logger (the only reference; `/workspace/study-hub-scores-kit/logger.js` is a copy). Privacy v3: no free text leaves the page (a missed item is its number, item id, option letters and 2 booleans; details are numbers, booleans and short ids), every file is committed as Study Hub Bot, and no page holds a private-word list. `tools/sh_stage.py` upgrades older inline copies at publish time.
 - `tools/sh_config.json`: subject codes, names, accent colors, grade names.
 - `tools/sh_page.py`: content file (JSON or Markdown) to a plaintext page in the mirror, plus manifest entry.
 - `tools/build_index.py`: builds the plaintext home, grade, and subject pages into the mirror from the manifest.

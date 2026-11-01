@@ -80,6 +80,7 @@ def questions_of(c):
                 continue
             for n, q in enumerate(b.get("questions") or [], 1):
                 out.append({"quiz": qi, "kind": b.get("kind", "game"), "section": sec.get("id") or sec.get("label"), "n": n,
+                            "id": q.get("id") or "q%d-%d" % (qi + 1, n),
                             "q": q.get("q", ""), "topic": q.get("topic", ""), "src": q.get("src", ""),
                             "inferred": q.get("inferred") is True, "retests": list(q.get("retests") or []),
                             "type": "mc" if q.get("options") else "text", "n_options": len(q.get("options") or [])})
@@ -203,7 +204,7 @@ def format_compare(questions, receipts):
 def f1_report(rec, S, grade="G3"):
     """(lines, problems) for a record of a school subject with a mock, or ([], []) when F1 does not apply."""
     subj = rec["page"].split("/")[1]
-    if subj not in L.CFG.get("school_subjects", []) or not any(q.get("kind") == "mock" for q in rec["questions"]):
+    if rec.get("attached") or subj not in L.CFG.get("school_subjects", []) or not any(q.get("kind") == "mock" for q in rec["questions"]):
         return [], []
     rcs = []
     for g in rec["provenance"].get("patterns_from", []):
@@ -271,9 +272,9 @@ def _missed_rows(S, files, grade, subj, after, before, prov_cache):
         if lesson_dir not in prov_cache:
             pr = S.get(scores_path(lesson_dir))
             prov_cache[lesson_dir] = json.loads(pr)["questions"] if pr else []
-        missed = {_norm_q(m.get("q", "")) for m in pay.get("missed", [])}
+        keys = _missed_keys(pay)
         for q in prov_cache[lesson_dir]:
-            if _norm_q(q["q"]) in missed:
+            if _q_missed(q, keys):
                 for rid in q.get("retests", []):
                     out.setdefault(rid, f)
     return out
@@ -370,6 +371,21 @@ def _attempt_dt(path):
     return datetime.strptime(m.group(1) + m.group(2), "%Y-%m-%d%H%M%S").replace(tzinfo=PT)
 
 
+def _missed_keys(pay):
+    """What an attempt lists as missed: item ids (privacy v3 logger) and, for older attempts, normalized question text."""
+    out = set()
+    for m in pay.get("missed", []):
+        if m.get("id"):
+            out.add("id:" + str(m["id"]))
+        if m.get("q"):
+            out.add("q:" + _norm_q(m["q"]))
+    return out
+
+
+def _q_missed(q, keys):
+    return ("id:" + q["id"]) in keys if q.get("id") and any(k.startswith("id:") for k in keys) else ("q:" + _norm_q(q["q"])) in keys
+
+
 def _norm_q(s):
     s = re.sub(r"\[name\]", "", s or "", flags=re.I)
     fn = (L.CFG.get("kid_first_name") or "").lower()
@@ -433,42 +449,47 @@ def box_problems(entry, S, check_files=True):
     notes_attempts = set()
     for r in rows:
         notes_attempts.update(re.findall(r"(?:attempt|correct)=(\S+?\.json)", r.get("notes", "")))
-    # B3
-    listed = set(p.get("weak_spots_from", [])) | notes_attempts
-    for f in files:
-        if not f.startswith("%s/%s/" % (grade, subj)) or "/_" in f[len(grade) + 1:]:
-            continue
-        dt = _attempt_dt(f)
-        if dt and dt < built and f not in listed:
-            out.append(("B3", "%s: score file %s is not in weak_spots_from or the error log" % (path, f)))
-    # B4
-    ing = set(p.get("results_ingested", []))
-    for rid, rc in sorted(receipts.items()):
-        if rc.get("subject") != subj:
-            continue
-        when = rc.get("datetime")
-        before = (datetime.fromisoformat(when) < built) if when else (rc.get("date", "9999") < built.date().isoformat())
-        if before and "gmail:" + rid not in ing:
-            out.append(("B4", "%s: receipt gmail:%s (%s, %s) is not in results_ingested" % (path, rid, rc.get("title", ""), rc.get("date"))))
-    # B5 (rotation)
+    # An attached record (sh_provenance.py attach) describes a page that existed before the rules: B3, B4 and the B5
+    # rotation are rules for new builds, so they do not apply. B1, B2, the retests ids and B6 still do.
     retested = {r for q in qs for r in q.get("retests", [])}
     row_ids = {r.get("id") for r in rows}
-    plan = b5_plan(S, grade, subj, rows, built, page=path, files=files)
-    hit = retested & set(plan["open"])
-    if len(hit) < plan["k"]:
-        out.append(("B5", "%s: re-tests %d of %d open rows; needs at least %d (min(%d, open rows))"
-                    % (path, len(hit), len(plan["open"]), plan["k"], B5_MIN)))
-    miss_a = [x for x in plan["oldest"] if x not in retested]
-    if miss_a:
-        out.append(("B5", "%s: (a) the %d most overdue open rows must be re-tested (oldest-first); missing: %s"
-                    % (path, plan["k"], ", ".join(miss_a[:10]) + (" ..." if len(miss_a) > 10 else ""))))
-    for x in plan["due"]:
-        if x not in retested:
-            out.append(("B5", "%s: (b) row %s was open in the last %d builds and re-tested in neither; re-test it now"
-                        % (path, x, B5_WINDOW - 1)))
-    for x, a in sorted(plan["again"].items()):
-        if x not in retested:
-            out.append(("B5", "%s: (c) row %s was missed again since the last build (%s); re-test it now" % (path, x, a)))
+    if not rec.get("attached"):
+        # B3
+        listed = set(p.get("weak_spots_from", [])) | notes_attempts
+        for f in files:
+            if not f.startswith("%s/%s/" % (grade, subj)) or "/_" in f[len(grade) + 1:]:
+                continue
+            dt = _attempt_dt(f)
+            if dt and dt < built and f not in listed:
+                out.append(("B3", "%s: score file %s is not in weak_spots_from or the error log" % (path, f)))
+        # B4
+        ing = set(p.get("results_ingested", []))
+        for rid, rc in sorted(receipts.items()):
+            if rc.get("subject") != subj:
+                continue
+            when = rc.get("datetime")
+            before = (datetime.fromisoformat(when) < built) if when else (rc.get("date", "9999") < built.date().isoformat())
+            if before and "gmail:" + rid not in ing:
+                out.append(("B4", "%s: receipt gmail:%s (%s, %s) is not in results_ingested" % (path, rid, rc.get("title", ""), rc.get("date"))))
+        # B5 (rotation)
+        retested = {r for q in qs for r in q.get("retests", [])}
+        row_ids = {r.get("id") for r in rows}
+        plan = b5_plan(S, grade, subj, rows, built, page=path, files=files)
+        hit = retested & set(plan["open"])
+        if len(hit) < plan["k"]:
+            out.append(("B5", "%s: re-tests %d of %d open rows; needs at least %d (min(%d, open rows))"
+                        % (path, len(hit), len(plan["open"]), plan["k"], B5_MIN)))
+        miss_a = [x for x in plan["oldest"] if x not in retested]
+        if miss_a:
+            out.append(("B5", "%s: (a) the %d most overdue open rows must be re-tested (oldest-first); missing: %s"
+                        % (path, plan["k"], ", ".join(miss_a[:10]) + (" ..." if len(miss_a) > 10 else ""))))
+        for x in plan["due"]:
+            if x not in retested:
+                out.append(("B5", "%s: (b) row %s was open in the last %d builds and re-tested in neither; re-test it now"
+                            % (path, x, B5_WINDOW - 1)))
+        for x, a in sorted(plan["again"].items()):
+            if x not in retested:
+                out.append(("B5", "%s: (c) row %s was missed again since the last build (%s); re-test it now" % (path, x, a)))
     for rid in sorted(retested - row_ids):
         out.append(("B5", "%s: retests names %s, which is not an error-log row id" % (path, rid)))
     # B6
@@ -493,11 +514,11 @@ def box_problems(entry, S, check_files=True):
             if pq is None:
                 out.append(("B6", "row %s: attempt %s comes from a page with no provenance record, so the fact cannot be traced" % (rid, a)))
                 continue
-            targets = [_norm_q(q["q"]) for q in pq if rid in q.get("retests", [])]
-            missed = {_norm_q(m.get("q", "")) for m in pay.get("missed", [])}
+            targets = [q for q in pq if rid in q.get("retests", [])]
+            keys = _missed_keys(pay)
             if not targets:
                 out.append(("B6", "row %s: attempt %s is from a page with no question that retests this row" % (rid, a)))
-            elif all(t in missed for t in targets):
+            elif all(_q_missed(t, keys) for t in targets):
                 out.append(("B6", "row %s: attempt %s missed the question for this row" % (rid, a)))
             else:
                 days.setdefault(_attempt_day(a, pay), a)
@@ -516,12 +537,65 @@ def box_problems(entry, S, check_files=True):
     return out
 
 
+def attach_record(frag, entry, S, built_at, check_files=True):
+    """(record bytes, problems) for a provenance fragment of a page that already exists (not built by sh_page.py).
+    frag: {"page", "provenance": {sources, results_ingested, weak_spots_from}, "questions": [{id, q, src | inferred,
+    retests}], optional "prompts"}."""
+    path = frag.get("page", "")
+    grade, subj = path.split("/")[:2]
+    p = dict(frag.get("provenance") or {})
+    out = []
+    srcs = p.get("sources") or []
+    if not srcs:
+        out.append("provenance.sources needs at least 1 source")
+    ids = set()
+    for k, x in enumerate(srcs, 1):
+        sid = x.get("id", "")
+        if not re.match(r"^(file|gmail|paper|url|handoff|sheet):\S+$", sid):
+            out.append("source %d: bad id" % k)
+        if sid.startswith("file:") and not re.fullmatch(r"[0-9a-f]{64}", x.get("sha256", "")):
+            out.append("source %d: a file: source needs its sha256" % k)
+        ids.add(sid)
+    qs = []
+    for n, q in enumerate(frag.get("questions") or [], 1):
+        inf = q.get("inferred") is True
+        src = q.get("src", "")
+        if not inf and (not src or src.split("#")[0] not in ids):
+            out.append("question %s: src is missing or not a listed source" % q.get("id", n))
+        qs.append({"quiz": 0, "kind": "mock", "section": "", "n": n, "id": str(q.get("id") or "q1-%d" % n), "q": q.get("q", ""),
+                   "topic": q.get("fact", ""), "src": "" if inf else src, "inferred": inf,
+                   "retests": list(q.get("retests") or []), "type": "unknown", "n_options": 0})
+    if not qs:
+        out.append("no questions")
+    elif sum(q["inferred"] for q in qs) > 0.2 * len(qs):
+        out.append("more than 20%% of the questions are inferred (P2)")
+    p.setdefault("results_ingested", [])
+    p.setdefault("weak_spots_from", [])
+    log = S.get("%s/%s/_error_log.csv" % (grade, subj)) or b""
+    rows = read_log(log.decode("utf-8")) or []
+    p["error_log"] = "scores:%s/%s/_error_log.csv" % (grade, subj)
+    p["error_log_sha256"] = hashlib.sha256(log).hexdigest() if log else ""
+    rec = {"v": 1, "page": path, "built_at": built_at, "attached": True, "added_by": entry.get("added_by", ""),
+           "provenance": p, "questions": qs, "prompts": frag.get("prompts") or [],
+           "open_rows": sorted(r["id"] for r in rows if (r.get("resolved") or "").strip().lower() == "no")}
+    raw = (json.dumps(rec, indent=1, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
+    if not out:
+        tmp = dict(entry, **manifest_fields(raw))
+        orig_get = S.get
+        S.get = lambda f, _o=orig_get: raw if f == scores_path(path) else _o(f)
+        try:
+            out += ["%s: %s" % (r, m) for r, m in box_problems(tmp, S, check_files=check_files)]
+        finally:
+            S.get = orig_get
+    return raw, out
+
+
 def main():
     import argparse
     import sh_scores as S
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["check", "plan"])
-    ap.add_argument("subject", nargs="?", help="for plan: G3/<Subject>")
+    ap.add_argument("cmd", choices=["check", "plan", "attach"])
+    ap.add_argument("subject", nargs="?", help="for plan: G3/<Subject>; for attach: the fragment .json")
     ap.add_argument("--pages", nargs="*", help="manifest paths (default: every page not in legacy_provenance)")
     ap.add_argument("--no-files", action="store_true", help="skip the file: sha256 check")
     a = ap.parse_args()
@@ -542,6 +616,8 @@ def main():
         print("(c) missed again since the last build: %s" % (", ".join(sorted(pl["again"])) or "none"))
         print("put these ids in 'retests' (%d): %s" % (len(need), json.dumps(need)))
         return
+    if a.cmd == "attach":
+        return attach_main(a, S)
     items = json.load(open(os.path.join(L.REPO, "manifest.json"), encoding="utf-8"))
     errs, warns = public_problems(items)
     for w in warns:
@@ -566,6 +642,45 @@ def main():
             print("  %s: %s" % (r, m))
         sys.exit(1)
     print("provenance check passed: %d new pages checked (B1-B6), %d legacy pages" % (len(todo), len(warns)))
+
+
+def attach_main(a, S):
+    """Write the record of an existing page to study-hub-scores, add the hash and counts to its manifest entry, and take
+    it out of legacy_provenance. Box only. The page HTML does not change."""
+    if not a.subject or not os.path.isfile(a.subject):
+        sys.exit("usage: sh_provenance.py attach <fragment.json>")
+    frag = json.load(open(a.subject, encoding="utf-8"))
+    mp = os.path.join(L.REPO, "manifest.json")
+    items = json.load(open(mp, encoding="utf-8"))
+    ent = [it for it in items if it.get("path") == frag.get("page")]
+    if len(ent) != 1:
+        sys.exit("ATTACH FAILED: %s is not one manifest page" % frag.get("page"))
+    if not is_legacy(frag["page"]):
+        sys.exit("ATTACH FAILED: %s is not in legacy_provenance; attach is only for pages built before the rules "
+                 "(a new page is built with sh_page.py)" % frag["page"])
+    try:
+        S.check_access(write=True)
+        raw, probs = attach_record(frag, ent[0], S, now_pt().isoformat(timespec="seconds"), check_files=not a.no_files)
+        if probs:
+            print("ATTACH FAILED (%d problems):" % len(probs))
+            for m in probs:
+                print("  " + m)
+            sys.exit(1)
+        how = S.put(scores_path(frag["page"]), raw, "provenance (attached): %s" % frag["page"])
+    except S.ScoresError as ex:
+        sys.exit("ATTACH FAILED: %s" % ex)
+    ent[0].update(manifest_fields(raw))
+    open(mp, "w", encoding="utf-8").write(json.dumps(items, indent=2, ensure_ascii=False) + "\n")
+    cp = os.path.join(L.REPO, "tools", "sh_config.json")   # text edit, so the file keeps its layout
+    t = open(cp, encoding="utf-8").read()
+    t2 = re.sub(r'\n[ \t]*"%s",?(?=\n)' % re.escape(frag["page"]), "", t, count=1)
+    t2 = re.sub(r',(\n[ \t]*\])', r"\1", t2)
+    if json.loads(t2).get("legacy_provenance") != [x for x in json.loads(t).get("legacy_provenance", []) if x != frag["page"]]:
+        sys.exit("ATTACH FAILED: could not edit legacy_provenance in tools/sh_config.json")
+    open(cp, "w", encoding="utf-8").write(t2)
+    f = manifest_fields(raw)
+    print("attached %s: record %s in study-hub-scores; %d sources, %d questions, %d inferred, %d retests; manifest updated, "
+          "removed from legacy_provenance" % (frag["page"], how, f["n_sources"], f["n_questions"], f["n_inferred"], f.get("n_retests", 0)))
 
 
 if __name__ == "__main__":

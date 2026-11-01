@@ -6,8 +6,9 @@
 #   3. a page with a broken link must be refused (no commit);
 #   5. a page with no provenance is refused by sh_page.py, and P1 fails in validate.py;
 #   6. a page that ignores a school receipt (B4) is refused by publish.sh;
-#   4. an sh-2 page with the score logger must publish with a hashed private-word list, and its own logger must turn
-#      each private word into [name] (node, tools/test_redact.js) with no base64 or plain copy of the words in the page.
+#   4. an sh-2 page with the score logger must publish with privacy v3: its own logger sends no free text (only item
+#      ids, option letters and booleans), commits as Study Hub Bot (node, tools/test_redact.js), and the page holds no
+#      private-word list in any form (plain, hashed, base64 or hex).
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 T="$(mktemp -d "${TMPDIR:-/tmp}/sh-e2e.XXXXXX")"
@@ -136,7 +137,7 @@ PY
 git checkout -q manifest.json
 ok "page with no provenance refused (sh_page.py), and P1 fails in validate.py"
 
-# 4. logger page: private words are redacted by the page's own logger, and the page holds only hashes
+# 4. logger page: the page's own logger sends no free text, and the page holds no private-word list
 # The two dummy private words are built at run time, so this file does not hold them (R7 scans tools/ too).
 export STUDY_HUB_BLOCKLIST="Zorb""laxion|Quint""aviusz"
 python3 - "$T/content" <<'PY2'
@@ -153,7 +154,7 @@ python3 tools/sh_page.py "$T/content/logger.json" >/dev/null
 tools/publish.sh "CI: logger page" > "$T/out4.txt" 2>&1 || { cat "$T/out4.txt"; die "publish.sh failed on the logger page"; }
 git log -1 --format=%B | grep -qx "Validated: sh-2" || die "logger page commit has no trailer"
 grep -q "WARNING: F1 G3/SS/CI-Logger/: mock format is out of range" "$T/out4.txt" || { cat "$T/out4.txt"; die "publish.sh did not warn on a mock (1 of 2 multiple choice) against a 100% multiple-choice school test (F1)"; }
-python3 - "$WT" "$T/logger-plain.html" <<'PY2' || die "logger page: hash list missing, or private words in plain/base64 form"
+python3 - "$WT" "$T/logger-plain.html" <<'PY2' || die "logger page: old privacy code, an sh-redact list, or private words in plain/base64 form"
 import os, sys, json
 sys.path.insert(0, os.path.join(sys.argv[1], "tools")); import sh_decrypt as D, sh_lib as L
 t = open(os.path.join(sys.argv[1], "G3/SS/CI-Logger/index.html")).read()
@@ -162,16 +163,19 @@ plain = D.decrypt_html(t, D.hash_password(os.environ["STATICRYPT_PASSWORD"], sal
 open(sys.argv[2], "w").write(plain)
 bl = os.environ["STUDY_HUB_BLOCKLIST"]
 assert L.logger_problems(plain, bl) == [], L.logger_problems(plain, bl)
-assert len(L.REDACT_ELEM_RE.findall(plain)) == 1
+assert not L.REDACT_ELEM_RE.findall(plain), "page still has an sh-redact element"
+assert '"id": "q1-1"' in plain or '"id":"q1-1"' in plain, "quiz items have no item ids"
 for w in bl.split("|"):
     assert w.lower() not in plain.lower(), "plain word in page"
     assert not any(f in plain for f in L.encoded_forms(w)), "encoded word in page"
-# the old trap: comment text that names the element must not count as the element
-fake = "<body><script>var SHLog=(function(){ // <script id=\"sh-redact\"> \n function record(r){}\n return {init:init}})();</script></body>"
-assert L.logger_problems(fake, bl), "logger_ok passed a page with no real sh-redact element"
-assert len(L.REDACT_ELEM_RE.findall(L.patch_logger(fake, bl, "x"))) == 1, "patch_logger did not insert the element"
+# an old v2 page (redact code and a hash list) fails, and patch_logger brings it to v3 with the list removed
+old = '<body><script>var SHLog=(function(){ /*sh-privacy v2*/ function redact(t){return t} /*sh-privacy end*/\n function record(r){}\n return {init:init}})();</script>' \
+      '<script type="application/json" id="sh-redact">{"v":2,"salt":"x","n":1,"h":[]}</script></body>'
+assert L.logger_problems(old, bl), "logger_ok passed an old v2 page"
+new = L.patch_logger(old, bl, "x")
+assert not L.REDACT_ELEM_RE.findall(new) and "/*sh-privacy v3*/" in new and "redact(" not in new, "patch_logger did not upgrade to v3"
 PY2
-node tools/test_redact.js "$T/logger-plain.html" > "$T/out4b.txt" || { cat "$T/out4b.txt"; die "logger page leaks a private word"; }
+node tools/test_redact.js "$T/logger-plain.html" > "$T/out4b.txt" || { cat "$T/out4b.txt"; die "logger page sends free text, a private word, or not as Study Hub Bot"; }
 ok "logger page: $(tail -1 "$T/out4b.txt")"
 
 # 6. a learning-loop rule (B4) blocks publish: a school receipt for SS that the new page did not ingest
