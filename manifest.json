@@ -48,11 +48,17 @@
   {
     "grade": "G3",
     "subject": "WW",
-    "title": "Lesson 9: Word Quest (words, practice, mock test, review)",
+    "title": "Lesson 9: Word Quest (words, practice, mock test)",
     "path": "G3/WW/Lesson9/",
     "test_date": "2026-11-05",
     "added_by": "Worldy",
-    "template": "sh-2"
+    "template": "sh-2",
+    "provenance_sha256": "507c9942cbd68b7ab073e0c0e4e1d55941d5c6bba157fa85f4fffef310b286be",
+    "n_sources": 13,
+    "n_inferred": 0,
+    "n_questions": 101,
+    "n_retests": 0,
+    "built_at": "2026-11-01T11:28:18-08:00"
   },
   {
     "grade": "G3",
