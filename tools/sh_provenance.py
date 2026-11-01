@@ -642,10 +642,35 @@ def box_problems(entry, S, check_files=True):
     return out
 
 
-def attach_record(frag, entry, S, built_at, check_files=True, drop_closed=True):
+def _qnorm(s):
+    s = re.sub(r"^\s*\[[^\]]*\]\s*", "", s or "")            # page prefix like "[Spring 2024 paper, Question 1]"
+    return re.sub(r"[^a-z0-9]+", "", s.lower())
+
+
+def map_logger_ids(questions, page_ids):
+    """Logger id (q<quiz>-<n>, as sh_page.py and sh.js make it) for each fragment question, matched to the page's
+    sh-data questions by text, in order. (ids, problems). A question that already has a page id keeps it."""
+    known = {x[2] for x in page_ids}
+    used, ids, out = set(), [], []
+    for k, q in enumerate(questions, 1):
+        if q.get("id") in known and q["id"] not in used:
+            used.add(q["id"]); ids.append(q["id"]); continue
+        t = _qnorm(q.get("q", ""))
+        hit = next((x for x in page_ids if x[2] not in used and t and _qnorm(x[3]) == t), None) or \
+            next((x for x in page_ids if x[2] not in used and len(t) >= 12 and (t in _qnorm(x[3]) or _qnorm(x[3]) in t)), None)
+        if hit is None:
+            out.append("question %s: its text matches no question on the page, so it has no logger id" % q.get("id", k))
+            ids.append(str(q.get("id") or ""))
+            continue
+        used.add(hit[2]); ids.append(hit[2])
+    return ids, out
+
+
+def attach_record(frag, entry, S, built_at, check_files=True, drop_closed=True, page_ids=None):
     """(record bytes, problems) for a provenance fragment of a page that already exists (not built by sh_page.py).
     frag: {"page", "provenance": {sources, results_ingested, weak_spots_from}, "questions": [{id, q, src | inferred,
-    retests}], optional "prompts"}."""
+    retests}], optional "prompts"}. page_ids: L.logger_ids() of the page; each question then gets the id the logger
+    sends (q<quiz>-<n>), so logged misses join to their sources."""
     path = frag.get("page", "")
     grade, subj = path.split("/")[:2]
     p = dict(frag.get("provenance") or {})
@@ -666,12 +691,16 @@ def attach_record(frag, entry, S, built_at, check_files=True, drop_closed=True):
     closed = {r.get("id") for r in (read_log(log0.decode("utf-8")) or []) if status(r) == "closed"} if drop_closed else set()
     dropped = set()
     qs = []
+    lids = None
+    if page_ids:
+        lids, mp = map_logger_ids(frag.get("questions") or [], page_ids)
+        out += mp
     for n, q in enumerate(frag.get("questions") or [], 1):
         inf = q.get("inferred") is True
         src = q.get("src", "")
         if not inf and (not src or src.split("#")[0] not in ids):
             out.append("question %s: src is missing or not a listed source" % q.get("id", n))
-        qs.append({"quiz": 0, "kind": "mock", "section": "", "n": n, "id": str(q.get("id") or "q1-%d" % n), "q": q.get("q", ""),
+        qs.append({"quiz": 0, "kind": "mock", "section": "", "n": n, "id": lids[n - 1] if lids else str(q.get("id") or "q1-%d" % n), "q": q.get("q", ""),
                    "topic": q.get("fact", ""), "src": "" if inf else src, "inferred": inf,
                    "retests": [x for x in (q.get("retests") or []) if x not in closed], "type": "unknown", "n_options": 0})
         dropped |= {x for x in (q.get("retests") or []) if x in closed}
@@ -819,7 +848,12 @@ def attach_main(a, S):
                  "(a new page is built with sh_page.py)" % frag["page"])
     try:
         S.check_access(write=True)
-        raw, probs = attach_record(frag, ent[0], S, now_pt().isoformat(timespec="seconds"), check_files=not a.no_files)
+        pf = os.path.join(L.default_src(), frag["page"], "index.html")
+        page_ids = L.logger_ids(open(pf, encoding="utf-8").read()) if os.path.exists(pf) else None
+        if page_ids is None:
+            print("attach: WARNING: %s has no sh-data in the mirror, so the fragment ids are kept as they are" % frag["page"])
+        raw, probs = attach_record(frag, ent[0], S, now_pt().isoformat(timespec="seconds"), check_files=not a.no_files,
+                                   page_ids=page_ids)
         if probs:
             print("ATTACH FAILED (%d problems):" % len(probs))
             for m in probs:

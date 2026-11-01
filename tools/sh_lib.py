@@ -1,5 +1,5 @@
 """Shared helpers for the Study Hub sh-2 template. Used by build_index.py, sh_page.py, sh_stage.py, validate.py."""
-import html, json, os, re
+import html, json, os, re, sys
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(TOOLS)
@@ -15,23 +15,61 @@ def default_src():
     return os.environ.get("STUDY_HUB_SRC", os.path.join(os.path.dirname(REPO), "study-hub-src"))
 
 
+def _is_ancestor(pid):
+    p = os.getpid()
+    while p and p > 1:
+        if p == pid:
+            return True
+        try:
+            p = int([l.split()[1] for l in open("/proc/%d/status" % p) if l.startswith("PPid:")][0])
+        except (OSError, IndexError, ValueError):
+            return False
+    return False
+
+
 def mirror_lock(src, what=""):
     """The same lock as tools/sh_lock.sh, for sh_page.py and attach run on their own: an exclusive flock on
-    <src>/.publish.lock for the life of the process (returns the open fd). No-op inside sh_lock.sh (SH_LOCK_HELD).
-    Refuses a clone that does not own the mirror (<src>/_state/repo). Waits up to SH_LOCK_WAIT seconds (900)."""
+    <src>/.publish.lock for the life of the process (returns the open fd). Inside a session (SH_LOCK_HELD) it checks
+    that SH_LOCK_HELD is this lock file, the flock is held, and the holder (SH_LOCK_PID) is an ancestor; else it refuses.
+    One clone per mirror (<src>/_state/repo); a gone owner is reclaimed and logged. Waits up to SH_LOCK_WAIT (900 s)."""
     import fcntl, time
+    lp = os.path.join(src, ".publish.lock")
     if os.environ.get("SH_LOCK_HELD"):
+        if os.path.realpath(os.environ["SH_LOCK_HELD"]) != os.path.realpath(lp):
+            raise SystemExit("LOCK NOT HELD: SH_LOCK_HELD is %s, not this mirror's lock (%s). Run inside tools/sh_lock.sh."
+                             % (os.environ["SH_LOCK_HELD"], lp))
+        fd = os.open(lp, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            raise SystemExit("LOCK NOT HELD: SH_LOCK_HELD is set but nobody holds %s. Run inside tools/sh_lock.sh." % lp)
+        except BlockingIOError:
+            pass
+        finally:
+            os.close(fd)
+        try:
+            holder = int(os.environ.get("SH_LOCK_PID", "0"))
+        except ValueError:
+            holder = 0
+        m = re.search(r" pid (\d+) since ", open(lp, encoding="utf-8", errors="replace").read())
+        if not holder or not m or int(m.group(1)) != holder or not _is_ancestor(holder):
+            raise SystemExit("LOCK NOT HELD: the lock on %s belongs to another session, not to this process tree." % lp)
         return None
     me = os.path.realpath(REPO)
     os.makedirs(os.path.join(src, "_state"), exist_ok=True)
     op = os.path.join(src, "_state", "repo")
     owner = open(op).read().strip() if os.path.exists(op) else ""
     if owner and owner != me:
-        raise SystemExit("WRONG CLONE: the mirror %s belongs to %s. Build and publish only from there; branch work goes "
-                         "in a worktree with its own STUDY_HUB_SRC." % (src, owner))
+        if os.path.exists(os.path.join(owner, ".git")):
+            raise SystemExit("WRONG CLONE: the mirror %s belongs to %s. Build and publish only from there; branch work "
+                             "goes in a worktree with its own STUDY_HUB_SRC." % (src, owner))
+        msg = "%s RECLAIM: owner %s no longer exists; mirror now owned by %s (%s)" % (
+            time.strftime("%Y-%m-%dT%H:%M:%S%z"), owner, me, os.environ.get("SH_BOT", "unknown bot"))
+        open(os.path.join(src, "_state", "lock.log"), "a").write(msg + "\n")
+        print(msg, file=sys.stderr)
+        owner = ""
     if not owner:
         open(op, "w").write(me + "\n")
-    lp = os.path.join(src, ".publish.lock")
     fd = os.open(lp, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
     t0, wait = time.time(), int(os.environ.get("SH_LOCK_WAIT", "900"))
     while True:
@@ -47,6 +85,7 @@ def mirror_lock(src, what=""):
     os.write(fd, ("%s pid %d since %s: %s\n" % (os.environ.get("SH_BOT", "unknown bot"), os.getpid(),
                                                 time.strftime("%Y-%m-%dT%H:%M:%S%z"), what)).encode())
     os.environ["SH_LOCK_HELD"] = lp
+    os.environ["SH_LOCK_PID"] = str(os.getpid())
     return fd
 
 
@@ -473,6 +512,23 @@ def name_guard_hits(texts, guard=None):
                 hits.append(label)
                 break
     return hits
+
+
+def logger_ids(h):
+    """The item ids the score logger sends for a page, in page order: [(quiz index, n, id, question text, kind)] from
+    its sh-data (sh.js: q.id or q<quiz+1>-<n>). None when the page has no sh-data (older pages)."""
+    m = SH_DATA_RE.search(h or "")
+    if not m:
+        return None
+    try:
+        d = json.loads(m.group(1))
+    except ValueError:
+        return None
+    out = []
+    for zi, z in enumerate(d.get("quizzes") or []):
+        for i, q in enumerate(z.get("questions") or []):
+            out.append((zi, i + 1, q.get("id") or "q%d-%d" % (zi + 1, i + 1), q.get("q", ""), z.get("kind", "game")))
+    return out
 
 
 def build_id(h):

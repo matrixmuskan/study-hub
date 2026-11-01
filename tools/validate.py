@@ -27,6 +27,8 @@ With --src: the staged or mirror plaintext pages also must carry the template ma
       decodes with the right MIME type, every video has playable H.264/VP9/AV1 + AAC/Opus streams (ffprobe), and
       every manifest page is linked from its subject hub page.
   R7  (also) no base64 (any offset) or hex encoding of a private word in any plaintext file or page.
+  B8  (with --src, box) every question id in a page's provenance record (study-hub-scores) is an id the page's logger
+      sends (sh-data: q<quiz>-<n> or the question's own id), so logged misses join to their sources.
   R12 The child's first name is in no tracked file (CI: a salted PBKDF2 hash in sh_config.json name_guard, never the
       name; box: also the name itself from STUDY_HUB_KID_FIRST_NAME).
   R11 Every page that logs scores has privacy v4: the logger sends no free text (a missed item is its number, a known
@@ -243,6 +245,33 @@ def main():
                             warnings.append(f"{rel}: legacy page, B7 not met: {pr}")
                         else:
                             err("B7", f"plaintext {rel}: {pr}")
+
+    # B8: provenance ids = logger ids (needs the private score repo, so only with --src on the box)
+    if a.src:
+        import sh_scores as S
+        try:
+            S.check_access(write=False)
+            scores_ok = True
+        except Exception as ex:
+            scores_ok = False
+            warnings.append("B8 did not run: no access to study-hub-scores (%s)" % ex)
+        for it in items if scores_ok else []:
+            path = it["path"]
+            if P.is_legacy(path):
+                continue
+            raw = S.get(P.scores_path(path))
+            if not raw:
+                continue   # P1 / B1 report a missing record
+            fp = os.path.join(a.src, path, "index.html")
+            ids = L.logger_ids(open(fp, encoding="utf-8").read()) if os.path.exists(fp) else None
+            if ids is None:
+                warnings.append(f"B8: {path} has no sh-data, so its logger ids are not known (older page)")
+                continue
+            known = {x[2] for x in ids}
+            bad = [q.get("id") for q in json.loads(raw).get("questions", []) if q.get("id") not in known]
+            if bad:
+                err("B8", f"{path}: {len(bad)} provenance ids are not ids the page's logger sends ({', '.join(map(str, bad[:3]))}). "
+                          "Re-attach with tools/sh_provenance.py attach, or rebuild with sh_page.py (ids q<quiz>-<n>)")
 
     # R12: the child's first name in no tracked file (README, tools, docs, pages, ...)
     tracked = subprocess.run(["git", "-C", L.REPO, "ls-files", "-z"], capture_output=True, text=True).stdout.split("\0")
