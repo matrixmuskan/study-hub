@@ -29,8 +29,7 @@
     "G3/Noetic/Ch4-Rewind-Rebalance/",
     "G3/Noetic/Mock-Warmup-Spring2024/",
     "G3/WW/Lesson7/",
-    "G3/WW/Lesson8/",
-    "G3/WW/Lesson9/"
+    "G3/WW/Lesson8/"
   ],
   "subject_modes_note": "school: a real school test ends the prep window; its error-log rows become closed (pattern input, no re-practice), B5 counts only open rows after the last real test, and a mock must cite patterns_from (F1). contest: B5 counts every open row (cumulative).",
   "subject_modes": {"SS": "school", "WW": "school", "LA": "school", "Math": "school", "Sci": "school", "Grammar": "school",

@@ -58,6 +58,38 @@ F1_TOL = {"count_rel": 0.20, "count_abs": 3,     # question count within 20% or 
           "stem_rel": 0.40}                      # mean words per question within 40% (difficulty proxy)
 STAMP_RE = re.compile(r"(\d{4}-\d{2}-\d{2})T(\d{6})-[a-z]+-[a-z0-9]{4}\.json$")
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{2,80}$")
+# Source ids. school-app:<message id> is the neutral label for a message from the school's parent app: the record
+# never holds that app's URL or name (they are private words, see STUDY_HUB_BLOCKLIST).
+SRC_ID_RE = re.compile(r"^(file|gmail|paper|url|handoff|sheet|school-app):\S+$")
+
+
+def blocklist():
+    """STUDY_HUB_BLOCKLIST from the environment, else from ~/.study-hub.env (box). Empty in CI."""
+    bl = os.environ.get("STUDY_HUB_BLOCKLIST", "")
+    envf = os.path.expanduser("~/.study-hub.env")
+    if not bl and os.path.exists(envf):
+        for line in open(envf, encoding="utf-8"):
+            if line.startswith("STUDY_HUB_BLOCKLIST="):
+                bl = line.split("=", 1)[1].strip().strip("'\"")
+    return bl
+
+
+def private_source_problems(srcs, qsrcs=(), bl=None):
+    """A source id or question src must not name a private word (for example the school app's domain). The word itself
+    is never printed. Use school-app:<message id> instead of the app's URL."""
+    terms = [t for t in (blocklist() if bl is None else bl).split("|") if t.strip()]
+    if not terms:
+        return []
+    rx = re.compile(r"\b(?:%s)\b" % "|".join(re.escape(t.strip()) for t in terms), re.I)
+    out = []
+    for i, s in enumerate(srcs, 1):
+        sid = s.get("id", "") if isinstance(s, dict) else ""
+        if rx.search(sid) or (isinstance(s, dict) and rx.search(str(s.get("title", "")))):
+            out.append("source %d: its id or title names a private word (STUDY_HUB_BLOCKLIST). For a school-app message "
+                       "use school-app:<message id> (see CONTRIBUTING-BOTS.md 11.1)" % i)
+    if any(rx.search(x or "") for x in qsrcs):
+        out.append("a question src names a private word (STUDY_HUB_BLOCKLIST); use the school-app:<message id> source id")
+    return out
 
 
 def legacy_pages():
@@ -103,8 +135,8 @@ def content_problems(c):
     ids = set()
     for i, s in enumerate(srcs):
         sid = s.get("id", "") if isinstance(s, dict) else ""
-        if not re.match(r"^(file|gmail|paper|url|handoff|sheet):\S+$", sid):
-            out.append("source %d: id must start with file:, gmail:, paper:, url:, sheet: or handoff:" % (i + 1))
+        if not SRC_ID_RE.match(sid):
+            out.append("source %d: id must start with file:, gmail:, paper:, url:, sheet:, handoff: or school-app:" % (i + 1))
             continue
         if s.get("kind") not in SOURCE_KINDS:
             out.append("source %s: kind must be one of %s" % (sid, ", ".join(SOURCE_KINDS)))
@@ -113,6 +145,7 @@ def content_problems(c):
         if sid in ids:
             out.append("source %s is listed twice" % sid)
         ids.add(sid)
+    out += private_source_problems(srcs, [q["src"] for q in qs])
     for k in ("results_ingested", "weak_spots_from"):
         if not isinstance(p.get(k, []), list):
             out.append("provenance.%s must be a list" % k)
@@ -623,11 +656,12 @@ def attach_record(frag, entry, S, built_at, check_files=True, drop_closed=True):
     ids = set()
     for k, x in enumerate(srcs, 1):
         sid = x.get("id", "")
-        if not re.match(r"^(file|gmail|paper|url|handoff|sheet):\S+$", sid):
+        if not SRC_ID_RE.match(sid):
             out.append("source %d: bad id" % k)
         if sid.startswith("file:") and not re.fullmatch(r"[0-9a-f]{64}", x.get("sha256", "")):
             out.append("source %d: a file: source needs its sha256" % k)
         ids.add(sid)
+    out += private_source_problems(srcs, [q.get("src", "") for q in frag.get("questions") or []])
     log0 = S.get("%s/%s/_error_log.csv" % (grade, subj)) or b""
     closed = {r.get("id") for r in (read_log(log0.decode("utf-8")) or []) if status(r) == "closed"} if drop_closed else set()
     dropped = set()
@@ -670,11 +704,15 @@ def main():
     import argparse
     import sh_scores as S
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["check", "plan", "attach"])
+    ap.add_argument("cmd", choices=["check", "plan", "attach", "config-diff"])
     ap.add_argument("subject", nargs="?", help="for plan: G3/<Subject>; for attach: the fragment .json")
     ap.add_argument("--pages", nargs="*", help="manifest paths (default: every page not in legacy_provenance)")
     ap.add_argument("--no-files", action="store_true", help="skip the file: sha256 check")
     a = ap.parse_args()
+    if a.cmd == "config-diff":
+        r, msg = config_diff()
+        print(msg)
+        sys.exit(0 if r in ("clean", "stage") else 1)
     if a.cmd == "plan":
         if not a.subject or a.subject.count("/") != 1:
             sys.exit("usage: sh_provenance.py plan G3/<Subject>")
@@ -733,6 +771,35 @@ def main():
     print("provenance check passed: %d new pages checked (B1-B6), %d legacy pages" % (len(todo), len(warns)))
 
 
+def config_diff(repo=None):
+    """For publish.sh: compare tools/sh_config.json with HEAD. ("clean", msg) if it is unchanged; ("stage", msg) if the
+    only change is pages taken out of legacy_provenance (what attach does) and each of them has provenance_sha256 in the
+    working manifest.json, so publish.sh commits it with the manifest; ("dirty", msg) for any other change, which must
+    go through a PR."""
+    import subprocess
+    repo = repo or L.REPO
+    cp = os.path.join(repo, "tools", "sh_config.json")
+    head = subprocess.run(["git", "-C", repo, "show", "HEAD:tools/sh_config.json"], capture_output=True, text=True)
+    if head.returncode != 0:
+        return "clean", "config: tools/sh_config.json is not in HEAD yet"
+    old, new = json.loads(head.stdout), json.load(open(cp, encoding="utf-8"))
+    if old == new:
+        return "clean", "config: tools/sh_config.json unchanged"
+    lo, ln = old.get("legacy_provenance", []), new.get("legacy_provenance", [])
+    rest_o = {k: v for k, v in old.items() if k != "legacy_provenance"}
+    rest_n = {k: v for k, v in new.items() if k != "legacy_provenance"}
+    if rest_o != rest_n or [x for x in lo if x in ln] != ln or len(ln) >= len(lo):
+        return "dirty", ("CONFIG CHANGED: tools/sh_config.json has uncommitted changes other than pages taken out of "
+                         "legacy_provenance. Those go through a PR (git diff tools/sh_config.json)")
+    gone = [x for x in lo if x not in ln]
+    man = {it.get("path"): it for it in json.load(open(os.path.join(repo, "manifest.json"), encoding="utf-8"))}
+    bad = [x for x in gone if not re.fullmatch(r"[0-9a-f]{64}", str((man.get(x) or {}).get("provenance_sha256", "")))]
+    if bad:
+        return "dirty", ("CONFIG CHANGED: %s left legacy_provenance but has no provenance_sha256 in manifest.json "
+                         "(run sh_provenance.py attach again)" % ", ".join(bad))
+    return "stage", "config: legacy_provenance shrank by %s (attach); publish.sh commits it" % ", ".join(gone)
+
+
 def attach_main(a, S):
     """Write the record of an existing page to study-hub-scores, add the hash and counts to its manifest entry, and take
     it out of legacy_provenance. Box only. The page HTML does not change."""
@@ -772,6 +839,7 @@ def attach_main(a, S):
     f = manifest_fields(raw)
     print("attached %s: record %s in study-hub-scores; %d sources, %d questions, %d inferred, %d retests; manifest updated, "
           "removed from legacy_provenance" % (frag["page"], how, f["n_sources"], f["n_questions"], f["n_inferred"], f.get("n_retests", 0)))
+    print("  next: tools/publish.sh commits manifest.json and the legacy_provenance change in tools/sh_config.json together")
     dr = json.loads(raw).get("dropped_closed_retests") or []
     if dr:
         print("  closed rows taken out of retests (school test already happened): %d: %s" % (len(dr), ", ".join(dr)))
