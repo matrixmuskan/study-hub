@@ -32,8 +32,9 @@
     "G3/WW/Lesson8/",
     "G3/WW/Lesson9/"
   ],
-  "school_subjects_note": "School tests (not contests). A mock on these pages must cite patterns_from (rule F1).",
-  "school_subjects": ["SS", "WW", "LA", "Math", "Sci", "Grammar"],
+  "subject_modes_note": "school: a real school test ends the prep window; its error-log rows become closed (pattern input, no re-practice), B5 counts only open rows after the last real test, and a mock must cite patterns_from (F1). contest: B5 counts every open row (cumulative).",
+  "subject_modes": {"SS": "school", "WW": "school", "LA": "school", "Math": "school", "Sci": "school", "Grammar": "school",
+                    "Noetic": "contest", "Kangaroo": "contest", "MOEMS": "contest"},
   "receipt_subjects": [
     ["(?i)\\bWW\\b|wordly wise|vocab test", "WW"],
     ["(?i)social studies|geography|\\bSS\\b|\\bCYK\\b|minoans", "SS"],
