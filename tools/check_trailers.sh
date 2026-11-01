@@ -17,7 +17,10 @@ for c in $(git -C "$REPO" log --format=%H "${range[@]}"); do
   n=$((n+1))
   wt="$T/$c"
   git -C "$REPO" worktree add -q --detach "$wt" "$c"
-  if (cd "$wt" && python3 tools/validate.py >"$T/out.txt" 2>&1); then
+  # The legacy_provenance list may only shrink compared with the commit's own parent (not with today's main, which
+  # has already shrunk it further).
+  pref="origin/main"; git -C "$REPO" cat-file -e "$c^" 2>/dev/null && pref="$c^"
+  if (cd "$wt" && SH_BASE_REF="$pref" python3 tools/validate.py >"$T/out.txt" 2>&1); then
     echo "ok   $(git -C "$REPO" log -1 --format='%h %s' "$c") (Validated: $tv)"
   else
     echo "FAIL $(git -C "$REPO" log -1 --format='%h %s' "$c"): it says 'Validated: $tv' but validate.py fails there:"
