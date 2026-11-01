@@ -57,11 +57,17 @@ var SH=(function(){
     els.forEach(function(e){io.observe(e)});
   }
 
-  /* Quiz. data: {kind:'game'|'mock'|'retest', mode:'practice'|'test', title, questions:[{q, options[], answer(index) | answer_text(string or list), explain, word, sense, topic, trap}]} */
+  /* Quiz. data: {kind:'game'|'mock'|'retest', mode:'practice'|'test', title, questions:[{id, q, options[], answer(index) | answer_text(string or list), explain, word, sense, topic, trap, traps}]}
+     trap: a trap key for the question (lowercase, a-z 0-9 _ -). traps: {option letter or typed answer: trap key}.
+     The logger gets, for each missed question: n, id, the picked letter, a value (a typed number, or the trap key of a
+     known wrong answer), the trap key, blank and typed. Never the question text or a typed word. */
   var LET='ABCDEFGH';
+  // trap key from page text: 'Other-sense lure' -> 'other-sense-lure' (page content, never the child's input)
+  function tkey(s){s=String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,32).replace(/-+$/,'');return /^[a-z0-9]/.test(s)?s:''}
   function norm(s){return String(s==null?'':s).trim().toLowerCase().replace(/\s+/g,' ').replace(/[.,!]$/,'')}
   function quiz(root,data,page){
     try{
+      var qi=+(root.getAttribute&&root.getAttribute('data-sh-quiz'))||0;
       var qs=data.questions||[],mode=data.mode||(data.kind==='game'?'practice':'test'),state=qs.map(function(){return {pick:null,done:false}});
       root.classList.add('sh-quiz');
       function optText(q,i){return q.options[i]}
@@ -101,10 +107,17 @@ var SH=(function(){
       function finish(){
         if(finished)return;finished=true;
         var f=$('[data-finish]',root);if(f)f.disabled=true;
+        $$('.sh-input',root).forEach(function(inp){var k=+inp.getAttribute('data-q');if(state[k]&&(state[k].pick==null||state[k].pick===''))state[k].pick=inp.value});
         var score=0,missed=[];
-        qs.forEach(function(q,i){var st=state[i];if(isRight(q,st))score++;else missed.push({n:i+1,id:q.id||('q'+(i+1)),
-          picked:q.options&&st.pick!=null?LET[st.pick]:null,correct:q.options?LET[q.answer]:null,
-          blank:st.pick==null||String(st.pick).trim()==='',typed:!q.options})});
+        qs.forEach(function(q,i){var st=state[i];if(isRight(q,st))score++;else{
+          var blank=st.pick==null||String(st.pick).trim()==='',L=q.options&&!blank?LET[st.pick]:null,tm=q.traps||{};
+          // a known wrong answer: the page lists it in traps (option letter or typed answer)
+          var hit=blank?null:(q.options?(L in tm?L:null):(Object.keys(tm).filter(function(k){return norm(k)===norm(st.pick)})[0]||null));
+          var tk=hit!=null?(tkey(tm[hit])&&tkey(tm[hit]).length<=24&&/^[a-z0-9-]+$/.test(tm[hit])?tm[hit]:(tkey(q.trap)||'known-wrong')):(tkey(q.trap)||null);
+          var raw=String(st.pick==null?'':st.pick).trim();
+          var v=q.options||blank?null:(/^-?\d{1,9}(?:[.,]\d{1,4})?(?:\/\d{1,6})?$/.test(raw)?raw:(hit!=null?norm(hit):null));
+          missed.push({n:i+1,id:q.id||('q'+(qi+1)+'-'+(i+1)),picked:L,value:v,trap:tk,
+            correct:q.options?LET[q.answer]:null,blank:blank,typed:!q.options})}});
         var sc=$('.sh-score',root);sc.hidden=false;
         var pct=qs.length?Math.round(100*score/qs.length):0;
         sc.innerHTML='<div class="sh-score__big">'+score+' / '+qs.length+'</div><div class="sh-score__text">'+(pct>=90?'Excellent work.':pct>=70?'Good work. Look again at the red ones.':'Keep going. Read the red ones, then try again.')+'</div><div class="sh-actions" style="justify-content:center"><button type="button" class="sh-btn sh-btn--ghost" data-again>Try again</button></div>';
@@ -119,7 +132,14 @@ var SH=(function(){
     try{
       var page=null,el=document.getElementById('sh-data');
       if(el){try{page=JSON.parse(el.textContent)}catch(e){page=null}}
-      if(page&&page.log&&window.SHLog){try{SHLog.init({grade:page.grade,subject:page.subject,lesson:page.id,token:page.token})}catch(e){}}
+      if(page&&page.log&&window.SHLog){try{
+        var ids=[],traps=[],secs=[],vals=[];
+        (page.quizzes||[]).forEach(function(z,zi){if(z.section)secs.push(z.section);(z.questions||[]).forEach(function(q,i){ids.push(q.id||('q'+(zi+1)+'-'+(i+1)));
+          if(tkey(q.trap))traps.push(tkey(q.trap));var t=q.traps||{};Object.keys(t).forEach(function(k){if(/^[a-z0-9-]{1,24}$/.test(t[k]))traps.push(t[k]);
+            if(!q.options)vals.push(norm(k))})})});
+        traps.push('known-wrong');
+        if(SHLog.allow)SHLog.allow({ids:ids,traps:traps,sections:secs,values:vals,build:page.build});
+        SHLog.init({grade:page.grade,subject:page.subject,lesson:page.id,token:page.token})}catch(e){}}
       $$('[data-sh-quiz]').forEach(function(q){var i=+q.getAttribute('data-sh-quiz');if(page&&page.quizzes&&page.quizzes[i])quiz(q,page.quizzes[i],page)});
       tabs();dates();filters();reveal();
     }catch(e){}

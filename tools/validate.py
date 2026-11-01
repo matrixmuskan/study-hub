@@ -27,9 +27,9 @@ With --src: the staged or mirror plaintext pages also must carry the template ma
       decodes with the right MIME type, every video has playable H.264/VP9/AV1 + AAC/Opus streams (ffprobe), and
       every manifest page is linked from its subject hub page.
   R7  (also) no base64 (any offset) or hex encoding of a private word in any plaintext file or page.
-  R11 Every page that logs scores has privacy v3: the logger sends no free text (a missed item is its number, item id,
-      option letters, blank and typed; details are numbers, booleans and short ids), it commits as Study Hub Bot, and
-      the page has no sh-redact element (no private-word list in any form).
+  R11 Every page that logs scores has privacy v4: the logger sends no free text (a missed item is its number, a known
+      item id, the option letter, a number or listed wrong answer, a trap key, blank and typed; details are a fixed list
+      of keys), it commits as Study Hub Bot, the page has an sh-build id, and no sh-redact element.
 --src must be a folder made by tools/sh_stage.py (publish.sh does this). The raw mirror is refused: older pages there
 are skinned and patched only at stage time, so they would fail R4, R9 and R11 for no real reason.
 """
