@@ -13,6 +13,10 @@ if [ -z "${STATICRYPT_PASSWORD:-}" ] && [ -f "$HOME/.study-hub.env" ]; then set 
 : "${STATICRYPT_PASSWORD:?Set STATICRYPT_PASSWORD (ask Muskan) or create ~/.study-hub.env}"
 export STATICRYPT_PASSWORD
 
+# tools/sh_config.json: attach (sh_provenance.py) takes pages out of legacy_provenance. That change is committed with
+# the manifest below; any other uncommitted config change stops the publish (it goes through a PR).
+CFG_STATE=$(python3 "$REPO/tools/sh_provenance.py" config-diff) || { echo "$CFG_STATE"; echo "Nothing was encrypted or committed."; exit 1; }
+echo "$CFG_STATE"
 python3 "$REPO/tools/build_index.py"
 
 # House rules check on plaintext before encrypting
@@ -103,6 +107,7 @@ else
 fi
 
 git add -A -- ':(glob)G*/**' index.html manifest.json  # only publish outputs; tools/assets changes go through a PR
+case "$CFG_STATE" in *"publish.sh commits it"*) git add -- tools/sh_config.json ;; esac  # attach's legacy_provenance shrink only
 if git diff --cached --quiet; then echo "nothing to commit"
 else
   msg=(-m "${1:-Publish study hub pages}")
