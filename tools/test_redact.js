@@ -46,13 +46,13 @@ for (const file of process.argv.slice(2)) {
   (async () => {
     vm.runInContext(code + '\nthis.SHLog=SHLog;', ctx);
     if (typeof ctx.SHLog.allow !== 'function') throw new Error('logger has no allow()');
-    ctx.SHLog.allow({ ids: ['q1-1', 'q1-2', 'q1-3', 'q2-1'], traps: ['opposite'], sections: ['mock'], build: 'abcdef0123456789' });
+    ctx.SHLog.allow({ ids: ['q1-1', 'q1-2', 'q1-3', 'q2-1'], traps: ['opposite'], sections: ['mock'], values: ['90'], build: 'abcdef0123456789' });
     ctx.SHLog.init({ grade: 'G3', subject: 'T', lesson: 'T', token: 'test-token' });
     const forms = [];
     terms.forEach(t => forms.push(t.toLowerCase(), t[0].toUpperCase() + t.slice(1).toLowerCase(), t.toUpperCase(), t + "'s"));
     const words = forms.join(', ') || 'Some free text here';
     const w0 = (terms[0] || 'someone').toLowerCase();
-    ctx.SHLog.record({ kind: 'mock', score: 1, total: 8, missed: [
+    ctx.SHLog.record({ kind: 'mock', score: 1, total: 10, missed: [
       { n: 1, q: 'Who wrote this? ' + words, word: words, sense: words, topic: words, trap: words, picked: 'B. ' + words, correct: 'C. ' + words },
       { n: 2, id: 'q1-2', q: 'Typed', picked: words + ' did it', correct: 'the answer ' + words, typed: true, blank: false },
       { n: 3, id: 'q1-3 ' + words, picked: '(blank)', correct: 'A. x' },
@@ -60,7 +60,9 @@ for (const file of process.argv.slice(2)) {
       { n: 5, id: w0, picked: null, value: w0, trap: w0, typed: true, blank: false },
       { n: 6, k: 2, picked: 'Option text ' + words, correct: 'Other text', type: 'trap' },
       { n: 7, q: 'Checklist item ' + words, type: 'checklist', sense: w0 },
-      { n: 8, id: 'q1-1', picked: 'C', trap: 'opposite', blank: false }],
+      { n: 8, id: 'q1-1', picked: 'C', trap: 'opposite', blank: false },
+      { n: 9, id: 'q1-2', picked: null, trap: 'opposite', type: 'trap', blank: true },
+      { n: 10, id: 'q1-3', picked: null, value: '85', trap: 'opposite', typed: true, blank: false }],
       details: { note: words, who: w0, scorer: w0, section: w0, mode: 'test', answered: 3, ok: true, round: 2,
                  rubric: { organization: 2, who: words }, partScores: [{ part: 1, score: 2, total: 3, who: w0 }], list: [1, words, 'ab'] } });
     await ctx.SHLog.flush();
@@ -81,11 +83,13 @@ for (const file of process.argv.slice(2)) {
     if (M[0].picked !== 'B' || M[0].correct !== 'C' || M[0].id !== 'mock-1' || M[0].blank !== false || M[0].trap !== undefined) fails.push('item 1: option letter, made id, or free-text trap wrong');
     if (M[1].typed !== true || M[1].picked !== undefined || M[1].value !== undefined || M[1].blank !== false) fails.push('item 2: a typed word must be dropped, not marked blank');
     if (M[2].blank !== true || M[2].id !== 'mock-3') fails.push('item 3: blank or unknown id not handled');
-    if (M[3].value !== '90' || M[3].trap !== 'opposite' || M[3].blank !== false || M[3].id !== 'q2-1') fails.push('item 4: typed number and trap key not logged');
+    if (M[3].value !== '90' || M[3].trap !== 'opposite' || M[3].blank !== false || M[3].id !== 'q2-1') fails.push('item 4: listed typed number and its trap key not logged');
     if (M[4].id !== 'mock-5' || M[4].value !== undefined || M[4].trap !== undefined) fails.push('item 5: an unknown word passed as id, value or trap');
     if (M[5].picked !== 'C' || M[5].trap !== 'trap' || M[5].blank !== false || M[5].typed !== false) fails.push('item 6: option index k not mapped to a letter, or fixed trap key lost');
     if (M[6].blank !== false || M[6].typed !== false || M[6].item !== 'checklist') fails.push('item 7: a checklist item is not a blank answer');
     if (M[7].picked !== 'C' || M[7].trap !== 'opposite') fails.push('item 8: picked letter and trap key not logged');
+    if (M[8].blank !== true || M[8].trap !== undefined) fails.push('item 9: a blank item got a trap key');
+    if (M[9].value !== '85' || M[9].trap !== undefined) fails.push('item 10: a typed answer the page does not list got a trap key');
     if (p.build !== 'abcdef0123456789') fails.push('no build id');
     const D = p.details;
     if (!onlyFacts(D, 0) || D.answered !== 3 || D.round !== 2 || D.mode !== 'test' || D.rubric.organization !== 2 || D.partScores[0].score !== 2) fails.push('allowed details lost');

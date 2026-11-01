@@ -56,7 +56,8 @@ var SHLog=(function(){
   /*sh-privacy v4*/
   // Privacy: the logger sends no free text. For each missed item it sends: n, a stable item id, the picked option
   // letter, a value (only a number, or a trap key the page lists for that question), a trap key, and the blank and
-  // typed booleans. A value is a number or a wrong answer the page lists. Ids and trap keys must be known: listed by the page (SHLog.allow, from sh-data) or made here from
+  // typed booleans. A value is a number or a wrong answer the page lists. A trap key is sent only for a wrong pick or a
+  // listed typed answer: never for a blank item or an unlisted typed answer. Ids and trap keys must be known: listed by the page (SHLog.allow, from sh-data) or made here from
   // the quiz kind and n. details keep only a fixed list of keys with numbers, booleans and known ids. Every file is
   // committed as Study Hub Bot.
   var BOT={name:'Study Hub Bot',email:'study-hub-bot@users.noreply.github.com'};
@@ -91,7 +92,9 @@ var SHLog=(function(){
     var typed=typeof m.typed==='boolean'?m.typed:(!item&&!blank&&!L);
     var v0=m.value!=null?m.value:(typed?pk:null),v=num(v0)||(v0!=null&&REG.values[String(v0)]?String(v0):null)||trapKey(m.value);
     if(!blank&&v!=null)o.value=v;
-    var t=trapKey(m.trap)||trapKey(m.type);
+    // a trap key only for a wrong pick, or a typed answer the page lists (REG.values); none for blank or checklist items
+    var listed=typed&&v0!=null&&!!REG.values[String(v0).trim().toLowerCase()];
+    var t=!blank&&!item&&(o.picked||listed)?(trapKey(m.trap)||trapKey(m.type)):null;
     if(t)o.trap=t;
     if(letter(m.correct))o.correct=letter(m.correct);
     o.blank=!!blank;o.typed=!!typed;if(item)o.item='checklist';return o}

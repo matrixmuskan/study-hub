@@ -5,7 +5,7 @@ is sent), plays a quiz on each with the page's own code, and checks the queued f
 
   Noetic Ch1-Quiz (sh-2, typed answers): types a known wrong answer (90) on question 1.
   WW Lesson9 (sh-2, options): picks a wrong option on question 1 of the first quiz.
-  SS Final1 (older page): runs the page's own logRound() with a trap pick and a wrong pick.
+  SS Final1 (sh-2 page): a wrong pick on Q1 and a blank Q2 (no trap key for the blank one).
 
 Usage: (set -a; . ~/.study-hub.env; set +a; python3 tools/test_logger_pages.py)   Prints facts only, never terms.
 """
@@ -68,13 +68,17 @@ def main():
                   r.querySelector('.sh-opt[data-q="' + i + '"][data-k="' + k + '"]').click(); });
                 const f = r.querySelector('[data-finish]'); if (f) f.click(); }""")
             runs.append(("WW Lesson9", payloads(p), lambda m: m.get("n") == 1 and m.get("picked") and m.get("trap") and m.get("blank") is False))
-            # SS Final1: the page's own round logger with a trap pick (Q1) and another wrong pick (Q2)
+            # SS Final1 (sh-2 since 1457b0b): first option quiz; wrong option on Q1, Q2 left blank, right on the rest
             p = br.new_page(); p.add_init_script(STUB)
             p.goto("file://" + os.path.join(st, "G3/SS/Final1-Ch1-2-8/index.html"))
-            p.wait_for_timeout(800)
-            p.evaluate("""() => { G = {mode: 'all', round: 1, queue: [0, 1, 2], rm: [{idx: 0, k: D.QUIZ[0].trap},
-                {idx: 1, k: (D.QUIZ[1].a + 1) % D.QUIZ[1].o.length}], rc: [2], logged: null}; logRound(); }""")
-            runs.append(("SS Final1", payloads(p), lambda m: m.get("n") == 1 and m.get("trap") == "trap" and m.get("picked")))
+            p.wait_for_selector('[data-sh-quiz] .sh-opt', state="attached")
+            p.evaluate("""() => { const Z = JSON.parse(document.getElementById('sh-data').textContent).quizzes;
+                const qi = Z.findIndex(z => z.questions.length > 2 && z.questions.every(q => q.options));
+                const r = document.querySelector('[data-sh-quiz="' + qi + '"]');
+                Z[qi].questions.forEach((q, i) => { if (i === 1) return; const k = i === 0 ? (q.answer + 1) % q.options.length : q.answer;
+                  r.querySelector('.sh-opt[data-q="' + i + '"][data-k="' + k + '"]').click(); });
+                const f = r.querySelector('[data-finish]'); if (f) f.click(); }""")
+            runs.append(("SS Final1", payloads(p), lambda m: m.get("n") == 1 and m.get("picked") and m.get("blank") is False))
             br.close()
         for name, pls, want in runs:
             if len(pls) != 1:
@@ -82,10 +86,11 @@ def main():
             body, pay = pls[0]
             text = json.dumps(pay)
             leaks = len(rx.findall(text))
-            ok = want(pay["missed"][0]) and leaks == 0 and body.get("committer", {}).get("name") == "Study Hub Bot" and pay.get("build")
+            notrap = all("trap" not in m for m in pay["missed"] if m.get("blank") or (m.get("typed") and m.get("value") not in (None, "90")))
+            ok = want(pay["missed"][0]) and notrap and leaks == 0 and body.get("committer", {}).get("name") == "Study Hub Bot" and pay.get("build")
             bad += 0 if ok else 1
-            print("%s %-16s score %s/%s, build %s, missed[0] %s, %d missed, private terms %d"
-                  % ("ok  " if ok else "FAIL", name, pay["score"], pay["total"], pay.get("build"), json.dumps(pay["missed"][0]), len(pay["missed"]), leaks))
+            print("%s %-16s score %s/%s, build %s, missed[0] %s, %d missed, blank or unlisted typed with no trap key: %s, private terms %d"
+                  % ("ok  " if ok else "FAIL", name, pay["score"], pay["total"], pay.get("build"), json.dumps(pay["missed"][0]), len(pay["missed"]), notrap, leaks))
     finally:
         shutil.rmtree(st, ignore_errors=True)
     print("logger page test: %d pages, %d failed" % (3, bad))

@@ -113,7 +113,8 @@ var SH=(function(){
           var blank=st.pick==null||String(st.pick).trim()==='',L=q.options&&!blank?LET[st.pick]:null,tm=q.traps||{};
           // a known wrong answer: the page lists it in traps (option letter or typed answer)
           var hit=blank?null:(q.options?(L in tm?L:null):(Object.keys(tm).filter(function(k){return norm(k)===norm(st.pick)})[0]||null));
-          var tk=hit!=null?(tkey(tm[hit])&&tkey(tm[hit]).length<=24&&/^[a-z0-9-]+$/.test(tm[hit])?tm[hit]:(tkey(q.trap)||'known-wrong')):(tkey(q.trap)||null);
+          // trap key only for a wrong pick (option) or a typed answer the page lists; never a default for blank or other typed answers
+          var tk=blank?null:hit!=null?(/^[a-z0-9-]{1,24}$/.test(tm[hit])?tm[hit]:(tkey(q.trap)||'known-wrong')):(q.options&&L?(tkey(q.trap)||null):null);
           var raw=String(st.pick==null?'':st.pick).trim();
           var v=q.options||blank?null:(/^-?\d{1,9}(?:[.,]\d{1,4})?(?:\/\d{1,6})?$/.test(raw)?raw:(hit!=null?norm(hit):null));
           missed.push({n:i+1,id:q.id||('q'+(qi+1)+'-'+(i+1)),picked:L,value:v,trap:tk,
