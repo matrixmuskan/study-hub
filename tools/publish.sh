@@ -62,6 +62,6 @@ done
 # Safety: validate the repo (encryption, manifest, folders, template, secrets)
 python3 "$REPO/tools/validate.py" --src "$STAGE"
 
-git add -A
+git add -A -- 'G*/' index.html manifest.json  # only publish outputs; tools/assets changes go through a PR
 if git diff --cached --quiet; then echo "nothing to commit"; else git commit -q -m "${1:-Publish study hub pages}" && git log --oneline -1; fi
 echo "Done. Review, then push with: git pull --rebase && git push origin main"
