@@ -59,9 +59,20 @@ for p in "${PAGES[@]}"; do
   echo "encrypted $p"
 done
 
-# Safety: validate the repo (encryption, manifest, folders, template, secrets)
-python3 "$REPO/tools/validate.py" --src "$STAGE"
+# Safety: validate the repo (encryption, manifest, folders, template, secrets). A failure stops here,
+# so nothing is committed; the trailer below is added only when validation passed.
+VALIDATED=""
+if python3 "$REPO/tools/validate.py" --src "$STAGE"; then
+  VALIDATED=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["template_version"])' "$REPO/tools/sh_config.json")
+else
+  echo "Validation failed: nothing committed. Fix the problems above and run publish.sh again."; exit 1
+fi
 
 git add -A -- 'G*/' index.html manifest.json  # only publish outputs; tools/assets changes go through a PR
-if git diff --cached --quiet; then echo "nothing to commit"; else git commit -q -m "${1:-Publish study hub pages}" && git log --oneline -1; fi
+if git diff --cached --quiet; then echo "nothing to commit"
+else
+  msg=(-m "${1:-Publish study hub pages}")
+  [ -n "$VALIDATED" ] && msg+=(-m "Validated: $VALIDATED")
+  git commit -q "${msg[@]}" && git log --oneline -1
+fi
 echo "Done. Review, then push with: git pull --rebase && git push origin main"
