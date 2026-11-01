@@ -8,35 +8,181 @@
   "test_date": "2026-11-20",
   "added_by": "Sissy",
   "log": true,
+  "provenance": {
+    "sources": [
+      {
+        "id": "file:/workspace/ss/sources/maps-study-guide.pdf",
+        "kind": "study_guide",
+        "sha256": "<sha256sum of the file>",
+        "what": "Maps study guide, slides 2-6"
+      },
+      {
+        "id": "gmail:1a0643c185a516f9",
+        "kind": "form_receipt",
+        "what": "SS Chapter 1 school test"
+      }
+    ],
+    "results_ingested": [
+      "gmail:1a0643c185a516f9"
+    ],
+    "weak_spots_from": [
+      "G3/SS/Final1-Ch1-2-8/2026-10-20T181038-mock-v6w7.json"
+    ]
+  },
   "sections": [
-    {"id": "learn", "label": "Learn", "blocks": [
-      {"type": "text", "title": "What is a map?", "md": "A map is a flat picture of a place.\n\n- A **title** tells you what the map shows.\n- A **key** tells you what each symbol means.\n- A **compass rose** shows north, south, east, and west."},
-      {"type": "cards", "title": "Words to know", "items": [
-        {"title": "Globe", "body": "A round model of the Earth."},
-        {"title": "Equator", "body": "An imaginary line around the middle of the Earth."},
-        {"title": "Continent", "body": "A very large area of land. The Earth has seven."}
-      ]},
-      {"type": "callout", "title": "Tip:", "md": "Find the key first. Then read the map."},
-      {"type": "image", "src": "media/map-comic-1.png", "alt": "A comic: a girl reads the key on a park map to find the pond.", "caption": "Comic 1: read the key first."},
-      {"type": "video", "src": "media/maps-narrated.mp4", "poster": "media/maps-narrated-poster.jpg", "captions": "media/maps-narrated.vtt", "title": "Watch: the parts of a map"}
-    ]},
-    {"id": "practice", "label": "Practice", "blocks": [
-      {"type": "quiz", "kind": "game", "title": "Quick practice", "intro": "You see the answer after each question.", "questions": [
-        {"q": "What shows north, south, east, and west?", "options": ["The title", "The compass rose", "The key"], "answer": 1, "explain": "The compass rose shows the directions.", "topic": "map parts"},
-        {"q": "How many continents are there?", "answer_text": ["7", "seven"], "numeric": true, "explain": "There are seven continents.", "topic": "continents"}
-      ]}
-    ]},
-    {"id": "mock", "label": "Mock test", "blocks": [
-      {"type": "quiz", "kind": "mock", "title": "Mock test", "intro": "Answer every question. Then press Mark my test.", "questions": [
-        {"q": "A round model of the Earth is a", "options": ["map", "globe", "key"], "answer": 1, "topic": "globes"},
-        {"q": "The equator is an imaginary line around the ___ of the Earth.", "options": ["top", "middle", "bottom"], "answer": 1, "topic": "globes"}
-      ]}
-    ]},
-    {"id": "retest", "label": "Retest", "blocks": [
-      {"type": "text", "md": "Do this part after the teacher gives back the test."},
-      {"type": "quiz", "kind": "retest", "questions": [
-        {"q": "What tells you what each symbol on a map means?", "options": ["The key", "The title", "The scale"], "answer": 0, "topic": "map parts"}
-      ]}
-    ]}
+    {
+      "id": "learn",
+      "label": "Learn",
+      "blocks": [
+        {
+          "type": "text",
+          "title": "What is a map?",
+          "md": "A map is a flat picture of a place.\n\n- A **title** tells you what the map shows.\n- A **key** tells you what each symbol means.\n- A **compass rose** shows north, south, east, and west."
+        },
+        {
+          "type": "cards",
+          "title": "Words to know",
+          "items": [
+            {
+              "title": "Globe",
+              "body": "A round model of the Earth."
+            },
+            {
+              "title": "Equator",
+              "body": "An imaginary line around the middle of the Earth."
+            },
+            {
+              "title": "Continent",
+              "body": "A very large area of land. The Earth has seven."
+            }
+          ]
+        },
+        {
+          "type": "callout",
+          "title": "Tip:",
+          "md": "Find the key first. Then read the map."
+        },
+        {
+          "type": "image",
+          "src": "media/map-comic-1.png",
+          "alt": "A comic: a girl reads the key on a park map to find the pond.",
+          "caption": "Comic 1: read the key first."
+        },
+        {
+          "type": "video",
+          "src": "media/maps-narrated.mp4",
+          "poster": "media/maps-narrated-poster.jpg",
+          "captions": "media/maps-narrated.vtt",
+          "title": "Watch: the parts of a map"
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "label": "Practice",
+      "blocks": [
+        {
+          "type": "quiz",
+          "kind": "game",
+          "title": "Quick practice",
+          "intro": "You see the answer after each question.",
+          "questions": [
+            {
+              "q": "What shows north, south, east, and west?",
+              "options": [
+                "The title",
+                "The compass rose",
+                "The key"
+              ],
+              "answer": 1,
+              "explain": "The compass rose shows the directions.",
+              "topic": "map parts",
+              "src": "file:/workspace/ss/sources/maps-study-guide.pdf#slide=3",
+              "retests": [
+                "SS-2026-09-02-1a2b3c"
+              ]
+            },
+            {
+              "q": "How many continents are there?",
+              "answer_text": [
+                "7",
+                "seven"
+              ],
+              "numeric": true,
+              "explain": "There are seven continents.",
+              "topic": "continents",
+              "retests": [],
+              "inferred": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mock",
+      "label": "Mock test",
+      "blocks": [
+        {
+          "type": "quiz",
+          "kind": "mock",
+          "title": "Mock test",
+          "intro": "Answer every question. Then press Mark my test.",
+          "questions": [
+            {
+              "q": "A round model of the Earth is a",
+              "options": [
+                "map",
+                "globe",
+                "key"
+              ],
+              "answer": 1,
+              "topic": "globes",
+              "src": "file:/workspace/ss/sources/maps-study-guide.pdf#slide=3",
+              "retests": []
+            },
+            {
+              "q": "The equator is an imaginary line around the ___ of the Earth.",
+              "options": [
+                "top",
+                "middle",
+                "bottom"
+              ],
+              "answer": 1,
+              "topic": "globes",
+              "src": "file:/workspace/ss/sources/maps-study-guide.pdf#slide=2",
+              "retests": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "retest",
+      "label": "Retest",
+      "blocks": [
+        {
+          "type": "text",
+          "md": "Do this part after the teacher gives back the test."
+        },
+        {
+          "type": "quiz",
+          "kind": "retest",
+          "questions": [
+            {
+              "q": "What tells you what each symbol on a map means?",
+              "options": [
+                "The key",
+                "The title",
+                "The scale"
+              ],
+              "answer": 0,
+              "topic": "map parts",
+              "src": "file:/workspace/ss/sources/maps-study-guide.pdf#slide=3",
+              "retests": []
+            }
+          ]
+        }
+      ]
+    }
   ]
 }

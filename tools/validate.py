@@ -16,6 +16,11 @@ Rules (repo):
   R8  Content folders hold only index.html.
   R9  Design standard (tools/sh_checks.py): shared CSS/JS and the login template use only the palette (no purple,
       no multi-color gradients); every subject uses the one site accent.
+Provenance (tools/sh_provenance.py; CI, no secrets). Pages in tools/sh_config.json "legacy_provenance" get a warning.
+  P1  Every other manifest page has provenance_sha256, n_sources >= 1, n_questions >= 1. legacy_provenance may only shrink.
+  P2  n_inferred / n_questions <= 0.20.
+  B7  (with --src) a non-legacy page with a quiz has the score logger (data.log true and SHLog), not only localStorage.
+  B1-B6 need the private score repo, so publish.sh runs them (tools/sh_provenance.py check), never CI.
 With --src: the staged or mirror plaintext pages also must carry the template marker, and the blocklist runs on them.
   R9  (pages) no purple/violet, no multi-color gradients, no non-palette colors in a page's own styles.
   R10 Links (tools/sh_checks.py): every internal href/src/poster resolves, every '#id' anchor exists, every data: URI
@@ -31,12 +36,14 @@ import argparse, json, os, re, subprocess, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sh_lib as L
 import sh_checks as C
+import sh_provenance as P
 
 REPO = L.REPO
 SKIP_DIRS = {".git", "node_modules"}
 TOKEN_RE = re.compile(r"(github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{30,})")
 TPL_RE = re.compile(r"<!-- study-hub-template: (sh-\d+(?:-legacy)?) -->\s*$")
 errors = []
+warnings = []
 
 
 def err(rule, msg):
@@ -53,6 +60,27 @@ def files():
 
 def is_encrypted(text):
     return "staticryptEncryptedMsgUniqueVariableName" in text or ("staticryptConfig" in text and "staticrypt_content" in text)
+
+
+def b7_problems(t):
+    """A page with a quiz must log every attempt to study-hub-scores, not only to the device."""
+    m = re.search(r'<script type="application/json" id="sh-data">(.*?)</script>', t, re.S)
+    data = {}
+    if m:
+        try:
+            data = json.loads(m.group(1).replace("<\\/", "</"))
+        except ValueError:
+            data = {}
+    own = re.sub(r'<script id="sh-(?:js|log|legacy-js)">.*?</script>', "", t, flags=re.S)   # the page's own code
+    has_quiz = bool(data.get("quizzes")) or bool(re.search(r"""\b(?:answer|ans|correct|key)["']?\s*:\s*["'\d\[]""", own))
+    if not has_quiz:
+        return []
+    out = []
+    if "var SHLog=" not in t or (data.get("quizzes") and not data.get("log")):
+        out.append("has a quiz but no score logger, so results never reach study-hub-scores")
+        if "localStorage" in own:
+            out.append("keeps results only in localStorage")
+    return out
 
 
 def main():
@@ -142,6 +170,20 @@ def main():
     for pg in sorted(content_pages - set(seen)):
         err("R3", f"{pg}: no manifest.json entry")
 
+    # Provenance, public part (P1, P2); legacy pages only warn
+    base_legacy = None
+    try:
+        b = subprocess.run(["git", "-C", REPO, "show", os.environ.get("SH_BASE_REF", "origin/main") + ":tools/sh_config.json"],
+                           capture_output=True, text=True)
+        if b.returncode == 0:
+            base_legacy = json.loads(b.stdout).get("legacy_provenance")
+    except Exception:
+        pass
+    perrs, pwarns = P.public_problems(items, base_legacy)
+    for r, m in perrs:
+        err(r, m)
+    warnings.extend(pwarns)
+
     # Repo files
     if not os.path.exists(os.path.join(REPO, ".nojekyll")):
         err("R6", ".nojekyll is missing")
@@ -192,7 +234,15 @@ def main():
                     err("R11", f"plaintext {rel}: score logger privacy: {pr}")
                 for pr in C.design_problems(t, is_html=True):
                     err("R9", f"plaintext {rel}: {pr}")
+                if L.CONTENT_RE.match(rel):
+                    for pr in b7_problems(t):
+                        if P.is_legacy(rel[: -len("index.html")]):
+                            warnings.append(f"{rel}: legacy page, B7 not met: {pr}")
+                        else:
+                            err("B7", f"plaintext {rel}: {pr}")
 
+    for w in warnings:
+        print("WARNING: " + w)
     if errors:
         print("VALIDATION FAILED (%d problems):" % len(errors))
         for x in errors:

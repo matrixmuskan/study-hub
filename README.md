@@ -80,6 +80,10 @@ Basy checks every push for these, and coaches check them before pushing:
 - `tools/sh_stage.py`: stages mirror pages for encryption (refreshes the design system, skins older pages).
 - `tools/publish.sh`: build, stage, encrypt changed pages only (set `FORCE=1` to redo all), validate, commit (no push).
 - `tools/validate.py`: repo checks (encryption, manifest, folders, template, secrets). Also runs in GitHub Actions.
+- `tools/sh_provenance.py`: provenance and learning-loop rules (P1, P2 in CI; `check` runs B1-B6 from `publish.sh`). See CONTRIBUTING-BOTS.md section 11.
+- `tools/sh_scores.py`: read and write the private repo study-hub-scores with `STUDY_HUB_SCORES_TOKEN` (box only).
+- `tools/ingest_receipts.py`: saved Google Forms receipts (HTML body) to `study-hub-scores/G3/_receipts/<id>.json`, no names (box only, never calls Gmail).
+- `tools/migrate_error_logs.py`: one-time import of the coaches' box error logs into `study-hub-scores/G3/<Subject>/_error_log.csv` (box logs are kept).
 - `tools/inject_token.sh`: copy of the score kit's token injector (used when the kit is not on the box).
 - `tools/password_template.html`: StatiCrypt 3.5.4 login template in the sh-2 style, "remember me" ticked by default.
 - `templates/`: example content files.
