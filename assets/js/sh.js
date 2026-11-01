@@ -26,6 +26,7 @@ var SH=(function(){
       });
       var h=(location.hash||'').slice(1),first=btns[0]&&btns[0].getAttribute('aria-controls');
       var want=h&&document.getElementById('p-'+h)?'p-'+h:first;if(want)show(want,false);
+      window.addEventListener('hashchange',function(){var x=(location.hash||'').slice(1);if(x&&document.getElementById('p-'+x)&&btns.some(function(b){return b.getAttribute('aria-controls')==='p-'+x}))show('p-'+x,false)});
     });
   }
   /* Filters on hub pages: <div class="sh-seg" data-sh-filter="list-id"> <button data-f="all"> ; rows carry data-when="soon|past|none" */

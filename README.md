@@ -17,12 +17,11 @@ G<grade>/<Subject code>/<Chapter-or-Lesson id>/index.html
 
 ## How to add a page
 
-1. Put the plaintext page at `/workspace/study-hub-src/G3/WW/Lesson9/index.html` (same path it will have in the repo).
-2. Add an entry to `manifest.json` (repo root):
-   ```json
-   {"grade": "G3", "subject": "WW", "title": "Lesson 9 words", "path": "G3/WW/Lesson9/", "test_date": "2026-10-29", "added_by": "Worldy"}
-   ```
-3. Run `tools/publish.sh "Add WW Lesson 9"`. It rebuilds the home page from the manifest, encrypts every page from the mirror into the repo, checks nothing is left in plaintext, and commits.
+Read [CONTRIBUTING-BOTS.md](CONTRIBUTING-BOTS.md). In short:
+
+1. Write the content as JSON or Markdown (see `templates/page.example.json`).
+2. Run `python3 tools/sh_page.py <content file>`. It writes the plaintext page into the mirror in the shared sh-2 layout, adds the score token from `STUDY_HUB_SCORES_TOKEN`, and updates `manifest.json`.
+3. Run `tools/publish.sh "Add WW Lesson 10"`. It rebuilds the hub pages, stages every page in the sh-2 design, encrypts changed pages, runs `tools/validate.py`, and commits.
 4. `git pull --rebase` then `git push origin main` (pre-approved by Muskan).
 
 ## Bot workspaces
@@ -71,7 +70,16 @@ Basy checks every push for these, and coaches check them before pushing:
 
 ## Files
 
-- `manifest.json`: list of pages shown on the home page.
-- `tools/build_index.py`: builds the plaintext home page into the mirror from the manifest.
-- `tools/publish.sh`: build, encrypt changed pages only (set `FORCE=1` to redo all), commit (no push).
-- `tools/password_template.html`: StatiCrypt 3.5.4 login template with "remember me" ticked by default.
+- `manifest.json`: list of content pages shown on the hub pages.
+- `assets/css/sh.css`, `assets/js/sh.js`: the shared design system (sh-2). Inlined into every page at publish time.
+- `assets/css/sh-legacy.css`: the sh-2 skin for pages built before sh-2 (looks only, scripts unchanged).
+- `assets/js/shlog.js`: copy of the score logger from `/workspace/study-hub-scores-kit/logger.js`.
+- `tools/sh_config.json`: subject codes, names, accent colors, grade names.
+- `tools/sh_page.py`: content file (JSON or Markdown) to a plaintext page in the mirror, plus manifest entry.
+- `tools/build_index.py`: builds the plaintext home, grade, and subject pages into the mirror from the manifest.
+- `tools/sh_stage.py`: stages mirror pages for encryption (refreshes the design system, skins older pages).
+- `tools/publish.sh`: build, stage, encrypt changed pages only (set `FORCE=1` to redo all), validate, commit (no push).
+- `tools/validate.py`: repo checks (encryption, manifest, folders, template, secrets). Also runs in GitHub Actions.
+- `tools/inject_token.sh`: copy of the score kit's token injector (used when the kit is not on the box).
+- `tools/password_template.html`: StatiCrypt 3.5.4 login template in the sh-2 style, "remember me" ticked by default.
+- `templates/`: example content files.
