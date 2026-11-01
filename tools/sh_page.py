@@ -15,6 +15,7 @@ See templates/page.example.json and CONTRIBUTING-BOTS.md.
 import argparse, base64, json, mimetypes, os, re, subprocess, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sh_lib as L
+import sh_provenance as P
 
 e = L.e
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,60}$")
@@ -52,6 +53,13 @@ def parse_md(text):
     for i in range(1, len(parts), 2):
         label, body = parts[i].strip(), parts[i + 1]
         blocks = []
+        pm = re.search(r"^```provenance\s*\n(.*?)^```\s*$", body, flags=re.M | re.S)
+        if pm:
+            try:
+                meta["provenance"] = json.loads(pm.group(1))
+            except ValueError as ex:
+                fail(f"bad JSON in ```provenance block: {ex}")
+            body = body[:pm.start()] + body[pm.end():]
         pieces = re.split(r"^```(quiz|image|video)\s*\n(.*?)^```\s*$", body, flags=re.M | re.S)
         for j in range(0, len(pieces), 3):
             if pieces[j].strip():
@@ -194,12 +202,13 @@ def checks(html_text):
             fail("private word found (STUDY_HUB_BLOCKLIST). Scrub the content first")
 
 
-def upsert_manifest(c, rel):
+def upsert_manifest(c, rel, extra=None):
     mp = os.path.join(L.REPO, "manifest.json")
     items = json.load(open(mp, encoding="utf-8"))
     path = rel[: -len("index.html")]
     entry = {"grade": c["grade"], "subject": c["subject"], "title": c["title"], "path": path,
              "test_date": c.get("test_date", ""), "added_by": c["added_by"], "template": L.VERSION}
+    entry.update(extra or {})
     for i, it in enumerate(items):
         if it.get("path") == path:
             items[i] = {**it, **entry}
@@ -216,6 +225,7 @@ def main():
     ap.add_argument("--src", default=L.default_src())
     ap.add_argument("--no-manifest", action="store_true")
     ap.add_argument("--out", help="write here instead of the mirror (for previews; placeholder token kept)")
+    ap.add_argument("--no-provenance", action="store_true", help="do not write _provenance.json (legacy pages and tests only)")
     a = ap.parse_args()
     if os.path.exists(os.path.expanduser("~/.study-hub.env")) and not os.environ.get("STUDY_HUB_BLOCKLIST"):
         for line in open(os.path.expanduser("~/.study-hub.env")):
@@ -231,6 +241,16 @@ def main():
             print(f"sh_page: WARNING: inlined media is {mb:.1f} MB (over {WARN_TOTAL_MB} MB). The page will be slow to "
                   "open on a phone. Compress the videos or split the lesson into two pages", file=sys.stderr)
     checks(html_text)
+    path = rel[: -len("index.html")]
+    legacy = P.is_legacy(path)
+    if legacy:
+        print("sh_page: WARNING: %s is a legacy page (legacy_provenance); provenance is not required" % path, file=sys.stderr)
+        if c.get("provenance"):
+            print("sh_page: it has a provenance block, so remove it from legacy_provenance in tools/sh_config.json", file=sys.stderr)
+    else:
+        probs = P.content_problems(c)
+        if probs:
+            fail("provenance rules (P1, P2, B2, B7) failed:\n  " + "\n  ".join(probs))
     if a.out:
         open(a.out, "w", encoding="utf-8").write(html_text)
         print("preview written to", a.out)
@@ -252,8 +272,30 @@ def main():
     finally:
         os.umask(old)
     print("page written to", dst)
+    extra = None
+    if c.get("provenance") and not a.no_provenance:
+        extra = write_provenance(c, path)
+    elif not legacy and not a.no_provenance:
+        fail("internal: no provenance written")
     if not a.no_manifest:
-        upsert_manifest(c, rel)
+        upsert_manifest(c, rel, extra)
+
+
+def write_provenance(c, path):
+    """Write the full provenance record to study-hub-scores (private) and return the public counts and hash."""
+    import hashlib
+    import sh_scores as S
+    try:
+        where = S.check_access(write=True)
+        log = S.get("%s/%s/_error_log.csv" % (c["grade"], c["subject"])) or b""
+        rec = P.record_bytes(c, path, P.now_pt().isoformat(), hashlib.sha256(log).hexdigest() if log else "")
+        how = S.put(P.scores_path(path), rec, "provenance: %s" % path)
+    except S.ScoresError as ex:
+        fail("provenance not written: %s" % ex)
+    f = P.manifest_fields(rec)
+    print("provenance: %s %s (%s); %d sources, %d questions, %d inferred, %d error-log rows retested"
+          % (how, P.scores_path(path), where, f["n_sources"], f["n_questions"], f["n_inferred"], f["n_retests"]))
+    return f
 
 
 if __name__ == "__main__":

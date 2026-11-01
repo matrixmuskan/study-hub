@@ -14,5 +14,32 @@
     "LA":       {"name": "Language Arts",         "mono": "La", "accent": "#0066cc", "soft": "#e8f1fb"},
     "Grammar":  {"name": "Grammar",               "mono": "Gr", "accent": "#0066cc", "soft": "#e8f1fb"}
   },
+  "legacy_provenance_note": "Pages built before provenance (Nov 1, 2026). Grandfathered: validate.py warns for each. This list may only shrink. A rebuilt page with a provenance block leaves the list.",
+  "legacy_provenance": [
+    "G3/Kangaroo/Ch1-Mirror-Magic/",
+    "G3/Kangaroo/Ch2-Number-Power/",
+    "G3/LA/LWW-Final-Q2/",
+    "G3/LA/LWW-Final/",
+    "G3/Noetic/Ch1-Overlaps-Counting/",
+    "G3/Noetic/Ch1-Quiz/",
+    "G3/Noetic/Ch2-Logic-Digit-Puzzles/",
+    "G3/Noetic/Ch2-Quiz/",
+    "G3/Noetic/Ch3-Acting-It-Out/",
+    "G3/Noetic/Ch3-Quiz/",
+    "G3/Noetic/Ch4-Rewind-Rebalance/",
+    "G3/Noetic/Mock-Warmup-Spring2024/",
+    "G3/SS/Continents-Oceans-Retake/",
+    "G3/SS/Final1-Ch1-2-8/",
+    "G3/WW/Lesson7/",
+    "G3/WW/Lesson8/",
+    "G3/WW/Lesson9/"
+  ],
+  "receipt_subjects": [
+    ["(?i)\\bWW\\b|wordly wise|vocab test", "WW"],
+    ["(?i)social studies|geography|\\bSS\\b|\\bCYK\\b|minoans", "SS"],
+    ["(?i)lion,? the witch|\\bLWW\\b", "LA"],
+    ["(?i)noetic", "Noetic"],
+    ["(?i)kangaroo", "Kangaroo"]
+  ],
   "section_labels": ["Learn", "Practice", "Mock test", "Retest", "Results", "Grown-ups"]
 }
