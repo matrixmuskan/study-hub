@@ -99,7 +99,13 @@
     "path": "G3/Noetic/Mock-Warmup-Spring2024/",
     "test_date": "2026-11-19",
     "added_by": "Naughty",
-    "template": "sh-2"
+    "template": "sh-2",
+    "provenance_sha256": "437adece86eb6e022030873c4c5f86b60a336c3c008066709636a953801a812a",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 20,
+    "n_retests": 0,
+    "built_at": "2026-11-01T11:36:09-08:00"
   },
   {
     "grade": "G3",
@@ -140,7 +146,13 @@
     "path": "G3/Noetic/Ch1-Quiz/",
     "test_date": "2026-11-19",
     "added_by": "Naughty",
-    "template": "sh-2"
+    "template": "sh-2",
+    "provenance_sha256": "51e187bba9fd88a0d1b66b2d1919c5426cb9c04f6e9414ed49f9a5d2721e5b3f",
+    "n_sources": 6,
+    "n_inferred": 1,
+    "n_questions": 18,
+    "n_retests": 0,
+    "built_at": "2026-11-01T11:36:29-08:00"
   },
   {
     "grade": "G3",
@@ -149,7 +161,13 @@
     "path": "G3/Noetic/Ch2-Quiz/",
     "test_date": "2026-11-19",
     "added_by": "Naughty",
-    "template": "sh-2"
+    "template": "sh-2",
+    "provenance_sha256": "ebe40a07dad59b1483b1dcc3935d84eda7e2da780c64aa1c4087018c8075b45c",
+    "n_sources": 8,
+    "n_inferred": 0,
+    "n_questions": 18,
+    "n_retests": 0,
+    "built_at": "2026-11-01T11:36:48-08:00"
   },
   {
     "grade": "G3",
@@ -158,6 +176,12 @@
     "path": "G3/Noetic/Ch3-Quiz/",
     "test_date": "2026-11-19",
     "added_by": "Naughty",
-    "template": "sh-2"
+    "template": "sh-2",
+    "provenance_sha256": "848f4b772d433a861becd57ff1576bf6d6647cf55994b673db794bebadc50e66",
+    "n_sources": 7,
+    "n_inferred": 0,
+    "n_questions": 18,
+    "n_retests": 0,
+    "built_at": "2026-11-01T11:37:08-08:00"
   }
 ]
