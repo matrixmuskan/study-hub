@@ -69,3 +69,16 @@ body.sh-legacy .sh-foot{max-width:var(--sh-max);margin:56px auto 0;padding-left:
 body.sh-legacy .step,body.sh-legacy .path>*,body.sh-legacy .ogrid>*{border-color:var(--sh-line)!important;box-shadow:none!important;background:#fff!important}
 body.sh-legacy .sh-appbar,body.sh-legacy .sh-appbar *{font-family:var(--sh-font)!important}
 body.sh-legacy .sh-appbar ol,body.sh-legacy .sh-appbar li{margin:0;padding:0;background:none}
+
+/* Design standard: no confetti, no bouncing mascots, no decorative emoji, no gradients */
+body.sh-legacy .confetti,body.sh-legacy canvas#confetti,body.sh-legacy [class*="confetti"]{display:none!important}
+body.sh-legacy *,body.sh-legacy *::before,body.sh-legacy *::after{animation:none!important}
+body.sh-legacy .emo{display:none!important}
+body.sh-legacy .hero h2 span,body.sh-legacy .hero h1 span{color:var(--sh-accent)!important}
+body.sh-legacy .bubble{background:var(--sh-fill)!important;color:var(--sh-ink)!important;border:0!important;box-shadow:none!important}
+body.sh-legacy .owlrow img,body.sh-legacy header img{box-shadow:none!important;background:var(--sh-fill)!important}
+body.sh-legacy .opt.ok,body.sh-legacy .opt.correct{background:var(--sh-good-soft)!important;border-color:var(--sh-good)!important;color:var(--sh-ink)!important}
+body.sh-legacy .opt.no,body.sh-legacy .opt.wrong{background:var(--sh-bad-soft)!important;border-color:var(--sh-bad)!important;color:var(--sh-ink)!important}
+body.sh-legacy .opt:not(.ok):not(.no):not(.correct):not(.wrong):not(.sel):not(.on){background:#fff!important;border-color:var(--sh-line)!important;color:var(--sh-ink)!important}
+body.sh-legacy .opt.sel,body.sh-legacy .opt.on{background:var(--sh-accent-soft)!important;border-color:var(--sh-accent)!important;color:var(--sh-ink)!important}
+body.sh-legacy .badge{background:var(--sh-fill)!important;color:var(--sh-ink)!important;border:0!important;border-radius:999px!important}

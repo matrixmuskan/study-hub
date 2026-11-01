@@ -53,8 +53,15 @@ var SHLog=(function(){
       }
       return Promise.resolve(next()).catch(function(){busy=false;return {sent:sent,left:load().length}});
     }catch(e){busy=false;return Promise.resolve({sent:0,left:-1})}}
-  function clean(m){m=m||{};var o={};['n','part','q','word','sense','topic','picked','correct','trap','type'].forEach(function(k){if(m[k]!==undefined)o[k]=m[k]});return o}
-  function redact(t){var names=(cfg&&cfg.redact)||['the child'];names.forEach(function(n){if(n)t=t.replace(new RegExp(String(n).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),'[name]')});return t}
+  // Privacy: a typed (free-text) answer is logged as its first 40 characters only. Option picks ('B. ...') stay whole.
+  function cut(v){v=String(v);return v.length>40?v.slice(0,40)+'...':v}
+  function clean(m){m=m||{};var o={};['n','part','q','word','sense','topic','picked','correct','trap','type'].forEach(function(k){if(m[k]!==undefined)o[k]=m[k]});
+    if(typeof o.picked==='string'&&!/^[A-H][.)] /.test(o.picked))o.picked=cut(o.picked);return o}
+  // Privacy: names are replaced with [name] before anything leaves the page. The private word list comes from the
+  // encrypted page itself (<script id="sh-redact">, base64, written at publish time from STUDY_HUB_BLOCKLIST), never from the repo.
+  function redact(t){var res=[];((cfg&&cfg.redact)||['the child']).forEach(function(n){if(n)res.push(String(n).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'))});
+    try{var el=document.getElementById('sh-redact');var b=el?JSON.parse(el.textContent):'';if(b)res.push(decodeURIComponent(escape(atob(b))))}catch(e){}
+    res.forEach(function(r){try{t=t.replace(new RegExp('\\b(?:'+r+')\\b','gi'),'[name]')}catch(e){}});return t}
   function record(r){
     try{
       if(!cfg)return null;r=r||{};
