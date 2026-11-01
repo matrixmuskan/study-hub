@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+"""Make a Study Hub page (sh-2 layout) from a content file, write it into the plaintext mirror,
+and add or update its manifest.json entry.
+
+Usage:  python3 tools/sh_page.py <content.json | content.md> [--src DIR] [--no-manifest] [--out FILE]
+
+- Output goes to <src>/G<grade>/<Subject>/<id>/index.html  (src = $STUDY_HUB_SRC or ../study-hub-src).
+- When the page has a quiz and "log" is not false, score logging is added and the token placeholder is
+  replaced from $STUDY_HUB_SCORES_TOKEN (the token is never printed). Without the token the build stops.
+- Then run tools/publish.sh to encrypt and commit.
+See templates/page.example.json and CONTRIBUTING-BOTS.md.
+"""
+import argparse, base64, json, mimetypes, os, re, subprocess, sys, tempfile
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import sh_lib as L
+
+e = L.e
+ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,60}$")
+KINDS = ("game", "mock", "retest")
+PLACEHOLDER = "__SH_SCORES_TOKEN__"
+KIT_INJECT = "/workspace/study-hub-scores-kit/inject_token.sh"
+
+
+def fail(msg):
+    sys.exit("sh_page: " + msg)
+
+
+def parse_md(text):
+    """Markdown input: front matter (key: value), then '# <Section label>' starts a section.
+    A fenced block ```quiz ... ``` holds quiz JSON. Everything else is Markdown text."""
+    m = re.match(r"^---\n(.*?)\n---\n(.*)$", text, re.S)
+    if not m:
+        fail("Markdown file needs front matter between --- lines")
+    meta = {}
+    for line in m.group(1).splitlines():
+        if ":" in line:
+            k, v = line.split(":", 1)
+            v = v.strip()
+            meta[k.strip()] = {"true": True, "false": False}.get(v, v)
+    sections = []
+    parts = re.split(r"^# (.+)$", m.group(2), flags=re.M)
+    for i in range(1, len(parts), 2):
+        label, body = parts[i].strip(), parts[i + 1]
+        blocks = []
+        for j, piece in enumerate(re.split(r"^```quiz\s*\n(.*?)^```\s*$", body, flags=re.M | re.S)):
+            if j % 2:
+                q = json.loads(piece)
+                q["type"] = "quiz"
+                blocks.append(q)
+            elif piece.strip():
+                blocks.append({"type": "text", "md": piece.strip()})
+        sections.append({"id": re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-"), "label": label, "blocks": blocks})
+    meta["sections"] = sections
+    return meta
+
+
+def data_uri(path, base):
+    p = path if os.path.isabs(path) else os.path.join(base, path)
+    if not os.path.exists(p):
+        fail(f"image not found: {p}")
+    mt = mimetypes.guess_type(p)[0] or "application/octet-stream"
+    return "data:%s;base64,%s" % (mt, base64.b64encode(open(p, "rb").read()).decode())
+
+
+def render_block(b, base, quizzes, sec_id):
+    t = b.get("type")
+    if t == "text":
+        return '<div class="sh-card sh-reveal">%s%s</div>' % (("<h2>%s</h2>" % e(b["title"])) if b.get("title") else "", L.md(b.get("md", "")))
+    if t == "callout":
+        return '<div class="sh-callout sh-reveal"><b>%s</b> %s</div>' % (e(b.get("title", "Tip")), L.md(b.get("md", "")))
+    if t == "cards":
+        items = "".join('<div class="sh-term"><b>%s</b><span>%s</span></div>' % (e(c.get("title", "")), e(c.get("body", ""))) for c in b.get("items", []))
+        head = ("<h2>%s</h2>" % e(b["title"])) if b.get("title") else ""
+        return '<div class="sh-section sh-reveal">%s<div class="sh-terms">%s</div></div>' % (head, items)
+    if t == "image":
+        src = b["src"] if b["src"].startswith("data:") else data_uri(b["src"], base)
+        cap = ("<figcaption>%s</figcaption>" % e(b["caption"])) if b.get("caption") else ""
+        if not b.get("alt"):
+            fail("image block needs alt text")
+        return '<figure class="sh-figure sh-reveal"><img src="%s" alt="%s" loading="lazy">%s</figure>' % (src, e(b["alt"]), cap)
+    if t == "html":
+        return '<div class="sh-reveal">%s</div>' % b["html"]
+    if t == "quiz":
+        kind = b.get("kind", "game")
+        if kind not in KINDS:
+            fail(f"quiz kind must be one of {KINDS}")
+        qs = b.get("questions") or fail("quiz has no questions")
+        for n, q in enumerate(qs, 1):
+            if "q" not in q:
+                fail(f"quiz question {n} has no 'q'")
+            if "options" in q:
+                if not isinstance(q.get("answer"), int) or not 0 <= q["answer"] < len(q["options"]):
+                    fail(f"quiz question {n}: 'answer' must be the index of the right option")
+            elif "answer_text" not in q:
+                fail(f"quiz question {n} needs 'options' plus 'answer', or 'answer_text'")
+        quizzes.append({"kind": kind, "mode": b.get("mode", "practice" if kind == "game" else "test"), "section": sec_id,
+                        "questions": qs})
+        head = ("<h2>%s</h2>" % e(b["title"])) if b.get("title") else ""
+        sub = ('<p class="sh-sub">%s</p>' % e(b["intro"])) if b.get("intro") else ""
+        return '<div class="sh-section">%s%s<div id="quiz-%d" data-sh-quiz="%d"></div></div>' % (head, sub, len(quizzes) - 1, len(quizzes) - 1)
+    fail(f"unknown block type: {t}")
+
+
+def build(c, base):
+    for k in ("grade", "subject", "id", "title", "added_by", "sections"):
+        if not c.get(k):
+            fail(f"missing '{k}'")
+    if not re.match(r"^G\d+$", c["grade"]):
+        fail("grade must look like G3")
+    if c["subject"] not in L.CFG["subjects"]:
+        fail(f"unknown subject '{c['subject']}'. Known: {', '.join(L.CFG['subjects'])}. Add new codes to tools/sh_config.json")
+    if not ID_RE.match(c["id"]):
+        fail("id: letters, digits, dot, dash, underscore only, no spaces")
+    if c.get("test_date") and not re.match(r"^\d{4}-\d{2}-\d{2}$", c["test_date"]):
+        fail("test_date must be YYYY-MM-DD")
+    rel = f'{c["grade"]}/{c["subject"]}/{c["id"]}/index.html'
+    s = L.subject(c["subject"])
+    quizzes, tabs, panels = [], [], []
+    seen = set()
+    for sec in c["sections"]:
+        sid = re.sub(r"[^a-z0-9-]+", "-", (sec.get("id") or sec["label"]).lower()).strip("-")
+        if sid in seen:
+            fail(f"duplicate section id {sid}")
+        seen.add(sid)
+        tabs.append((sid, sec["label"]))
+        inner = "".join(render_block(b, base, quizzes, sid) for b in sec.get("blocks", []))
+        panels.append(f'<section class="sh-panel sh-wrap" id="p-{sid}" role="tabpanel" aria-labelledby="t-{sid}">{inner}</section>')
+    chips = ""
+    if c.get("test_date"):
+        chips += f'<span class="sh-chip sh-chip--accent">Test day: {e(c["test_date"])}</span>'
+    hero = (f'<header class="sh-wrap sh-hero"><p class="sh-eyebrow"><span class="sh-mono sh-mono--sm">{e(s["mono"])}</span>'
+            f'{e(s["name"])} &middot; {e(L.grade_name(c["grade"]))}</p><h1>{e(c["title"])}</h1>'
+            + (f'<p class="sh-lead">{e(c["subtitle"])}</p>' if c.get("subtitle") else "")
+            + (f'<div class="sh-meta">{chips}</div>' if chips else "") + "</header>")
+    body = hero + L.segmented(tabs) + "".join(panels)
+    log = bool(quizzes) and c.get("log", True) is not False
+    data = {"grade": c["grade"], "subject": c["subject"], "id": c["id"], "log": log, "quizzes": quizzes}
+    if log:
+        data["token"] = PLACEHOLDER
+    return rel, L.page(rel, c["title"], body, code=c["subject"], data=data, log=log, crumb_title=c.get("short_title") or c["title"]), log
+
+
+def checks(html_text):
+    if "\u2014" in html_text:
+        fail("em dash found. Use a comma, a colon, or a new sentence")
+    bl = os.environ.get("STUDY_HUB_BLOCKLIST", "")
+    if bl:
+        txt = re.sub(r"data:[^\"')\s]+", "", html_text)
+        if re.search(r"\b(?:%s)\b" % bl, txt, re.I):
+            fail("private word found (STUDY_HUB_BLOCKLIST). Scrub the content first")
+
+
+def upsert_manifest(c, rel):
+    mp = os.path.join(L.REPO, "manifest.json")
+    items = json.load(open(mp, encoding="utf-8"))
+    path = rel[: -len("index.html")]
+    entry = {"grade": c["grade"], "subject": c["subject"], "title": c["title"], "path": path,
+             "test_date": c.get("test_date", ""), "added_by": c["added_by"], "template": L.VERSION}
+    for i, it in enumerate(items):
+        if it.get("path") == path:
+            items[i] = {**it, **entry}
+            break
+    else:
+        items.append(entry)
+    open(mp, "w", encoding="utf-8").write(json.dumps(items, indent=2, ensure_ascii=False) + "\n")
+    print("manifest.json: entry for", path)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("content")
+    ap.add_argument("--src", default=L.default_src())
+    ap.add_argument("--no-manifest", action="store_true")
+    ap.add_argument("--out", help="write here instead of the mirror (for previews; placeholder token kept)")
+    a = ap.parse_args()
+    if os.path.exists(os.path.expanduser("~/.study-hub.env")) and not os.environ.get("STUDY_HUB_BLOCKLIST"):
+        for line in open(os.path.expanduser("~/.study-hub.env")):
+            if line.startswith("STUDY_HUB_BLOCKLIST="):
+                os.environ["STUDY_HUB_BLOCKLIST"] = line.split("=", 1)[1].strip().strip("'\"")
+    raw = open(a.content, encoding="utf-8").read()
+    c = parse_md(raw) if a.content.endswith(".md") else json.loads(raw)
+    rel, html_text, log = build(c, os.path.dirname(os.path.abspath(a.content)))
+    checks(html_text)
+    if a.out:
+        open(a.out, "w", encoding="utf-8").write(html_text)
+        print("preview written to", a.out)
+        return
+    dst = os.path.join(a.src, rel)
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    old = os.umask(0o077)
+    try:
+        if log:
+            if not os.environ.get("STUDY_HUB_SCORES_TOKEN"):
+                fail("this page logs scores: set STUDY_HUB_SCORES_TOKEN (or add \"log\": false)")
+            with tempfile.TemporaryDirectory() as td:
+                tmp = os.path.join(td, "page.html")
+                open(tmp, "w", encoding="utf-8").write(html_text)
+                inj = KIT_INJECT if os.path.exists(KIT_INJECT) else os.path.join(L.TOOLS, "inject_token.sh")
+                subprocess.run([inj, tmp, dst], check=True)
+        else:
+            open(dst, "w", encoding="utf-8").write(html_text)
+    finally:
+        os.umask(old)
+    print("page written to", dst)
+    if not a.no_manifest:
+        upsert_manifest(c, rel)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,18 @@
+{
+  "template_version": "sh-2",
+  "site_title": "Study Hub",
+  "kid_first_name": "the child",
+  "grades": {"G3": "Grade 3", "G4": "Grade 4", "G5": "Grade 5"},
+  "subjects": {
+    "SS":       {"name": "Social Studies",        "mono": "Ss", "accent": "#0066cc", "soft": "#e8f1fb"},
+    "WW":       {"name": "Wordly Wise",           "mono": "Ww", "accent": "#8944ab", "soft": "#f4ecf8"},
+    "Noetic":   {"name": "Noetic Math Contest",   "mono": "Nm", "accent": "#4b49c7", "soft": "#eeeefb"},
+    "Kangaroo": {"name": "Math Kangaroo",         "mono": "Mk", "accent": "#c45500", "soft": "#fbefe5"},
+    "MOEMS":    {"name": "Math Olympiad (MOEMS)", "mono": "Mo", "accent": "#a2672e", "soft": "#f7efe6"},
+    "Math":     {"name": "Math",                  "mono": "Ma", "accent": "#248a3d", "soft": "#e9f5ec"},
+    "Sci":      {"name": "Science",               "mono": "Sc", "accent": "#0f7b6c", "soft": "#e6f4f1"},
+    "LA":       {"name": "Language Arts",         "mono": "La", "accent": "#00788a", "soft": "#e5f3f5"},
+    "Grammar":  {"name": "Grammar",               "mono": "Gr", "accent": "#c41e5a", "soft": "#faeaf0"}
+  },
+  "section_labels": ["Learn", "Practice", "Mock test", "Retest", "Results", "Grown-ups"]
+}
