@@ -212,12 +212,12 @@ git worktree remove --force "$T/other"
 ok "a clone that does not own the mirror is refused (WRONG CLONE)"
 # 9. A fake session is refused: SH_LOCK_HELD must be this mirror's lock, the flock held, the holder an ancestor
 LK="$STUDY_HUB_SRC/.publish.lock"
-out=$(SH_LOCK_HELD=/tmp/other.lock SH_LOCK_PID=$$ tools/publish.sh "CI: fake" 2>&1); [ $? -eq 77 ] && grep -q "LOCK NOT HELD" <<<"$out" || { echo "$out"; die "wrong SH_LOCK_HELD path not refused"; }
-out=$(SH_LOCK_HELD="$LK" SH_LOCK_PID=$$ tools/publish.sh "CI: fake" 2>&1); [ $? -eq 77 ] && grep -q "nobody holds" <<<"$out" || { echo "$out"; die "SH_LOCK_HELD without a held lock not refused"; }
+out=$(SH_LOCK_HELD=/tmp/other.lock SH_LOCK_PID=$$ tools/publish.sh "CI: fake" 2>&1) && rc=0 || rc=$?; [ $rc -eq 77 ] && grep -q "LOCK NOT HELD" <<<"$out" || { echo "$out"; die "wrong SH_LOCK_HELD path not refused"; }
+out=$(SH_LOCK_HELD="$LK" SH_LOCK_PID=$$ tools/publish.sh "CI: fake" 2>&1) && rc=0 || rc=$?; [ $rc -eq 77 ] && grep -q "nobody holds" <<<"$out" || { echo "$out"; die "SH_LOCK_HELD without a held lock not refused"; }
 tools/sh_lock.sh sleep 6 & LP=$!
 sleep 1
-out=$(SH_LOCK_HELD="$LK" SH_LOCK_PID=$$ tools/publish.sh "CI: fake" 2>&1); [ $? -eq 77 ] && grep -q "another session" <<<"$out" || { echo "$out"; die "a lock held by another session was accepted"; }
-out=$(SH_LOCK_HELD="$LK" SH_LOCK_PID=$$ python3 tools/sh_page.py "$T/content/good.json" 2>&1) && die "sh_page.py accepted another session's lock"
+out=$(SH_LOCK_HELD="$LK" SH_LOCK_PID=$$ tools/publish.sh "CI: fake" 2>&1) && rc=0 || rc=$?; [ $rc -eq 77 ] && grep -q "another session" <<<"$out" || { echo "$out"; die "a lock held by another session was accepted"; }
+out=$(SH_LOCK_HELD="$LK" SH_LOCK_PID=$$ python3 tools/sh_page.py "$T/content/good.json" 2>&1) && die "sh_page.py accepted another session's lock" || true
 grep -q "LOCK NOT HELD" <<<"$out" || { echo "$out"; die "no LOCK NOT HELD from sh_page.py"; }
 wait $LP
 tools/sh_lock.sh bash -c 'tools/sh_lock.sh true' || die "a real nested session was refused"
