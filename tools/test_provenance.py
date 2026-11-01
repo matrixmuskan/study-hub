@@ -9,7 +9,8 @@ SHA = "0" * 64
 GOOD = {"grade": "G3", "subject": "SS", "id": "T-Page", "title": "T", "added_by": "CI",
         "provenance": {"sources": [{"id": "file:/x/words.csv", "kind": "word_list", "sha256": SHA},
                                    {"id": "gmail:1a164970d5ea012b", "kind": "form_receipt", "what": "school test"}],
-                       "results_ingested": ["gmail:1a164970d5ea012b"], "weak_spots_from": []},
+                       "results_ingested": ["gmail:1a164970d5ea012b"], "weak_spots_from": [],
+                       "patterns_from": ["gmail:1a164970d5ea012b"]},
         "sections": [{"id": "q", "label": "Quiz", "blocks": [{"type": "quiz", "kind": "mock", "questions": [
             {"q": "Q%d" % i, "options": ["a", "b"], "answer": 0, "src": "file:/x/words.csv#row=%d" % i,
              "retests": ["SS-2026-10-08-ch8-q1"] if i == 1 else []} for i in range(1, 10)] +
@@ -40,6 +41,24 @@ c = copy.deepcopy(GOOD)
 for q in c["sections"][0]["blocks"][0]["questions"][:2]:
     q.pop("src"); q["inferred"] = True
 check("3 of 10 inferred (30%) fails P2 at build", any("limit is 20%" in x for x in P.content_problems(c)))
+c = copy.deepcopy(GOOD); del c["provenance"]["patterns_from"]
+check("F1: school-subject mock without patterns_from fails", any(x.startswith("F1:") for x in P.content_problems(c)))
+c["subject"] = "Noetic"
+check("F1: a contest subject (Noetic) does not need patterns_from", not any(x.startswith("F1:") for x in P.content_problems(c)))
+c = copy.deepcopy(GOOD); c["provenance"]["patterns_from"] = ["1a164970d5ea012b"]
+check("F1: patterns_from must be gmail:<id>", any("gmail:<id>" in x for x in P.content_problems(c)))
+c = copy.deepcopy(GOOD); c["sections"][0]["blocks"][0]["kind"] = "game"; del c["provenance"]["patterns_from"]
+check("F1: a page with no mock does not need patterns_from", not any(x.startswith("F1:") for x in P.content_problems(c)))
+rc = {"items": [{"q": "Q%d" % i, "options": ["a", "b"], "picked": "a"} for i in range(10)]}
+qs = P.questions_of(GOOD)
+lines, probs = P.format_compare(qs, [rc])
+check("F1 compare: same count, types, options and length is in range", probs == [] and "questions" in lines[1])
+rc4 = {"items": [{"q": "Q%d" % i, "options": ["a", "b", "c", "d"], "picked": "a"} for i in range(30)]}
+lines, probs = P.format_compare(qs, [rc4])
+check("F1 compare: 10 vs 30 questions and 2 vs 4 options are out of range",
+      any("question count" in x for x in probs) and any("options per question" in x for x in probs))
+rct = {"items": [{"q": "Q%d word word" % i, "options": [], "picked": "x"} for i in range(10)]}
+check("F1 compare: multiple choice vs written answers is out of range", any("multiple choice" in x for x in P.format_compare(qs, [rct])[1]))
 c = copy.deepcopy(GOOD); c["log"] = False
 check("quiz page with log false fails (B7)", any("must log" in x for x in P.content_problems(c)))
 
@@ -73,4 +92,18 @@ check("B7: localStorage-only quiz fails", any("localStorage" in x for x in V.b7_
 page_ok = '<script type="application/json" id="sh-data">{"quizzes":[{"questions":[]}],"log":true}</script><script>var SHLog=1</script>'
 check("B7: quiz page with logger passes", V.b7_problems(page_ok) == [])
 check("B7: page with no quiz passes", V.b7_problems("<p>hello</p>") == [])
+# every Contents API write is made as Study Hub Bot (never the token owner)
+import sh_scores as SC
+_sent = []
+_saved = (SC.local_dir, SC.get, SC._req)
+SC.local_dir = lambda: None
+SC.get = lambda path: None
+SC._req = lambda method, url, body=None, tries=3: (_sent.append((method, body)) or (201, {}))
+try:
+    SC.put("G3/T/x.json", b"{}", "test")
+finally:
+    SC.local_dir, SC.get, SC._req = _saved
+bot = {"name": "Study Hub Bot", "email": "study-hub-bot@users.noreply.github.com"}
+check("sh_scores.put sets author and committer to Study Hub Bot",
+      len(_sent) == 1 and _sent[0][0] == "PUT" and _sent[0][1].get("committer") == bot and _sent[0][1].get("author") == bot)
 print("provenance public-rule tests passed (%d)" % n)

@@ -5,7 +5,13 @@
     "title": "Final Test 1: Chapters 1, 2, and 8 (essay prep, prompt cards, fact quiz, timed writing)",
     "path": "G3/SS/Final1-Ch1-2-8/",
     "test_date": "2026-10-21",
-    "added_by": "Sissy"
+    "added_by": "Sissy",
+    "provenance_sha256": "7f0f02c6eaefb0cf2592ad9cc621d0a2c9de2eb5b6cb49917d81fbf2e8f0282f",
+    "n_sources": 8,
+    "n_inferred": 0,
+    "n_questions": 21,
+    "n_retests": 10,
+    "built_at": "2026-11-01T10:39:07-08:00"
   },
   {
     "grade": "G3",
@@ -13,7 +19,13 @@
     "title": "Continents and Oceans: retake practice and mock test (shapes, map, mock, Fix-it)",
     "path": "G3/SS/Continents-Oceans-Retake/",
     "test_date": "",
-    "added_by": "Sissy"
+    "added_by": "Sissy",
+    "provenance_sha256": "3e3942db709fad8348a4402bbe29784c87c0ac5294fdf6b2a4bf68129f859d1f",
+    "n_sources": 6,
+    "n_inferred": 0,
+    "n_questions": 35,
+    "n_retests": 6,
+    "built_at": "2026-11-01T10:39:25-08:00"
   },
   {
     "grade": "G3",
