@@ -1,0 +1,71 @@
+/* Study Hub skin for pages built before sh-2 (migrated pages).
+   It only changes looks: fonts, colors, header, tabs, cards, buttons. It never changes scripts or content. */
+html body.sh-legacy{font-family:var(--sh-font)!important;background:var(--sh-bg)!important;background-image:none!important;color:var(--sh-ink)!important;-webkit-font-smoothing:antialiased;letter-spacing:-.003em}
+body.sh-legacy :where(h1,h2,h3,h4,h5,p,li,button,input,select,textarea,label,a,span,div,b,strong,td,th,small,.f){font-family:var(--sh-font)!important}
+body.sh-legacy .emo{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif!important}
+body.sh-legacy h1,body.sh-legacy h2{letter-spacing:-.022em!important;font-weight:700!important}
+body.sh-legacy h3,body.sh-legacy h4{letter-spacing:-.012em!important;font-weight:650!important}
+body.sh-legacy h2{color:var(--sh-ink)!important}
+
+/* Page header: white, large title, no gradient */
+body.sh-legacy>header{background:transparent!important;color:var(--sh-ink)!important;box-shadow:none!important;border:0!important;
+  max-width:var(--sh-max);margin:0 auto!important;padding:40px 22px 18px!important;text-align:left!important;display:flex;align-items:center;gap:18px;flex-wrap:wrap;position:relative;overflow:visible!important}
+body.sh-legacy>header::after,body.sh-legacy>header::before{display:none!important}
+body.sh-legacy>header h1{font-size:clamp(32px,4.6vw,52px)!important;line-height:1.08!important;margin:0!important;color:var(--sh-ink)!important}
+body.sh-legacy>header p{color:var(--sh-ink-3)!important;opacity:1!important;font-size:19px!important;margin:6px 0 0!important}
+body.sh-legacy>header img{border-radius:16px!important;box-shadow:none!important;background:var(--sh-accent-soft)!important}
+body.sh-legacy>header .pill,body.sh-legacy>header [class*="pill"],body.sh-legacy>header .stars{background:var(--sh-accent-soft)!important;color:var(--sh-accent)!important;border:0!important;box-shadow:none!important;font-weight:600!important;border-radius:999px!important}
+body.sh-legacy>header *{color:inherit}
+
+/* Tabs: one segmented control on every page */
+body.sh-legacy nav#nav{position:sticky!important;top:0!important;z-index:90!important;background:rgba(245,245,247,.86)!important;-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
+  border:0!important;box-shadow:none!important;padding:10px max(22px,calc((100% - var(--sh-max))/2 + 22px))!important;display:flex!important;justify-content:flex-start!important;flex-wrap:nowrap!important;overflow-x:auto!important;gap:0!important;scrollbar-width:none}
+body.sh-legacy nav#nav::before{content:"";position:absolute;inset:0;pointer-events:none;border-bottom:1px solid var(--sh-line)}
+body.sh-legacy nav#nav>*:first-child{margin-left:0}
+body.sh-legacy nav#nav{--seg-pad:4px}
+body.sh-legacy nav#nav button,body.sh-legacy nav#nav a{flex:none!important;appearance:none;font:600 16px/1 var(--sh-font)!important;color:var(--sh-ink)!important;background:var(--sh-fill)!important;border:0!important;border-radius:0!important;
+  min-height:44px!important;padding:0 18px!important;margin:0!important;box-shadow:none!important;transform:none!important;display:inline-flex!important;align-items:center;gap:6px;white-space:nowrap;text-decoration:none!important;transition:background .25s var(--sh-ease),color .25s var(--sh-ease)}
+body.sh-legacy nav#nav button:first-of-type,body.sh-legacy nav#nav a:first-of-type{border-radius:999px 0 0 999px!important;padding-left:22px!important}
+body.sh-legacy nav#nav button:last-of-type,body.sh-legacy nav#nav a:last-of-type{border-radius:0 999px 999px 0!important;padding-right:22px!important}
+body.sh-legacy nav#nav button.on,body.sh-legacy nav#nav button.active,body.sh-legacy nav#nav button[aria-selected="true"],body.sh-legacy nav#nav a.on{background:#fff!important;color:var(--sh-accent)!important;box-shadow:inset 0 0 0 4px var(--sh-fill),0 1px 3px rgba(0,0,0,.10)!important}
+body.sh-legacy nav#nav button:hover{background:rgba(118,118,128,.18)!important}
+body.sh-legacy nav#nav button.on:hover{background:#fff!important}
+
+/* In-page section map (anchor links) uses the same segmented look */
+body.sh-legacy nav.map{gap:8px!important;margin:20px 0 8px!important}
+body.sh-legacy nav.map a{background:var(--sh-fill)!important;border:0!important;border-radius:999px!important;color:var(--sh-ink)!important;font-weight:600!important;font-size:16px!important;min-height:44px!important;padding:0 18px!important}
+body.sh-legacy nav.map a:hover{background:#fff!important;color:var(--sh-accent)!important;box-shadow:0 1px 3px rgba(0,0,0,.10)}
+body.sh-legacy nav.map a.done{background:var(--sh-good-soft)!important;color:var(--sh-good)!important}
+
+/* Sticky progress bar (math pages) */
+body.sh-legacy>.top{background:rgba(251,251,253,.86)!important;-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);box-shadow:none!important;border-bottom:1px solid var(--sh-line)}
+body.sh-legacy .pbar{background:var(--sh-fill)!important;height:8px!important}
+body.sh-legacy .pbar i{background:var(--sh-accent)!important}
+
+/* Main column and cards */
+body.sh-legacy main{max-width:var(--sh-max)!important;padding-left:22px!important;padding-right:22px!important}
+body.sh-legacy .card,body.sh-legacy section.tech,body.sh-legacy section.block,body.sh-legacy .panel,body.sh-legacy .box{border-radius:var(--sh-radius)!important;box-shadow:var(--sh-shadow)!important;border:0!important;background-color:var(--sh-surface)}
+body.sh-legacy .hero{background-image:none!important;box-shadow:var(--sh-shadow)!important;border:0!important;border-radius:var(--sh-radius)!important}
+body.sh-legacy .wrap .hero,body.sh-legacy .hero:not(.card){box-shadow:none!important;background:transparent!important}
+body.sh-legacy .hero h2 span,body.sh-legacy .hero h1 span:not(.emo){color:var(--sh-accent)!important;-webkit-text-fill-color:currentColor!important;background:none!important}
+body.sh-legacy .hero img{border-radius:var(--sh-radius)!important;transform:none!important}
+body.sh-legacy .sub{color:var(--sh-ink-3)!important}
+body.sh-legacy .tag{border-radius:999px!important}
+
+/* Buttons: soft pills, no 3D shadow */
+body.sh-legacy .btn{border-radius:999px!important;box-shadow:none!important;border:0!important;min-height:48px;font-weight:600!important;background:var(--sh-accent)!important;color:#fff!important;transform:none!important}
+body.sh-legacy .btn:hover{filter:brightness(1.08)}
+body.sh-legacy .btn.ghost,body.sh-legacy .btn.grey,body.sh-legacy .btn.alt,body.sh-legacy .btn.sec,body.sh-legacy .btn.light{background:var(--sh-fill)!important;color:var(--sh-ink)!important}
+body.sh-legacy .btn.gr,body.sh-legacy .btn.green,body.sh-legacy .btn.g{background:var(--sh-good)!important}
+body.sh-legacy .opt{border-radius:var(--sh-radius-sm)!important;box-shadow:none!important}
+body.sh-legacy input[type=text],body.sh-legacy input:not([type]),body.sh-legacy textarea{border-radius:12px}
+
+/* Footer note added by the skin */
+body.sh-legacy .sh-foot{max-width:var(--sh-max);margin:56px auto 0;padding-left:22px;padding-right:22px}
+@media (max-width:560px){body.sh-legacy>header{padding:26px 16px 12px!important}body.sh-legacy nav#nav{padding:8px 16px!important}}
+@media (prefers-reduced-motion:reduce){body.sh-legacy *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* Softer borders on common old card parts */
+body.sh-legacy .step,body.sh-legacy .path>*,body.sh-legacy .ogrid>*{border-color:var(--sh-line)!important;box-shadow:none!important;background:#fff!important}
+body.sh-legacy .sh-appbar,body.sh-legacy .sh-appbar *{font-family:var(--sh-font)!important}
+body.sh-legacy .sh-appbar ol,body.sh-legacy .sh-appbar li{margin:0;padding:0;background:none}
