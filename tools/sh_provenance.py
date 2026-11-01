@@ -16,7 +16,19 @@ Rules
     B3  every score file under G3/<Subject>/ older than the build is in weak_spots_from or in an error-log note
         "attempt=<path>".
     B4  every receipt for the subject (G3/_receipts/*.json) dated before the build is in results_ingested.
-    B5  every error-log row with resolved=no is in some question's retests (and every retests id is a real row).
+    B5  re-test rotation over the open rows (resolved=no) of the subject's error log, using the build history in
+        study-hub-scores (G3/<Subject>/_builds/):
+        (a) the page re-tests at least min(15, open rows), chosen oldest-first: the open rows that were re-tested
+            least recently (never first), then by row date, then by id;
+        (b) every open row is re-tested at least once in any 3 consecutive builds of the subject: a row that was open
+            in the last 2 builds and re-tested in neither must be re-tested now;
+        (c) a row that was missed again since the last build (a later attempt missed a question that re-tests it, or
+            an "attempt=" note after the last build) must be re-tested now;
+        and every retests id is a real row. "python3 tools/sh_provenance.py plan G3/<Subject>" prints what to re-test.
+    F1  school subjects (tools/sh_config.json "school_subjects"): a page with a mock cites patterns_from (past school
+        receipts of that teacher and subject, as gmail:<id>). sh_page.py prints a format and difficulty comparison of
+        the mock with those receipts (question count, question types, option count, stem length), and publish.sh
+        warns when it is out of range (F1_TOL). Citing is required (sh_page.py, B2); the range is a warning.
     B6  a row is resolved=yes only when its notes cite 2 attempt files ("correct=<path>") on different PT days, and
         in each of them a question that retests the row was answered right (it is not in "missed").
     B7  (validate.py --src) a page with a quiz has the score logger; a page that keeps results only in localStorage fails.
@@ -36,6 +48,13 @@ SOURCE_KINDS = ("form_receipt", "score_released", "word_list", "book_page", "stu
                 "teacher_notice", "handoff", "web", "other")
 LOG_COLUMNS = ["id", "date", "unit", "topic", "skill", "question", "kid_answer", "correct_answer", "error_type", "round",
                "resolved", "correct_count", "last_correct_dates", "source", "notes"]
+B5_MIN = 15        # (a) at least min(B5_MIN, open rows) re-tests per page
+B5_WINDOW = 3      # (b) every open row re-tested at least once in any B5_WINDOW consecutive builds
+# F1 tolerance: the mock against the mean of the cited receipts
+F1_TOL = {"count_rel": 0.20, "count_abs": 3,     # question count within 20% or 3 questions, whichever is larger
+          "mc_share": 0.15,                      # share of multiple-choice questions within 15 points
+          "options": 0.5,                        # mean options per multiple-choice question within 0.5
+          "stem_rel": 0.40}                      # mean words per question within 40% (difficulty proxy)
 STAMP_RE = re.compile(r"(\d{4}-\d{2}-\d{2})T(\d{6})-[a-z]+-[a-z0-9]{4}\.json$")
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{2,80}$")
 
@@ -62,7 +81,8 @@ def questions_of(c):
             for n, q in enumerate(b.get("questions") or [], 1):
                 out.append({"quiz": qi, "kind": b.get("kind", "game"), "section": sec.get("id") or sec.get("label"), "n": n,
                             "q": q.get("q", ""), "topic": q.get("topic", ""), "src": q.get("src", ""),
-                            "inferred": q.get("inferred") is True, "retests": list(q.get("retests") or [])})
+                            "inferred": q.get("inferred") is True, "retests": list(q.get("retests") or []),
+                            "type": "mc" if q.get("options") else "text", "n_options": len(q.get("options") or [])})
             qi += 1
     return out
 
@@ -110,20 +130,87 @@ def content_problems(c):
         inf = sum(q["inferred"] for q in qs)
         if inf / len(qs) > MAX_INFERRED:
             out.append("%d of %d questions are inferred (%.0f%%); the limit is 20%%" % (inf, len(qs), 100.0 * inf / len(qs)))
+    if c.get("subject") in L.CFG.get("school_subjects", []) and any(q["kind"] == "mock" for q in qs):
+        pf = p.get("patterns_from")
+        if not isinstance(pf, list) or not pf:
+            out.append("F1: a school-subject mock needs provenance.patterns_from: past school receipts of this teacher and "
+                       "subject (gmail:<id>), so the mock can match their format")
+        elif not all(isinstance(x, str) and re.match(r"^gmail:[0-9a-f]{8,}$", x) for x in pf):
+            out.append("F1: patterns_from entries must look like gmail:<id>")
     if qs and c.get("log", True) is False:
         out.append("a page with a quiz must log scores (remove \"log\": false)")
     return out
 
 
-def record_bytes(c, rel_dir, built_at, error_log_sha256=""):
+def record_bytes(c, rel_dir, built_at, error_log_sha256="", open_rows=None):
     p = dict(c["provenance"])
     p.setdefault("results_ingested", [])
     p.setdefault("weak_spots_from", [])
     p["error_log"] = "scores:%s/%s/_error_log.csv" % (c["grade"], c["subject"])
     p["error_log_sha256"] = error_log_sha256
     rec = {"v": 1, "page": rel_dir, "built_at": built_at, "added_by": c.get("added_by", ""), "provenance": p,
-           "questions": questions_of(c)}
+           "questions": questions_of(c), "open_rows": sorted(open_rows or [])}
     return (json.dumps(rec, indent=1, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
+
+
+def format_stats(items):
+    """items: list of {"type": "mc"|"text", "n_options": n, "q": text}."""
+    n = len(items)
+    mc = [i for i in items if i["type"] == "mc"]
+    words = [len(re.findall(r"[A-Za-z0-9']+", i.get("q") or "")) for i in items]
+    return {"n": n, "mc_share": (len(mc) / n) if n else 0.0,
+            "options": (sum(i["n_options"] for i in mc) / len(mc)) if mc else 0.0,
+            "stem_words": (sum(words) / n) if n else 0.0}
+
+
+def receipt_items(rc):
+    out = []
+    for it in rc.get("items", []):
+        if it.get("options"):
+            out.append({"type": "mc", "n_options": len(it["options"]), "q": it.get("q", "")})
+        elif it.get("picked") is not None:
+            out.append({"type": "text", "n_options": 0, "q": it.get("q", "")})
+    return out
+
+
+def format_compare(questions, receipts):
+    """Mock questions (from questions_of) against the cited receipts. Returns (lines, problems)."""
+    mock = [q for q in questions if q.get("kind") == "mock"]
+    mine = format_stats([{"type": q.get("type") or ("mc" if q.get("n_options") else "text"), "n_options": q.get("n_options", 0),
+                          "q": q.get("q", "")} for q in mock])
+    real = [format_stats(receipt_items(r)) for r in receipts if receipt_items(r)]
+    if not real:
+        return ["format: no cited receipt has questions to compare"], ["no cited receipt has questions"]
+    avg = {k: sum(r[k] for r in real) / len(real) for k in real[0]}
+    t = F1_TOL
+    probs = []
+    if abs(mine["n"] - avg["n"]) > max(t["count_abs"], t["count_rel"] * avg["n"]):
+        probs.append("question count %d, school tests %.0f" % (mine["n"], avg["n"]))
+    if abs(mine["mc_share"] - avg["mc_share"]) > t["mc_share"]:
+        probs.append("multiple choice %.0f%%, school tests %.0f%%" % (100 * mine["mc_share"], 100 * avg["mc_share"]))
+    if avg["options"] and abs(mine["options"] - avg["options"]) > t["options"]:
+        probs.append("options per question %.1f, school tests %.1f" % (mine["options"], avg["options"]))
+    if avg["stem_words"] and abs(mine["stem_words"] - avg["stem_words"]) > t["stem_rel"] * avg["stem_words"]:
+        probs.append("words per question %.0f, school tests %.0f" % (mine["stem_words"], avg["stem_words"]))
+    lines = ["format vs %d school test(s): %-22s mock  school" % (len(real), ""),
+             "  questions               %5d  %6.0f" % (mine["n"], avg["n"]),
+             "  multiple choice         %4.0f%%  %5.0f%%" % (100 * mine["mc_share"], 100 * avg["mc_share"]),
+             "  options per question    %5.1f  %6.1f" % (mine["options"], avg["options"]),
+             "  words per question      %5.0f  %6.0f   (difficulty proxy)" % (mine["stem_words"], avg["stem_words"])]
+    return lines, probs
+
+
+def f1_report(rec, S, grade="G3"):
+    """(lines, problems) for a record of a school subject with a mock, or ([], []) when F1 does not apply."""
+    subj = rec["page"].split("/")[1]
+    if subj not in L.CFG.get("school_subjects", []) or not any(q.get("kind") == "mock" for q in rec["questions"]):
+        return [], []
+    rcs = []
+    for g in rec["provenance"].get("patterns_from", []):
+        b = S.get("%s/_receipts/%s.json" % (grade, g[6:]))
+        if b:
+            rcs.append(json.loads(b))
+    return format_compare(rec["questions"], rcs)
 
 
 def manifest_fields(rec_bytes):
@@ -136,6 +223,99 @@ def manifest_fields(rec_bytes):
 
 def scores_path(rel_dir):
     return rel_dir.rstrip("/") + "/_provenance.json"
+
+
+def build_copy_path(rel_dir, built_at):
+    """Immutable copy of each build, so the B5 history survives a rebuild of the same lesson."""
+    g, subj, lesson = rel_dir.strip("/").split("/")[:3]
+    stamp = re.sub(r"[^0-9T]", "", datetime.fromisoformat(built_at).astimezone(PT).strftime("%Y-%m-%dT%H%M%S"))
+    return "%s/%s/_builds/%s-%s.json" % (g, subj, stamp, lesson)
+
+
+def open_row_ids(rows):
+    return [r.get("id") for r in rows if (r.get("resolved") or "").strip().lower() == "no" and r.get("id")]
+
+
+def history(S, grade, subj, files=None):
+    """Every recorded build of the subject (from _builds copies and the current _provenance.json files), oldest first."""
+    files = files if files is not None else S.tree("%s/%s/" % (grade, subj))
+    recs = {}
+    for f in files:
+        if not f.startswith("%s/%s/" % (grade, subj)):
+            continue
+        if not ((f.startswith("%s/%s/_builds/" % (grade, subj)) and f.endswith(".json")) or f.endswith("/_provenance.json")):
+            continue
+        try:
+            r = json.loads(S.get(f))
+            recs[(r["page"], r["built_at"])] = r
+        except (ValueError, KeyError, TypeError):
+            continue
+    return sorted(recs.values(), key=lambda r: datetime.fromisoformat(r["built_at"]))
+
+
+def _missed_rows(S, files, grade, subj, after, before, prov_cache):
+    """Row ids missed in attempts between two build times: the attempt's page has a question that re-tests the row,
+    and the attempt lists that question in 'missed'."""
+    out = {}
+    for f in files:
+        if not f.startswith("%s/%s/" % (grade, subj)) or "/_" in f[len(grade) + 1:]:
+            continue
+        dt = _attempt_dt(f)
+        if not dt or not (after < dt < before):
+            continue
+        try:
+            pay = json.loads(S.get(f))
+        except (ValueError, TypeError):
+            continue
+        lesson_dir = "/".join(f.split("/")[:3]) + "/"
+        if lesson_dir not in prov_cache:
+            pr = S.get(scores_path(lesson_dir))
+            prov_cache[lesson_dir] = json.loads(pr)["questions"] if pr else []
+        missed = {_norm_q(m.get("q", "")) for m in pay.get("missed", [])}
+        for q in prov_cache[lesson_dir]:
+            if _norm_q(q["q"]) in missed:
+                for rid in q.get("retests", []):
+                    out.setdefault(rid, f)
+    return out
+
+
+def b5_plan(S, grade, subj, rows, built, page=None, files=None):
+    """What B5 needs from a build at time 'built' (datetime). Returns a dict with the open rows, the oldest-first
+    list (a), the rows due by the 3-build window (b), and the rows missed again since the last build (c)."""
+    files = files if files is not None else S.tree(grade + "/")
+    prior = [r for r in history(S, grade, subj, files)
+             if datetime.fromisoformat(r["built_at"]) < built and not (page and r["page"] == page and r["built_at"] == built.isoformat())]
+    opened = [r for r in rows if (r.get("resolved") or "").strip().lower() == "no" and r.get("id")]
+    last = {}
+    for rec in prior:
+        for q in rec.get("questions", []):
+            for rid in q.get("retests", []):
+                last[rid] = max(last.get(rid, ""), rec["built_at"])
+    order = sorted(opened, key=lambda r: (last.get(r["id"], ""), r.get("date") or "", r["id"]))
+    k = min(B5_MIN, len(opened))
+    oldest = [r["id"] for r in order[:k]]
+    due = []
+    win = prior[-(B5_WINDOW - 1):] if B5_WINDOW > 1 else []
+    if len(win) == B5_WINDOW - 1:
+        for r in opened:
+            present = all((r["id"] in rec["open_rows"]) if "open_rows" in rec else ((r.get("date") or "") <= rec["built_at"][:10])
+                          for rec in win)
+            hit = any(r["id"] in q.get("retests", []) for rec in win for q in rec.get("questions", []))
+            if present and not hit:
+                due.append(r["id"])
+    again = {}
+    if prior:
+        lb = datetime.fromisoformat(prior[-1]["built_at"])
+        again = _missed_rows(S, files, grade, subj, lb, built, {})
+        for r in opened:
+            for a in re.findall(r"attempt=(\S+?\.json)", r.get("notes", "")):
+                dt = _attempt_dt(a)
+                if dt and lb < dt < built:
+                    again.setdefault(r["id"], a)
+        open_ids = {r["id"] for r in opened}
+        again = {k2: v for k2, v in again.items() if k2 in open_ids}
+    return {"open": [r["id"] for r in order], "k": k, "oldest": oldest, "due": due, "again": again,
+            "builds": len(prior), "last_build": prior[-1]["built_at"] if prior else None}
 
 
 # ---------- public rules ----------
@@ -225,7 +405,12 @@ def box_problems(entry, S, check_files=True):
             out.append(("B2", "%s: quiz %d question %d has no src and is not inferred" % (path, q["quiz"] + 1, q["n"])))
         elif q.get("src") and q["src"].split("#")[0] not in ids:
             out.append(("B2", "%s: quiz %d question %d src is not a listed source" % (path, q["quiz"] + 1, q["n"])))
-    gm = [s["id"] for s in p["sources"] if s["id"].startswith("gmail:")] + [x for x in p.get("results_ingested", []) if x.startswith("gmail:")]
+    for g in p.get("patterns_from", []):
+        rc = receipts.get(g[6:].split("#")[0]) if g.startswith("gmail:") else None
+        if rc is not None and rc.get("subject") != subj:
+            out.append(("B2", "%s: patterns_from %s is a %s receipt, not %s" % (path, g, rc.get("subject") or "?", subj)))
+    gm = [s["id"] for s in p["sources"] if s["id"].startswith("gmail:")] + [x for x in p.get("results_ingested", []) if x.startswith("gmail:")] \
+        + [x for x in p.get("patterns_from", []) if x.startswith("gmail:")]
     for g in sorted(set(gm)):
         if g[6:].split("#")[0] not in receipts:
             out.append(("B2", "%s: %s has no receipt in %s/_receipts/ (run tools/ingest_receipts.py)" % (path, g, grade)))
@@ -265,12 +450,25 @@ def box_problems(entry, S, check_files=True):
         before = (datetime.fromisoformat(when) < built) if when else (rc.get("date", "9999") < built.date().isoformat())
         if before and "gmail:" + rid not in ing:
             out.append(("B4", "%s: receipt gmail:%s (%s, %s) is not in results_ingested" % (path, rid, rc.get("title", ""), rc.get("date"))))
-    # B5
+    # B5 (rotation)
     retested = {r for q in qs for r in q.get("retests", [])}
     row_ids = {r.get("id") for r in rows}
-    for r in rows:
-        if (r.get("resolved") or "").strip().lower() == "no" and r.get("id") not in retested:
-            out.append(("B5", "%s: error-log row %s is unresolved and no question retests it" % (path, r.get("id"))))
+    plan = b5_plan(S, grade, subj, rows, built, page=path, files=files)
+    hit = retested & set(plan["open"])
+    if len(hit) < plan["k"]:
+        out.append(("B5", "%s: re-tests %d of %d open rows; needs at least %d (min(%d, open rows))"
+                    % (path, len(hit), len(plan["open"]), plan["k"], B5_MIN)))
+    miss_a = [x for x in plan["oldest"] if x not in retested]
+    if miss_a:
+        out.append(("B5", "%s: (a) the %d most overdue open rows must be re-tested (oldest-first); missing: %s"
+                    % (path, plan["k"], ", ".join(miss_a[:10]) + (" ..." if len(miss_a) > 10 else ""))))
+    for x in plan["due"]:
+        if x not in retested:
+            out.append(("B5", "%s: (b) row %s was open in the last %d builds and re-tested in neither; re-test it now"
+                        % (path, x, B5_WINDOW - 1)))
+    for x, a in sorted(plan["again"].items()):
+        if x not in retested:
+            out.append(("B5", "%s: (c) row %s was missed again since the last build (%s); re-test it now" % (path, x, a)))
     for rid in sorted(retested - row_ids):
         out.append(("B5", "%s: retests names %s, which is not an error-log row id" % (path, rid)))
     # B6
@@ -322,10 +520,28 @@ def main():
     import argparse
     import sh_scores as S
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["check"])
+    ap.add_argument("cmd", choices=["check", "plan"])
+    ap.add_argument("subject", nargs="?", help="for plan: G3/<Subject>")
     ap.add_argument("--pages", nargs="*", help="manifest paths (default: every page not in legacy_provenance)")
     ap.add_argument("--no-files", action="store_true", help="skip the file: sha256 check")
     a = ap.parse_args()
+    if a.cmd == "plan":
+        if not a.subject or a.subject.count("/") != 1:
+            sys.exit("usage: sh_provenance.py plan G3/<Subject>")
+        grade, subj = a.subject.split("/")
+        try:
+            S.check_access(write=False)
+            rows = read_log((S.get("%s/%s/_error_log.csv" % (grade, subj)) or b"").decode("utf-8"))
+            pl = b5_plan(S, grade, subj, rows, now_pt())
+        except S.ScoresError as ex:
+            sys.exit("PLAN FAILED: %s" % ex)
+        need = list(dict.fromkeys(pl["oldest"] + pl["due"] + sorted(pl["again"])))
+        print("%s: %d open rows, %d earlier builds (last %s)" % (a.subject, len(pl["open"]), pl["builds"], pl["last_build"] or "none"))
+        print("(a) oldest-first, at least %d: %s" % (pl["k"], ", ".join(pl["oldest"]) or "none"))
+        print("(b) due by the %d-build window: %s" % (B5_WINDOW, ", ".join(pl["due"]) or "none"))
+        print("(c) missed again since the last build: %s" % (", ".join(sorted(pl["again"])) or "none"))
+        print("put these ids in 'retests' (%d): %s" % (len(need), json.dumps(need)))
+        return
     items = json.load(open(os.path.join(L.REPO, "manifest.json"), encoding="utf-8"))
     errs, warns = public_problems(items)
     for w in warns:
@@ -339,6 +555,11 @@ def main():
             sys.exit(1)
     for it in todo:
         errs += box_problems(it, S, check_files=not a.no_files)
+        raw = S.get(scores_path(it["path"]))
+        if raw:
+            lines, probs = f1_report(json.loads(raw), S)
+            for pr in probs:
+                print("WARNING: F1 %s: mock format is out of range: %s" % (it["path"], pr))
     if errs:
         print("PROVENANCE CHECK FAILED (%d problems):" % len(errs))
         for r, m in errs:

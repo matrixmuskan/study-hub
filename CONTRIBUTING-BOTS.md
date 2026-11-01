@@ -228,13 +228,15 @@ Add a `provenance` block to the content file. In a Markdown content file, put th
     {"id": "gmail:1a164970d5ea012b", "kind": "form_receipt", "what": "WW Lesson 8 school test"}
   ],
   "results_ingested": ["gmail:1a164970d5ea012b", "gmail:1a1409dea6cffcef"],
-  "weak_spots_from": ["G3/WW/Lesson9/2026-11-03T171500-mock-ab12.json"]
+  "weak_spots_from": ["G3/WW/Lesson9/2026-11-03T171500-mock-ab12.json"],
+  "patterns_from": ["gmail:1a164970d5ea012b", "gmail:1a1409dea6cffcef"]
 }
 ```
 
 - `sources`: 1 or more. `id` starts with `file:`, `gmail:`, `paper:`, `url:`, `sheet:`, or `handoff:`. `kind` is one of `form_receipt`, `score_released`, `word_list`, `book_page`, `study_guide`, `past_paper`, `past_form`, `teacher_notice`, `handoff`, `web`, `other`. A `file:` source must have its `sha256`. A `gmail:` source must have a receipt in study-hub-scores (11.3).
 - `results_ingested`: every school receipt and "Score released" mail for the subject that is older than the build, as `gmail:<id>`.
 - `weak_spots_from`: score files from study-hub-scores that you used. Every score file of the subject that is older than the build must be here, or in an error-log note `attempt=<path>`.
+- `patterns_from` (school subjects, when the page has a `mock`): past school tests of the same teacher and subject, as `gmail:<id>` receipts that are ingested (11.3). The mock must copy their format (rule F1, 11.5).
 - `sh_page.py` adds `error_log` and `error_log_sha256` for you.
 
 Each quiz question gets two more fields:
@@ -264,7 +266,12 @@ There is one error log per subject: `study-hub-scores/G3/<Subject>/_error_log.cs
 A subject can add more columns after these (for example `sense` or `paper`). Rules:
 
 - `id` is stable. Never change or reuse it. Examples: `L8-quarry-1` (WW), `SS-2026-09-02-1a2b3c` (made by the import when a row had no id).
-- `resolved` is `no`, `yes`, or `void`. Every `no` row must be re-tested by the next page (rule B5).
+- `resolved` is `no`, `yes`, or `void`. The `no` rows are the open rows. Each new page re-tests them in a rotation (rule B5), so a page never has to re-test all of them:
+  - (a) The page re-tests at least min(15, open rows), chosen oldest-first: first the open rows that were re-tested least recently (never re-tested comes first), then by row `date`, then by `id`.
+  - (b) Every open row is re-tested at least once in any 3 consecutive builds of the subject. A row that was open in the last 2 builds and was re-tested in neither must be re-tested in this build.
+  - (c) A row that was missed again since the last build must be re-tested in this build. "Missed again" means a later attempt has the row's question in `missed`, or the row has an `attempt=` note with a later attempt.
+  - Every id in `retests` must be a real row.
+  - To see what to re-test, run `python3 tools/sh_provenance.py plan G3/<Subject>`. It prints the ids to put in `retests`. The build history is in `study-hub-scores/G3/<Subject>/_builds/` (`sh_page.py` writes one copy per build, with the open rows at that time).
 - A row can be `yes` only after 2 correct answers on the same fact, on 2 different days (Pacific time). Put each one in `notes` as `correct=<attempt path>`, set `correct_count` to 2 or more, and put both days in `last_correct_dates` (for example `2026-11-03;2026-11-05`). The page of each attempt must have a question with this row id in `retests`, and the attempt must not list that question in `missed` (rule B6).
 - Put each score file that you read in `notes` as `attempt=<path>`.
 
@@ -285,8 +292,27 @@ The old box logs (`/workspace/<coach>/error_log.csv`) were imported by `tools/mi
 | B2 | every question has `src` or `inferred`; `file:` sources exist with the same sha256; `gmail:` ids have a receipt | `sh_page.py`, `publish.sh` |
 | B3 | every older score file of the subject is in `weak_spots_from` or an `attempt=` note | `publish.sh` |
 | B4 | every older receipt of the subject is in `results_ingested` | `publish.sh` |
-| B5 | every `resolved=no` row is in some `retests` | `publish.sh` |
+| B5 | re-test rotation: at least min(15, open rows) oldest-first; every open row once in any 3 consecutive builds; a row missed again since the last build now | `publish.sh` (`plan` shows the ids) |
 | B6 | `resolved=yes` only with 2 correct answers on 2 PT days | `publish.sh` |
 | B7 | a page with a quiz logs to study-hub-scores | `sh_page.py`, `validate.py --src` |
+| F1 | a school-subject mock cites `patterns_from` (required) and matches their question count, question types, option count and length (warning) | `sh_page.py` (required, prints the comparison), `publish.sh` (warning) |
 
 `publish.sh` checks B1 to B6 for each changed page that is not a legacy page. It needs `STUDY_HUB_SCORES_TOKEN`. If a rule fails, it encrypts nothing and commits nothing. Tests: `tools/test_provenance.py` (CI), `tools/test_publish.sh` cases 5 and 6 (CI), `tools/test_provenance_box.py` (box, fixture subject).
+
+### 11.5 School mocks match the real test (rule F1)
+
+For school subjects (`school_subjects` in `tools/sh_config.json`: SS, WW, LA, Math, Sci, Grammar), the goal of a training page is a mock paper with the same difficulty and format as the real school test. Contest subjects (Noetic, Kangaroo, MOEMS) use past papers instead.
+
+1. A page with a `mock` quiz must have `patterns_from`: 1 or more past school receipts of the same teacher and subject. `sh_page.py` stops without it. Each id must be an ingested receipt of the same subject (rule B2).
+2. `sh_page.py` prints a comparison of the mock with the mean of those receipts:
+
+```
+format vs 2 school test(s):                        mock  school
+  questions                  30      31
+  multiple choice          100%    100%
+  options per question      4.0     4.0
+  words per question         11      10   (difficulty proxy)
+```
+
+3. The mock must match within these limits (`F1_TOL` in `tools/sh_provenance.py`): question count within 20% or 3 questions (the larger), share of multiple-choice questions within 15 points, options per question within 0.5, words per question within 40%.
+4. Out of range gives a warning from `sh_page.py` and from `publish.sh` (`WARNING: F1 ...`). It does not stop the build, because a coach can have a reason (for example a short practice mock). Write the reason in the coach SOURCE file. Basy reads the warnings.

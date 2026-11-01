@@ -27,6 +27,9 @@
     ],
     "weak_spots_from": [
       "G3/SS/Final1-Ch1-2-8/2026-10-20T181038-mock-v6w7.json"
+    ],
+    "patterns_from": [
+      "gmail:1a0643c185a516f9"
     ]
   },
   "sections": [
