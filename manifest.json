@@ -147,12 +147,12 @@
     "test_date": "2026-11-19",
     "added_by": "Naughty",
     "template": "sh-2",
-    "provenance_sha256": "15e02ace4a81472326d4d663b44c7f2168ade360eac8a73fb4d1c0b8c7262037",
+    "provenance_sha256": "f2ec00ca51044810f1ea69faef24e4fd21bceb460c1f4535a46d9ae31695828a",
     "n_sources": 6,
     "n_inferred": 1,
     "n_questions": 18,
     "n_retests": 0,
-    "built_at": "2026-11-01T12:57:22-08:00"
+    "built_at": "2026-11-01T13:23:59-08:00"
   },
   {
     "grade": "G3",
@@ -162,12 +162,12 @@
     "test_date": "2026-11-19",
     "added_by": "Naughty",
     "template": "sh-2",
-    "provenance_sha256": "9314c6ce35bb741fe8141418802ac0b48358b420230f761121613212604883e9",
+    "provenance_sha256": "c6af90c564efc62992fdd3611ad6fb8d3db059e7543711a0bbfd3c2252941b85",
     "n_sources": 8,
     "n_inferred": 0,
     "n_questions": 18,
     "n_retests": 0,
-    "built_at": "2026-11-01T12:57:42-08:00"
+    "built_at": "2026-11-01T13:24:20-08:00"
   },
   {
     "grade": "G3",
@@ -177,11 +177,11 @@
     "test_date": "2026-11-19",
     "added_by": "Naughty",
     "template": "sh-2",
-    "provenance_sha256": "69e02eb56bd1bf1ac51015e07a4d141d24452332348b4d5ec85676b750d2293b",
+    "provenance_sha256": "3d5b025747a774e936c7f56a5487b6862feecbe44970d4a50483367b51c24291",
     "n_sources": 7,
     "n_inferred": 0,
     "n_questions": 18,
     "n_retests": 0,
-    "built_at": "2026-11-01T12:58:03-08:00"
+    "built_at": "2026-11-01T13:24:40-08:00"
   }
 ]
