@@ -1,0 +1,40 @@
+{
+  "grade": "G3",
+  "subject": "SS",
+  "id": "Example-Maps",
+  "title": "Example: Maps and Globes",
+  "short_title": "Maps and Globes",
+  "subtitle": "Learn the parts of a map. Then practice and take a short mock test.",
+  "test_date": "2026-11-20",
+  "added_by": "Sissy",
+  "log": true,
+  "sections": [
+    {"id": "learn", "label": "Learn", "blocks": [
+      {"type": "text", "title": "What is a map?", "md": "A map is a flat picture of a place.\n\n- A **title** tells you what the map shows.\n- A **key** tells you what each symbol means.\n- A **compass rose** shows north, south, east, and west."},
+      {"type": "cards", "title": "Words to know", "items": [
+        {"title": "Globe", "body": "A round model of the Earth."},
+        {"title": "Equator", "body": "An imaginary line around the middle of the Earth."},
+        {"title": "Continent", "body": "A very large area of land. The Earth has seven."}
+      ]},
+      {"type": "callout", "title": "Tip:", "md": "Find the key first. Then read the map."}
+    ]},
+    {"id": "practice", "label": "Practice", "blocks": [
+      {"type": "quiz", "kind": "game", "title": "Quick practice", "intro": "You see the answer after each question.", "questions": [
+        {"q": "What shows north, south, east, and west?", "options": ["The title", "The compass rose", "The key"], "answer": 1, "explain": "The compass rose shows the directions.", "topic": "map parts"},
+        {"q": "How many continents are there?", "answer_text": ["7", "seven"], "numeric": true, "explain": "There are seven continents.", "topic": "continents"}
+      ]}
+    ]},
+    {"id": "mock", "label": "Mock test", "blocks": [
+      {"type": "quiz", "kind": "mock", "title": "Mock test", "intro": "Answer every question. Then press Mark my test.", "questions": [
+        {"q": "A round model of the Earth is a", "options": ["map", "globe", "key"], "answer": 1, "topic": "globes"},
+        {"q": "The equator is an imaginary line around the ___ of the Earth.", "options": ["top", "middle", "bottom"], "answer": 1, "topic": "globes"}
+      ]}
+    ]},
+    {"id": "retest", "label": "Retest", "blocks": [
+      {"type": "text", "md": "Do this part after the teacher gives back the test."},
+      {"type": "quiz", "kind": "retest", "questions": [
+        {"q": "What tells you what each symbol on a map means?", "options": ["The key", "The title", "The scale"], "answer": 0, "topic": "map parts"}
+      ]}
+    ]}
+  ]
+}
