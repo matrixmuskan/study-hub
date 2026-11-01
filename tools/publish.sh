@@ -68,7 +68,7 @@ else
   echo "Validation failed: nothing committed. Fix the problems above and run publish.sh again."; exit 1
 fi
 
-git add -A -- 'G*/' index.html manifest.json  # only publish outputs; tools/assets changes go through a PR
+git add -A -- ':(glob)G*/**' index.html manifest.json  # only publish outputs; tools/assets changes go through a PR
 if git diff --cached --quiet; then echo "nothing to commit"
 else
   msg=(-m "${1:-Publish study hub pages}")
