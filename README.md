@@ -66,6 +66,7 @@ Basy checks every push for these, and coaches check them before pushing:
 - No em dashes anywhere.
 - Passwords: pages are protected only through StatiCrypt with the shared salt in `.staticrypt.json` (do not change the salt, or "remember me" stops working across pages). The password is not stored in this repo; ask Muskan. `tools/publish.sh` reads it from the `STATICRYPT_PASSWORD` environment variable or from `~/.study-hub.env` (outside the repo, chmod 600).
 - Never commit plaintext pages, source notes, emails, or school documents.
+- One session at a time: build and publish only from `/workspace/study-hub`, inside `tools/sh_lock.sh` (CONTRIBUTING-BOTS.md 8.1).
 - Deploy: `.github/workflows/pages.yml` uploads only the site files (`tools/site_files.py`: `G<n>/` pages, `index.html`, `assets/`, `manifest.json`) with `actions/upload-pages-artifact` and `actions/deploy-pages`; the Pages source is GitHub Actions. `tools/`, `*.md`, `templates/`, `docs/` and `.staticrypt.json` are not served (404); `live-check` verifies this and that every served file is byte-identical to the commit.
 - The child's first name is never in a tracked file: `validate.py` rule R12 checks every tracked file against a salted hash (`name_guard` in `tools/sh_config.json`) in CI, and against the name itself on the box. `publish.sh` stops if `STUDY_HUB_KID_FIRST_NAME` is missing.
 

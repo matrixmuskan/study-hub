@@ -15,6 +15,41 @@ def default_src():
     return os.environ.get("STUDY_HUB_SRC", os.path.join(os.path.dirname(REPO), "study-hub-src"))
 
 
+def mirror_lock(src, what=""):
+    """The same lock as tools/sh_lock.sh, for sh_page.py and attach run on their own: an exclusive flock on
+    <src>/.publish.lock for the life of the process (returns the open fd). No-op inside sh_lock.sh (SH_LOCK_HELD).
+    Refuses a clone that does not own the mirror (<src>/_state/repo). Waits up to SH_LOCK_WAIT seconds (900)."""
+    import fcntl, time
+    if os.environ.get("SH_LOCK_HELD"):
+        return None
+    me = os.path.realpath(REPO)
+    os.makedirs(os.path.join(src, "_state"), exist_ok=True)
+    op = os.path.join(src, "_state", "repo")
+    owner = open(op).read().strip() if os.path.exists(op) else ""
+    if owner and owner != me:
+        raise SystemExit("WRONG CLONE: the mirror %s belongs to %s. Build and publish only from there; branch work goes "
+                         "in a worktree with its own STUDY_HUB_SRC." % (src, owner))
+    if not owner:
+        open(op, "w").write(me + "\n")
+    lp = os.path.join(src, ".publish.lock")
+    fd = os.open(lp, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
+    t0, wait = time.time(), int(os.environ.get("SH_LOCK_WAIT", "900"))
+    while True:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            break
+        except BlockingIOError:
+            if time.time() - t0 > wait:
+                raise SystemExit("LOCKED: another bot holds %s: %s. Try again when it is done."
+                                 % (lp, open(lp).read().strip()))
+            time.sleep(3)
+    os.ftruncate(fd, 0)
+    os.write(fd, ("%s pid %d since %s: %s\n" % (os.environ.get("SH_BOT", "unknown bot"), os.getpid(),
+                                                time.strftime("%Y-%m-%dT%H:%M:%S%z"), what)).encode())
+    os.environ["SH_LOCK_HELD"] = lp
+    return fd
+
+
 def asset(name):
     return open(os.path.join(REPO, "assets", name), encoding="utf-8").read()
 

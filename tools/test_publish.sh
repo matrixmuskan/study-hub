@@ -194,4 +194,20 @@ if tools/publish.sh "CI: loop page" > "$T/out6.txt" 2>&1; then cat "$T/out6.txt"
 grep -q "B4: G3/SS/CI-Loop/" "$T/out6.txt" && grep -q "CHECK FAILED" "$T/out6.txt" || { cat "$T/out6.txt"; die "no clear B4 failure"; }
 git checkout -q manifest.json
 ok "page that ignores a school receipt refused by publish.sh (B4)"
+# 7. One session per mirror: while one bot holds the lock, sh_page.py and publish.sh of another bot wait, then stop
+tools/sh_lock.sh sleep 8 & LP=$!
+sleep 1
+if SH_LOCK_WAIT=2 tools/publish.sh "CI: locked" > "$T/out7.txt" 2>&1; then die "publish.sh ran while another session held the lock"; fi
+grep -q "LOCKED:" "$T/out7.txt" || { cat "$T/out7.txt"; die "no clear LOCKED message from publish.sh"; }
+if SH_LOCK_WAIT=2 python3 tools/sh_page.py "$T/content/good.json" > "$T/out7b.txt" 2>&1; then die "sh_page.py ran while another session held the lock"; fi
+grep -q "LOCKED:" "$T/out7b.txt" || { cat "$T/out7b.txt"; die "no clear LOCKED message from sh_page.py"; }
+wait $LP
+SH_LOCK_WAIT=2 tools/sh_lock.sh true || die "lock not released after the session"
+ok "a second build or publish waits for the lock and stops with LOCKED (publish.sh and sh_page.py)"
+# 8. A second clone (or worktree) that points at a mirror another clone owns is refused
+git worktree add -q --detach "$T/other" HEAD
+if (cd "$T/other" && SH_LOCK_WAIT=2 tools/publish.sh "CI: wrong clone") > "$T/out8.txt" 2>&1; then die "publish.sh ran from a clone that does not own the mirror"; fi
+grep -q "WRONG CLONE" "$T/out8.txt" || { cat "$T/out8.txt"; die "no clear WRONG CLONE message"; }
+git worktree remove --force "$T/other"
+ok "a clone that does not own the mirror is refused (WRONG CLONE)"
 echo "publish end-to-end test passed"

@@ -171,6 +171,18 @@ The manifest entry looks like this. The generator writes it for you:
 3. The script makes the plaintext stage folder private and deletes it at the end.
 4. To encrypt all pages again (for example after a design change), run `FORCE=1 tools/publish.sh "<message>"`.
 
+## 8.1 One clone, one session at a time (publish lock)
+
+All bots build into one shared mirror (`/workspace/study-hub-src`) and publish from one clone (`/workspace/study-hub`). Two sessions at the same time break each other: a page that one bot has built but not published fails the other bot's B1 check.
+
+1. Use only `/workspace/study-hub` to build and publish. Never make a second clone. A clone or worktree that points at a mirror that another clone owns (`<mirror>/_state/repo`) is refused with `WRONG CLONE`.
+2. Run the whole window, from the build to the push, as one locked session:
+   `SH_BOT=<your name> tools/sh_lock.sh bash -c 'python3 tools/sh_page.py <page.json> && tools/publish.sh "<message>" && git push origin main'`
+   For an attach, use `python3 tools/sh_provenance.py attach <fragment.json>` instead of `sh_page.py`.
+3. `sh_page.py` (except `--out` previews), `sh_provenance.py attach` and `publish.sh` take the same lock (an exclusive `flock` on `<mirror>/.publish.lock`) when they run on their own. A second bot waits up to 15 minutes (`SH_LOCK_WAIT`), then stops with `LOCKED:` and the holder's name, command and start time. Wait and run your session again. Never delete the lock file.
+4. If the push is rejected, stay in the session: run `git fetch origin` and `git rebase origin/main` (never `git pull --rebase` from an old clone after a history rewrite), then push again.
+5. Branch work (tools, docs) goes in a worktree (`git worktree add /workspace/study-hub-wt/<name> -b <branch> origin/main`). A worktree does not use the shared mirror. Merges on main happen in `/workspace/study-hub` only while it is clean, inside a locked session.
+
 ## 9. Pre-push checklist
 
 Do these checks before each push:
