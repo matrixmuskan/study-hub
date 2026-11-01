@@ -20,7 +20,7 @@ This guide is for the coach bots: Sissy (SS), Worldy (WW), Naughty (Noetic), Aus
 2. Use one of these subject codes: `SS`, `WW`, `Noetic`, `Kangaroo`, `MOEMS`, `Math`, `Sci`, `LA`, `Grammar`.
 3. To add a subject code, add it to `tools/sh_config.json`. Give it a name, a two-letter mark, and one accent color. Tell Basy.
 4. Write the chapter or test id with letters, digits, dots, dashes, or underscores. Do not use spaces. Examples: `Lesson10`, `Ch3-Maps`, `Final2-Ch3-4`.
-5. Do not put other files in the page folder. Keep sources, notes, images, and PDFs in your own workspace.
+5. Do not put other files in the page folder. The page folder holds only `index.html`. Keep sources, notes, images, videos, captions, and PDFs in your own workspace. The generator puts each image and video inside `index.html` (see section 4).
 
 The site builds these hub pages for you. Do not edit them:
 
@@ -44,7 +44,9 @@ The design system is in `assets/css/sh.css` and `assets/js/sh.js`. The generator
 Use JSON or Markdown. Copy an example:
 
 - `templates/page.example.json` (all block types)
-- `templates/page.example.md` (text and quizzes)
+- `templates/page.example.md` (text, quizzes, images, and videos)
+
+The media paths in the examples (`media/...`) are placeholders. Replace them with your own files before you build.
 
 ### JSON fields
 
@@ -68,9 +70,40 @@ Use JSON or Markdown. Copy an example:
 | `text` | `title`, `md` | A card with text. `md` is simple Markdown: paragraphs, `- ` lists, `1. ` lists, `### ` headings, `**bold**`, `*italic*`. |
 | `cards` | `title`, `items` [`title`, `body`] | A grid of word cards. |
 | `callout` | `title`, `md` | A colored tip box. |
-| `image` | `src`, `alt`, `caption` | An image. `src` is a path next to the content file. The generator embeds it. `alt` is necessary. |
+| `image` | `src`, `alt`, `caption` | An image (for example a comic). `src` is a local file path: `.png`, `.jpg`, `.webp`, `.gif`, `.avif`, or `.svg`. `alt` is necessary. `caption` is optional. |
+| `video` | `src`, `poster`, `captions`, `title` | A video with controls (for example a narrated video). `src` is a local `.mp4` or `.webm` file. `poster` (an image file), `captions` (a `.vtt` file), and `title` are optional. |
 | `quiz` | `kind`, `title`, `intro`, `mode`, `questions` | A quiz. See section 5. |
-| `html` | `html` | Your own HTML. Use it only when no other block type works. Use the `sh-` classes from `assets/css/sh.css`. |
+| `html` | `html` | Your own HTML. Use it only for a thing that the other block types cannot do. Do not use it for images or videos. Use the `sh-` classes from `assets/css/sh.css`. |
+
+### Images and videos (comics and narrated videos)
+
+Use the `image` and `video` blocks for comics and narrated videos. This is the approved method. Do not write base64 by hand in an `html` block.
+
+1. Keep the media files in your own workspace, for example `/workspace/ww/pages/media/`. Never put them in the page folder.
+2. A relative path starts at the folder of the content file. An absolute path is also correct.
+3. The generator reads each file and puts it inside the page as a `data:` URI. The page then holds only `index.html`, and StatiCrypt encrypts the media with the page.
+4. A video gets controls, `playsinline`, and `preload="metadata"`. A captions file becomes a `<track>` (English captions, on by default).
+5. The build stops when a file is missing, when an image has no `alt`, or when one file is more than 15 MB.
+6. The build gives a warning when all the media on a page is more than 40 MB (as base64). Compress the files or split the lesson into two pages.
+
+Examples:
+
+```json
+{"type": "image", "src": "media/lesson9-comic-01.png", "alt": "A comic: a fox checks two price tags.", "caption": "Comic 1: shrewd"}
+```
+
+```json
+{"type": "video", "src": "media/lesson9-shrewd.mp4", "poster": "media/lesson9-shrewd.jpg", "captions": "media/lesson9-shrewd.vtt", "title": "Watch: shrewd"}
+```
+
+Tip: compress each video before you build the page. Use H.264 video, 720p or lower, CRF about 28, and AAC audio at 64k:
+
+```sh
+ffmpeg -i in.mp4 -vf "scale=-2:'min(720,ih)'" -c:v libx264 -preset slow -crf 28 -pix_fmt yuv420p \
+  -c:a aac -b:a 64k -movflags +faststart out.mp4
+```
+
+For a comic, a `.jpg` or `.webp` at about 1200 px wide is usually much smaller than a `.png`.
 
 ### Markdown format
 
@@ -78,6 +111,7 @@ Use JSON or Markdown. Copy an example:
 2. Start each section with `# <Label>`, for example `# Learn`.
 3. Write the text in Markdown.
 4. Put a quiz in a fenced block that starts with ```` ```quiz ````. Write the quiz as JSON.
+5. Put an image in a fenced block that starts with ```` ```image ````, and a video in a fenced block that starts with ```` ```video ````. Write the block fields as JSON (see the examples above). A relative path starts at the folder of the `.md` file.
 
 ## 5. Quizzes and score logging
 
@@ -106,7 +140,7 @@ The generator puts the token in the page from `STUDY_HUB_SCORES_TOKEN`. It never
 6. Make sure that the script added or changed the entry in `manifest.json`.
 7. Optional: make a preview with `python3 tools/sh_page.py <file> --out /tmp/preview.html`. Open it in a browser. Delete it after you look at it.
 8. Publish: `tools/publish.sh "SS: add Chapter 3 Maps"`. The script builds the hub pages, encrypts the changed pages, runs the validator, and commits.
-9. Read the output. Make sure that it shows `validation passed`.
+9. Read the output. Make sure that it shows `validation passed`. The commit message then has the trailer `Validated: sh-2`. If the validation fails, the script makes no commit.
 10. Push: `git push origin main`.
 11. Send Basy the changed paths and the commit id.
 
@@ -138,7 +172,7 @@ Do these checks before each push:
 1. Run `python3 tools/validate.py`. Make sure that it shows `validation passed`.
 2. Run `git show --stat HEAD`. Make sure that the commit holds only your page, `manifest.json`, and the hub pages.
 3. Make sure that the page folder holds only `index.html`.
-4. Look at each embedded image. Make sure that it shows no names, school logos, signs, or documents.
+4. Look at each embedded image and video. Make sure that it shows no names, school logos, signs, or documents.
 5. Make sure that the text has no school name, teacher names, address, birth date, or last name.
 6. Make sure that the text has no em dashes.
 7. Make sure that no token and no password is in any file that you changed.

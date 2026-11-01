@@ -14,6 +14,14 @@ log: false
 
 - A shrewd shopper looks for the best price.
 
+```image
+{"src": "media/shrewd-comic.png", "alt": "A comic: a fox checks two price tags before it buys an apple.", "caption": "A shrewd fox."}
+```
+
+```video
+{"src": "media/shrewd-narrated.mp4", "poster": "media/shrewd-poster.jpg", "captions": "media/shrewd.vtt", "title": "Watch: shrewd"}
+```
+
 # Practice
 ```quiz
 {"kind": "game", "questions": [

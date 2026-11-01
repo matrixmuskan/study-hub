@@ -16,7 +16,9 @@
         {"title": "Equator", "body": "An imaginary line around the middle of the Earth."},
         {"title": "Continent", "body": "A very large area of land. The Earth has seven."}
       ]},
-      {"type": "callout", "title": "Tip:", "md": "Find the key first. Then read the map."}
+      {"type": "callout", "title": "Tip:", "md": "Find the key first. Then read the map."},
+      {"type": "image", "src": "media/map-comic-1.png", "alt": "A comic: a girl reads the key on a park map to find the pond.", "caption": "Comic 1: read the key first."},
+      {"type": "video", "src": "media/maps-narrated.mp4", "poster": "media/maps-narrated-poster.jpg", "captions": "media/maps-narrated.vtt", "title": "Watch: the parts of a map"}
     ]},
     {"id": "practice", "label": "Practice", "blocks": [
       {"type": "quiz", "kind": "game", "title": "Quick practice", "intro": "You see the answer after each question.", "questions": [
