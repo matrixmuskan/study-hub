@@ -76,9 +76,20 @@ def serve(root):
     return "http://127.0.0.1:%d/" % srv.server_address[1], srv
 
 
-def status(url, cache={}):
+def status(url, cache={}, tries=3):
     if url in cache:
         return cache[url]
+    import time
+    for i in range(tries):
+        code = _status(url)
+        if code in (200, 206, 404, 410):
+            break
+        time.sleep(2 * (i + 1))
+    cache[url] = code
+    return code
+
+
+def _status(url):
     try:
         req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "study-hub-linkcheck/1"})
         with urllib.request.urlopen(req, timeout=20) as r:
@@ -87,7 +98,6 @@ def status(url, cache={}):
         code = ex.code
     except Exception as ex:
         code = "ERR " + type(ex).__name__
-    cache[url] = code
     return code
 
 
