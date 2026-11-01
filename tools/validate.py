@@ -21,7 +21,11 @@ With --src: the staged or mirror plaintext pages also must carry the template ma
   R10 Links (tools/sh_checks.py): every internal href/src/poster resolves, every '#id' anchor exists, every data: URI
       decodes with the right MIME type, every video has playable H.264/VP9/AV1 + AAC/Opus streams (ffprobe), and
       every manifest page is linked from its subject hub page.
-  R11 Every page that logs scores truncates typed answers to 40 characters and redacts names (private list inside the page).
+  R7  (also) no base64 (any offset) or hex encoding of a private word in any plaintext file or page.
+  R11 Every page that logs scores truncates typed answers to 40 characters and redacts names. The page holds exactly one
+      real sh-redact element with salted SHA-256 hashes (never the words, never base64), one hash per private term.
+--src must be a folder made by tools/sh_stage.py (publish.sh does this). The raw mirror is refused: older pages there
+are skinned and patched only at stage time, so they would fail R4, R9 and R11 for no real reason.
 """
 import argparse, json, os, re, subprocess, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -59,6 +63,13 @@ def main():
     pw = os.environ.get("STATICRYPT_PASSWORD", "")
     bl = os.environ.get("STUDY_HUB_BLOCKLIST", "")
     bl_re = re.compile(r"\b(?:%s)\b" % bl, re.I) if bl else None
+    enc = sorted({f for t in L.redact_terms(bl) if bl and t != (L.CFG.get("kid_first_name") or "").lower() for f in L.encoded_forms(t)})
+    enc_re = re.compile("|".join(re.escape(f) for f in enc)) if enc else None
+    if a.src and not os.path.exists(os.path.join(a.src, L.STAGE_MARK)):
+        print("validate.py --src runs only on staged output (a folder made by tools/sh_stage.py), not on the raw mirror.\n"
+              "Use tools/publish.sh, or stage first: python3 tools/sh_stage.py <mirror> <tmpdir> && "
+              "python3 tools/validate.py --src <tmpdir>")
+        sys.exit(2)
 
     content_pages = set()
     for rel, p in files():
@@ -96,6 +107,8 @@ def main():
                 err("R6", f"{rel}: em dash found")
             if bl_re and bl_re.search(re.sub(r"data:[^\"')\s]+", "", text)):
                 err("R7", f"{rel}: private word found")
+            if enc_re and enc_re.search(text):
+                err("R7", f"{rel}: a private word is hidden in base64 or hex")
         if re.match(r"^G\d+/", rel) and not rel.endswith("/index.html"):
             err("R8", f"{rel}: only index.html belongs in page folders (no sources, notes, images, or PDFs)")
 
@@ -171,10 +184,12 @@ def main():
                     err("R6", f"plaintext {rel}: em dash found")
                 if bl_re and bl_re.search(re.sub(r"data:[^\"')\s]+", "", t)):
                     err("R7", f"plaintext {rel}: private word found")
+                if enc_re and enc_re.search(t):
+                    err("R7", f"plaintext {rel}: a private word is hidden in base64 or hex")
                 if pw and len(pw) >= 6 and pw in t:
                     err("R5", f"plaintext {rel}: holds the site password")
-                if not L.logger_ok(t):
-                    err("R11", f"plaintext {rel}: score logger is missing the privacy rules (40-character answers, name redaction)")
+                for pr in L.logger_problems(t, bl):
+                    err("R11", f"plaintext {rel}: score logger privacy: {pr}")
                 for pr in C.design_problems(t, is_html=True):
                     err("R9", f"plaintext {rel}: {pr}")
 
