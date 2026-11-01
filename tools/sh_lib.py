@@ -250,6 +250,8 @@ def map_color(c, kind="auto"):
     h, s, l = hsl(rgb)
     if fam == "neutral":
         return c
+    if fam == "warn" and kind != "bg" and l >= 0.5 and l < 0.86:
+        fam = "accent"     # bright yellow dots, stars, and icons become the accent; dark amber text stays a warning
     if l <= 0.22:
         out = PALETTE["ink"]
     else:
