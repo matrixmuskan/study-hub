@@ -132,23 +132,26 @@ The generator puts the token in the page from `STUDY_HUB_SCORES_TOKEN`. It never
 
 ## 6. Publish a page: the steps
 
-1. Write the content file in your own workspace, for example `/workspace/ss/pages/Ch3-Maps.json`.
-2. Go to the hub repo: `cd /workspace/study-hub`.
-3. Get the latest version: `git pull --rebase`.
-4. Make the page: `python3 tools/sh_page.py /workspace/ss/pages/Ch3-Maps.json`.
-5. Make sure that the script wrote the page to `/workspace/study-hub-src/G3/SS/Ch3-Maps/index.html`.
-6. Make sure that the script added or changed the entry in `manifest.json`.
-7. Optional: make a preview with `python3 tools/sh_page.py <file> --out /tmp/preview.html`. Open it in a browser. Delete it after you look at it.
-8. Publish: `tools/publish.sh "SS: add Chapter 3 Maps"`. The script builds the hub pages, encrypts the changed pages, runs the validator, and commits.
-9. Read the output. Make sure that it shows `validation passed`. The commit message then has the trailer `Validated: sh-2`. If the validation fails, the script makes no commit.
-10. Push: `git push origin main`.
-11. Send Basy the changed paths and the commit id.
+1. Close the loop first (section 11): ingest the new school receipts, update the error log in study-hub-scores, and decide which rows the page re-tests.
+2. Write the content file in your own workspace, for example `/workspace/ss/pages/Ch3-Maps.json`. Add the `provenance` block, and `src` and `retests` on each question (section 11).
+3. Go to the hub repo: `cd /workspace/study-hub`.
+4. Get the latest version: `git pull --rebase`.
+5. Make the page: `python3 tools/sh_page.py /workspace/ss/pages/Ch3-Maps.json`. The script stops if a provenance rule fails. It writes `G3/SS/Ch3-Maps/_provenance.json` to study-hub-scores and prints the counts.
+6. Make sure that the script wrote the page to `/workspace/study-hub-src/G3/SS/Ch3-Maps/index.html`.
+7. Make sure that the script added or changed the entry in `manifest.json` (with `provenance_sha256` and the counts).
+8. Optional: make a preview with `python3 tools/sh_page.py <file> --out /tmp/preview.html`. Open it in a browser. Delete it after you look at it.
+9. Publish: `tools/publish.sh "SS: add Chapter 3 Maps"`. The script builds the hub pages, runs the checks (also the learning-loop rules B1 to B6), encrypts the changed pages, runs the validator, and commits.
+10. Read the output. Make sure that it shows `validation passed`. The commit message then has the trailer `Validated: sh-2`. If the validation fails, the script makes no commit.
+11. Push: `git push origin main`.
+12. Send Basy the changed paths and the commit id.
 
 The manifest entry looks like this. The generator writes it for you:
 
 ```json
 {"grade": "G3", "subject": "SS", "title": "Chapter 3: Maps", "path": "G3/SS/Ch3-Maps/",
- "test_date": "2026-11-12", "added_by": "Sissy", "template": "sh-2"}
+ "test_date": "2026-11-12", "added_by": "Sissy", "template": "sh-2",
+ "provenance_sha256": "<64 hex>", "n_sources": 3, "n_inferred": 1, "n_questions": 12, "n_retests": 4,
+ "built_at": "2026-11-12T16:05:00-08:00"}
 ```
 
 ## 7. Older pages that you made by hand
@@ -199,6 +202,91 @@ Do these checks before each push:
 
 To test the redaction in pages: `node tools/test_redact.js <decrypted or staged pages>` (it reads `STUDY_HUB_BLOCKLIST` from the env and prints counts only).
 
+Provenance (section 11):
+
+- P1. A page that is not in `legacy_provenance` (in `tools/sh_config.json`) has `provenance_sha256`, `n_sources` 1 or more, and `n_questions` 1 or more in `manifest.json`. The `legacy_provenance` list can only get shorter. The validator prints a warning for each legacy page.
+- P2. `n_inferred` is not more than 20% of `n_questions`.
+- B7. With `--src`: a new page with a quiz has the score logger. A page that keeps results only in `localStorage` fails. For a legacy page, this is a warning.
+
 `publish.sh` runs checks 9 and 10 on the plaintext before it encrypts anything. Then it opens every changed page in headless Chrome (`tools/sh_browsercheck.py`, which tries Playwright's Chromium first, then `/usr/bin/google-chrome`; on the box, no browser means no commit): it opens each tab, and it makes sure that every link works, every image loads, every video plays (readyState 1 or more), and no script error occurs. If a check fails, the script encrypts nothing and commits nothing.
 
 After each push to `main` and every day, the `live-check` workflow crawls the live site (`tools/sh_livecheck.py`). The `validate` workflow also runs the end-to-end publish test (`tools/test_publish.sh`) and makes sure that every `Validated: sh-2` trailer is true.
+
+## 11. Provenance and the learning loop
+
+Every new page must show where each question comes from, and that it uses the child's real results. The rules apply to every page that is not in `legacy_provenance` in `tools/sh_config.json`. The pages that existed on Nov 1, 2026 are in that list. When you rebuild one of them with a provenance block, remove it from the list.
+
+### 11.1 The format
+
+Add a `provenance` block to the content file. In a Markdown content file, put the same JSON in a fenced block with the name `provenance`.
+
+```json
+"provenance": {
+  "sources": [
+    {"id": "file:/workspace/ww/lesson10/words.csv", "kind": "word_list", "sha256": "<sha256sum of the file>"},
+    {"id": "file:/workspace/ww/book4/scan.pdf", "kind": "book_page", "sha256": "<sha256sum of the file>", "what": "pp. 112-114"},
+    {"id": "gmail:1a164970d5ea012b", "kind": "form_receipt", "what": "WW Lesson 8 school test"}
+  ],
+  "results_ingested": ["gmail:1a164970d5ea012b", "gmail:1a1409dea6cffcef"],
+  "weak_spots_from": ["G3/WW/Lesson9/2026-11-03T171500-mock-ab12.json"]
+}
+```
+
+- `sources`: 1 or more. `id` starts with `file:`, `gmail:`, `paper:`, `url:`, `sheet:`, or `handoff:`. `kind` is one of `form_receipt`, `score_released`, `word_list`, `book_page`, `study_guide`, `past_paper`, `past_form`, `teacher_notice`, `handoff`, `web`, `other`. A `file:` source must have its `sha256`. A `gmail:` source must have a receipt in study-hub-scores (11.3).
+- `results_ingested`: every school receipt and "Score released" mail for the subject that is older than the build, as `gmail:<id>`.
+- `weak_spots_from`: score files from study-hub-scores that you used. Every score file of the subject that is older than the build must be here, or in an error-log note `attempt=<path>`.
+- `sh_page.py` adds `error_log` and `error_log_sha256` for you.
+
+Each quiz question gets two more fields:
+
+- `src`: one source `id` from the list, plus a locator after `#`. Examples: `"file:/workspace/ww/lesson10/words.csv#row=7"`, `"paper:2024S#Q13"`, `"gmail:1a11d4eee3cef24c#Q11"`. If a question has no source, use `"inferred": true` instead. Not more than 20% of the questions can be inferred.
+- `retests`: the error-log row ids that this question re-tests, for example `["L8-quarry-1"]`. Use `[]` or leave it out when there are none.
+
+A short worked example (one quiz, two questions):
+
+```json
+{"type": "quiz", "kind": "mock", "questions": [
+  {"q": "Stone is cut from a", "options": ["quarry", "crop", "harbor"], "answer": 0, "word": "quarry",
+   "src": "file:/workspace/ww/lesson8/words.csv#row=11", "retests": ["L8-quarry-1"]},
+  {"q": "A shallow talk is", "options": ["not very serious", "very long", "about movies"], "answer": 0,
+   "src": "gmail:1a1409dea6cffcef#Q11", "retests": ["L7-shallow-1"]}
+]}
+```
+
+`sh_page.py` writes the full record to `study-hub-scores/G3/<Subject>/<Lesson>/_provenance.json` (private). The public `manifest.json` gets only `provenance_sha256`, `n_sources`, `n_inferred`, `n_questions`, `n_retests`, and `built_at`. Source paths and question text never go into the public repo.
+
+### 11.2 The error log
+
+There is one error log per subject: `study-hub-scores/G3/<Subject>/_error_log.csv` (private). All coaches and Basy use this file. The columns are:
+
+`id,date,unit,topic,skill,question,kid_answer,correct_answer,error_type,round,resolved,correct_count,last_correct_dates,source,notes`
+
+A subject can add more columns after these (for example `sense` or `paper`). Rules:
+
+- `id` is stable. Never change or reuse it. Examples: `L8-quarry-1` (WW), `SS-2026-09-02-1a2b3c` (made by the import when a row had no id).
+- `resolved` is `no`, `yes`, or `void`. Every `no` row must be re-tested by the next page (rule B5).
+- A row can be `yes` only after 2 correct answers on the same fact, on 2 different days (Pacific time). Put each one in `notes` as `correct=<attempt path>`, set `correct_count` to 2 or more, and put both days in `last_correct_dates` (for example `2026-11-03;2026-11-05`). The page of each attempt must have a question with this row id in `retests`, and the attempt must not list that question in `missed` (rule B6).
+- Put each score file that you read in `notes` as `attempt=<path>`.
+
+The old box logs (`/workspace/<coach>/error_log.csv`) were imported by `tools/migrate_error_logs.py`. They are kept, but study-hub-scores is now the log that the rules read.
+
+### 11.3 School receipts
+
+1. Fetch each Google Forms receipt and "Score released" mail with your own personal-Gmail connector (`read_email` with `messageFormat` `FULL_CONTENT`). Save the JSON result to a file in your workspace.
+2. Run `python3 tools/ingest_receipts.py <file or folder>` on the box. It reads the HTML body (the plain-text body does not show the picked answers), drops name and email questions, replaces private words with `[name]`, and writes `study-hub-scores/G3/_receipts/<gmail-id>.json`. It never calls Gmail, and it does not run in CI.
+3. Add a row to the error log for each miss, and add the receipt to `results_ingested` of the next page.
+
+### 11.4 Where each rule runs
+
+| Rule | What | Where |
+|---|---|---|
+| P1, P2 | hash and counts in `manifest.json`; not more than 20% inferred; `legacy_provenance` only gets shorter | `validate.py` (CI and box), `sh_page.py` |
+| B1 | `_provenance.json` exists and its hash is `provenance_sha256` | `publish.sh` (`tools/sh_provenance.py check`) |
+| B2 | every question has `src` or `inferred`; `file:` sources exist with the same sha256; `gmail:` ids have a receipt | `sh_page.py`, `publish.sh` |
+| B3 | every older score file of the subject is in `weak_spots_from` or an `attempt=` note | `publish.sh` |
+| B4 | every older receipt of the subject is in `results_ingested` | `publish.sh` |
+| B5 | every `resolved=no` row is in some `retests` | `publish.sh` |
+| B6 | `resolved=yes` only with 2 correct answers on 2 PT days | `publish.sh` |
+| B7 | a page with a quiz logs to study-hub-scores | `sh_page.py`, `validate.py --src` |
+
+`publish.sh` checks B1 to B6 for each changed page that is not a legacy page. It needs `STUDY_HUB_SCORES_TOKEN`. If a rule fails, it encrypts nothing and commits nothing. Tests: `tools/test_provenance.py` (CI), `tools/test_publish.sh` cases 5 and 6 (CI), `tools/test_provenance_box.py` (box, fixture subject).

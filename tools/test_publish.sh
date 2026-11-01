@@ -4,6 +4,8 @@
 #   1. a good sample page (text + image + video) must publish and commit, with the 'Validated: sh-2' trailer;
 #   2. a page with a purple gradient must be refused (no commit);
 #   3. a page with a broken link must be refused (no commit);
+#   5. a page with no provenance is refused by sh_page.py, and P1 fails in validate.py;
+#   6. a page that ignores a school receipt (B4) is refused by publish.sh;
 #   4. an sh-2 page with the score logger must publish with a hashed private-word list, and its own logger must turn
 #      each private word into [name] (node, tools/test_redact.js) with no base64 or plain copy of the words in the page.
 set -euo pipefail
@@ -21,12 +23,18 @@ export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-pla
 python3 "$REPO/tools/sh_browsercheck.py" --probe || { [ "${CI:-}" = "true" ] || { echo "FAIL: no browser for the publish test"; exit 1; }; }
 export HOME="$T/home"; mkdir -p "$HOME"            # no ~/.study-hub.env: only the dummy password below
 export STATICRYPT_PASSWORD="ci-dummy-$RANDOM-$RANDOM-pw" STUDY_HUB_SRC="$T/src" STUDY_HUB_BLOCKLIST=""
-unset STUDY_HUB_SCORES_TOKEN || true
+# The private score repo is a local folder here (provenance records, error logs, receipts), and the token is a dummy.
+export STUDY_HUB_SCORES_DIR="$T/scores" STUDY_HUB_SCORES_TOKEN="ci-dummy-scores-token"
+mkdir -p "$STUDY_HUB_SCORES_DIR"
 mkdir -p "$STUDY_HUB_SRC" "$T/content"
 # CI has no plaintext of the real pages, so the test site starts empty: no pages and an empty manifest.
 git rm -rq --ignore-unmatch -- 'G*' index.html >/dev/null
 echo "[]" > manifest.json
-git add manifest.json && git commit -qm "test: empty site" --no-verify
+python3 - <<'PY'   # no pages, so no grandfathered pages either
+import json
+p = "tools/sh_config.json"; c = json.load(open(p)); c["legacy_provenance"] = []; json.dump(c, open(p, "w"), indent=2)
+PY
+git add manifest.json tools/sh_config.json && git commit -qm "test: empty site" --no-verify
 python3 - "$T/content" <<'PY'
 import base64, json, os, sys, zlib, struct
 d = sys.argv[1]
@@ -35,17 +43,24 @@ def png(w, h, rgb):
     c = lambda t, b: struct.pack(">I", len(b)) + t + b + struct.pack(">I", zlib.crc32(t + b) & 0xffffffff)
     return b"\x89PNG\r\n\x1a\n" + c(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)) + c(b"IDAT", zlib.compress(raw)) + c(b"IEND", b"")
 open(os.path.join(d, "pic.png"), "wb").write(png(32, 18, (0, 102, 204)))
-base = {"grade": "G3", "subject": "SS", "added_by": "CI", "log": False}
+import hashlib
+src = os.path.join(d, "facts.csv"); open(src, "w").write("fact\nThe compass rose shows directions.\n")
+prov = {"sources": [{"id": "file:" + src, "kind": "study_guide", "sha256": hashlib.sha256(open(src, "rb").read()).hexdigest()}],
+        "results_ingested": [], "weak_spots_from": []}
+quiz = {"type": "quiz", "kind": "mock", "questions": [
+    {"q": "What shows directions?", "options": ["The key", "The compass rose"], "answer": 1, "src": "file:%s#row=2" % src}]}
+base = {"grade": "G3", "subject": "SS", "added_by": "CI", "provenance": prov}
 good = dict(base, id="CI-Sample", title="CI sample page", sections=[{"id": "learn", "label": "Learn", "blocks": [
     {"type": "text", "title": "Hello", "md": "A sample page for the publish test."},
-    {"type": "image", "src": "pic.png", "alt": "A blue box"}]}])
+    {"type": "image", "src": "pic.png", "alt": "A blue box"}, quiz]}])
 if os.path.exists(os.path.join(d, "clip.mp4")):
     good["sections"][0]["blocks"].append({"type": "video", "src": "clip.mp4", "title": "Clip"})
 purple = dict(base, id="CI-Purple", title="CI purple page", sections=[{"id": "learn", "label": "Learn", "blocks": [
-    {"type": "html", "html": "<div style=\"background:linear-gradient(90deg,#7b5cff,#ff5fa2,#22c55e)\">rainbow</div>"}]}])
+    {"type": "html", "html": "<div style=\"background:linear-gradient(90deg,#7b5cff,#ff5fa2,#22c55e)\">rainbow</div>"}, quiz]}])
 broken = dict(base, id="CI-Broken", title="CI broken link page", sections=[{"id": "learn", "label": "Learn", "blocks": [
-    {"type": "html", "html": "<a href=\"../Does-Not-Exist/\">missing page</a> <a href=\"#nowhere\">missing anchor</a>"}]}])
-for name, c in (("good", good), ("purple", purple), ("broken", broken)):
+    {"type": "html", "html": "<a href=\"../Does-Not-Exist/\">missing page</a> <a href=\"#nowhere\">missing anchor</a>"}, quiz]}])
+noprov = dict(good, id="CI-NoProv", title="CI page with no provenance"); noprov.pop("provenance")
+for name, c in (("good", good), ("purple", purple), ("broken", broken), ("noprov", noprov)):
     json.dump(c, open(os.path.join(d, name + ".json"), "w"))
 PY
 if command -v ffmpeg >/dev/null; then
@@ -80,7 +95,14 @@ salt = json.loads(D.CFG_RE.search(t).group(1))["staticryptSaltUniqueVariableName
 plain = D.decrypt_html(t, D.hash_password(os.environ["STATICRYPT_PASSWORD"], salt))
 assert "A sample page for the publish test." in plain and "data:image/png;base64," in plain
 PY
-ok "good page published, committed with trailer, and decrypts"
+python3 - "$WT" <<'PY' || die "provenance: manifest counts or the private record are wrong"
+import hashlib, json, os, sys
+m = [i for i in json.load(open(os.path.join(sys.argv[1], "manifest.json"))) if i["path"] == "G3/SS/CI-Sample/"][0]
+rec = open(os.path.join(os.environ["STUDY_HUB_SCORES_DIR"], "G3/SS/CI-Sample/_provenance.json"), "rb").read()
+assert m["provenance_sha256"] == hashlib.sha256(rec).hexdigest() and m["n_sources"] == 1 and m["n_questions"] == 1
+assert "facts.csv" not in json.dumps(m), "source path leaked into the public manifest"
+PY
+ok "good page published, committed with trailer, and decrypts; provenance hash and counts in manifest, record in the score repo"
 
 # 2 and 3. bad pages must be refused
 for bad in purple broken; do
@@ -95,15 +117,31 @@ for bad in purple broken; do
 done
 git checkout -q manifest.json
 
+# 5. a new page with no provenance block is refused at build time, and a manifest entry without the hash fails P1
+if python3 tools/sh_page.py "$T/content/noprov.json" > "$T/out5.txt" 2>&1; then die "sh_page.py built a page with no provenance"; fi
+grep -q "provenance" "$T/out5.txt" || { cat "$T/out5.txt"; die "no clear provenance message"; }
+python3 - <<'PY' || die "validate.py did not fail P1 for a manifest entry with no provenance"
+import json, subprocess
+m = json.load(open("manifest.json")); m.append({"grade": "G3", "subject": "SS", "title": "x", "path": "G3/SS/CI-Sample-Copy/",
+     "added_by": "CI", "template": "sh-2"})
+json.dump(m, open("manifest.json", "w"))
+r = subprocess.run(["python3", "tools/validate.py"], capture_output=True, text=True)
+assert r.returncode == 1 and "P1: G3/SS/CI-Sample-Copy/" in r.stdout, r.stdout[-500:]
+PY
+git checkout -q manifest.json
+ok "page with no provenance refused (sh_page.py), and P1 fails in validate.py"
+
 # 4. logger page: private words are redacted by the page's own logger, and the page holds only hashes
 # The two dummy private words are built at run time, so this file does not hold them (R7 scans tools/ too).
-export STUDY_HUB_BLOCKLIST="Zorb""laxion|Quint""aviusz" STUDY_HUB_SCORES_TOKEN="ci-dummy-scores-token"
+export STUDY_HUB_BLOCKLIST="Zorb""laxion|Quint""aviusz"
 python3 - "$T/content" <<'PY2'
 import json, os, sys
-c = {"grade": "G3", "subject": "SS", "id": "CI-Logger", "title": "CI logger page", "added_by": "CI", "sections": [
-     {"id": "quiz", "label": "Quiz", "blocks": [{"type": "quiz", "kind": "mock", "questions": [
-       {"q": "Pick B.", "options": ["A", "B"], "answer": 1, "topic": "t"},
-       {"q": "Type a word.", "answer_text": ["yes"], "topic": "t"}]}]}]}
+g = json.load(open(os.path.join(sys.argv[1], "good.json")))
+sid = g["provenance"]["sources"][0]["id"]
+c = {"grade": "G3", "subject": "SS", "id": "CI-Logger", "title": "CI logger page", "added_by": "CI", "provenance": g["provenance"],
+     "sections": [{"id": "quiz", "label": "Quiz", "blocks": [{"type": "quiz", "kind": "mock", "questions": [
+       {"q": "Pick B.", "options": ["A", "B"], "answer": 1, "topic": "t", "src": sid + "#row=2"},
+       {"q": "Type a word.", "answer_text": ["yes"], "topic": "t", "src": sid + "#row=2"}]}]}]}
 json.dump(c, open(os.path.join(sys.argv[1], "logger.json"), "w"))
 PY2
 python3 tools/sh_page.py "$T/content/logger.json" >/dev/null
@@ -129,4 +167,21 @@ assert len(L.REDACT_ELEM_RE.findall(L.patch_logger(fake, bl, "x"))) == 1, "patch
 PY2
 node tools/test_redact.js "$T/logger-plain.html" > "$T/out4b.txt" || { cat "$T/out4b.txt"; die "logger page leaks a private word"; }
 ok "logger page: $(tail -1 "$T/out4b.txt")"
+
+# 6. a learning-loop rule (B4) blocks publish: a school receipt for SS that the new page did not ingest
+mkdir -p "$STUDY_HUB_SCORES_DIR/G3/_receipts"
+echo '{"id": "gmail:1a00000000c1c1c1", "subject": "SS", "kind": "form_receipt", "title": "CI school test", "date": "2026-10-01", "datetime": "2026-10-01T09:00:00-07:00", "items": []}' \
+  > "$STUDY_HUB_SCORES_DIR/G3/_receipts/1a00000000c1c1c1.json"
+python3 - "$T/content" <<'PY2'
+import json, os, sys
+c = json.load(open(os.path.join(sys.argv[1], "good.json"))); c["id"] = "CI-Loop"; c["title"] = "CI loop page"
+json.dump(c, open(os.path.join(sys.argv[1], "loop.json"), "w"))
+PY2
+python3 tools/sh_page.py "$T/content/loop.json" >/dev/null
+before=$(git rev-parse HEAD)
+if tools/publish.sh "CI: loop page" > "$T/out6.txt" 2>&1; then cat "$T/out6.txt"; die "publish.sh accepted a page that ignores a school receipt (B4)"; fi
+[ "$(git rev-parse HEAD)" = "$before" ] || die "publish.sh committed the B4 page"
+grep -q "B4: G3/SS/CI-Loop/" "$T/out6.txt" && grep -q "CHECK FAILED" "$T/out6.txt" || { cat "$T/out6.txt"; die "no clear B4 failure"; }
+git checkout -q manifest.json
+ok "page that ignores a school receipt refused by publish.sh (B4)"
 echo "publish end-to-end test passed"
