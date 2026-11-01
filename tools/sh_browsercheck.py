@@ -117,18 +117,62 @@ def external(url):
     return code in (200, 206), "HTTP %s" % code
 
 
+CHROME_CANDIDATES = ("/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser")
+
+
+def launch(p, chrome=None):
+    """Start Chrome: the given binary, else Playwright's own Chromium, else a system Chrome. Exit 3 with a clear
+    message when none starts."""
+    args = ["--autoplay-policy=no-user-gesture-required"]
+    tried = []
+    if chrome:
+        try:
+            return p.chromium.launch(executable_path=chrome, args=args), chrome
+        except Exception as ex:
+            tried.append("%s: %s" % (chrome, str(ex).splitlines()[0][:120]))
+    else:
+        try:
+            return p.chromium.launch(args=args), "playwright chromium"
+        except Exception as ex:
+            tried.append("playwright chromium: %s" % str(ex).splitlines()[0][:120])
+        import shutil
+        for c in CHROME_CANDIDATES + tuple(filter(None, (shutil.which("google-chrome"), shutil.which("chromium")))):
+            if os.path.exists(c):
+                try:
+                    return p.chromium.launch(executable_path=c, args=args), c
+                except Exception as ex:
+                    tried.append("%s: %s" % (c, str(ex).splitlines()[0][:120]))
+    print("NO BROWSER: no Chrome could start. Tried:\n  " + "\n  ".join(tried or ["nothing found"]) +
+          "\nFix: python3 -m playwright install chromium, or install google-chrome, or set CHROME_PATH", file=sys.stderr)
+    sys.exit(3)
+
+
 def main():
     ap = argparse.ArgumentParser()
-    g = ap.add_mutually_exclusive_group(required=True)
+    g = ap.add_mutually_exclusive_group()
     g.add_argument("--root")
     g.add_argument("--live")
     ap.add_argument("--shots")
     ap.add_argument("--json")
     ap.add_argument("--external", action="store_true", help="also check external links over the network")
     ap.add_argument("--pages", nargs="*", help="check only these pages (paths relative to the root, e.g. G3/WW/Lesson9/index.html)")
-    ap.add_argument("--chrome", default=os.environ.get("CHROME_PATH") or ("/usr/bin/google-chrome" if os.path.exists("/usr/bin/google-chrome") else None))
+    ap.add_argument("--chrome", default=os.environ.get("CHROME_PATH"),
+                    help="Chrome binary. Default: Playwright's own Chromium, then google-chrome/chromium on PATH")
+    ap.add_argument("--probe", action="store_true", help="only check that a browser starts (exit 0), else exit 3")
     a = ap.parse_args()
-    from playwright.sync_api import sync_playwright
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("NO BROWSER: the playwright Python package is missing. Install: pip install playwright", file=sys.stderr)
+        sys.exit(3)
+    if a.probe:
+        with sync_playwright() as p:
+            b, how = launch(p, a.chrome)
+            b.close()
+        print("browser:", how)
+        return
+    if not (a.root or a.live):
+        ap.error("one of --root or --live is required")
 
     if a.root:
         base, srv = serve(os.path.abspath(a.root))
@@ -151,7 +195,8 @@ def main():
         rows.append({"page": page, "link": link, "type": kind, "status": "ok" if ok else "BROKEN", "cause": cause})
 
     with sync_playwright() as p:
-        b = p.chromium.launch(executable_path=a.chrome, args=["--autoplay-policy=no-user-gesture-required"]) if a.chrome else p.chromium.launch()
+        b, how = launch(p, a.chrome)
+        print("browser:", how, file=sys.stderr)
         ctx = b.new_context(viewport={"width": 1280, "height": 900})
         while queue:
             url = queue.pop(0)

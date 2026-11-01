@@ -53,15 +53,44 @@ var SHLog=(function(){
       }
       return Promise.resolve(next()).catch(function(){busy=false;return {sent:sent,left:load().length}});
     }catch(e){busy=false;return Promise.resolve({sent:0,left:-1})}}
+  /*sh-privacy v2*/
   // Privacy: a typed (free-text) answer is logged as its first 40 characters only. Option picks ('B. ...') stay whole.
   function cut(v){v=String(v);return v.length>40?v.slice(0,40)+'...':v}
   function clean(m){m=m||{};var o={};['n','part','q','word','sense','topic','picked','correct','trap','type'].forEach(function(k){if(m[k]!==undefined)o[k]=m[k]});
     if(typeof o.picked==='string'&&!/^[A-H][.)] /.test(o.picked))o.picked=cut(o.picked);return o}
-  // Privacy: names are replaced with [name] before anything leaves the page. The private word list comes from the
-  // encrypted page itself (<script id="sh-redact">, base64, written at publish time from STUDY_HUB_BLOCKLIST), never from the repo.
-  function redact(t){var res=[];((cfg&&cfg.redact)||['the child']).forEach(function(n){if(n)res.push(String(n).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'))});
-    try{var el=document.getElementById('sh-redact');var b=el?JSON.parse(el.textContent):'';if(b)res.push(decodeURIComponent(escape(atob(b))))}catch(e){}
-    res.forEach(function(r){try{t=t.replace(new RegExp('\\b(?:'+r+')\\b','gi'),'[name]')}catch(e){}});return t}
+  // Privacy: a word (or 2-3 word run) whose salted SHA-256 is on the page's private list becomes [name] before anything
+  // leaves the page. The page holds only the hashes (JSON element with id sh-redact, written by tools/sh_stage.py from
+  // STUDY_HUB_BLOCKLIST and kid_first_name), never the words themselves.
+  function sha256(s){s=unescape(encodeURIComponent(s));var K=[],H=[],i,j,p=2,n=0,w=[],l=s.length*8;
+    function f(x){return (x-Math.floor(x))*4294967296|0}
+    function r(x,k){return (x>>>k)|(x<<(32-k))}
+    while(n<64){for(j=2;j*j<=p;j++)if(p%j===0)break;if(j*j>p){if(n<8)H[n]=f(Math.pow(p,1/2));K[n++]=f(Math.pow(p,1/3))}p++}
+    s+='\x80';while(s.length%64!==56)s+='\x00';
+    for(i=0;i<s.length;i++)w[i>>2]|=s.charCodeAt(i)<<(24-(i%4)*8);
+    w.push(0,l);
+    for(i=0;i<w.length;i+=16){var W=w.slice(i,i+16),a=H.slice(0);
+      for(j=0;j<64;j++){if(j>=16){var x=W[j-15],y=W[j-2];W[j]=(W[j-16]+(r(x,7)^r(x,18)^(x>>>3))+W[j-7]+(r(y,17)^r(y,19)^(y>>>10)))|0}
+        var t1=(a[7]+(r(a[4],6)^r(a[4],11)^r(a[4],25))+((a[4]&a[5])^(~a[4]&a[6]))+K[j]+W[j])|0,
+            t2=((r(a[0],2)^r(a[0],13)^r(a[0],22))+((a[0]&a[1])^(a[0]&a[2])^(a[1]&a[2])))|0;
+        a=[(t1+t2)|0].concat(a.slice(0,7));a[4]=(a[4]+t1)|0}
+      for(j=0;j<8;j++)H[j]=(H[j]+a[j])|0}
+    var o='';for(j=0;j<8;j++)o+=('0000000'+(H[j]>>>0).toString(16)).slice(-8);return o}
+  function redact(t){
+    try{var el=document.getElementById('sh-redact'),c=el?JSON.parse(el.textContent):null,set={},toks=[],spans=[],i,n,m;
+      if(c&&c.h&&c.h.length){var N=c.n||1,W='A-Za-z0-9\u00C0-\u024F\'\u2019',re=new RegExp('\\\\(?:u[0-9a-fA-F]{4}|[^u])|['+W+']+','g'),
+          one=new RegExp('^['+W+']+(?: ['+W+']+)*$');
+        c.h.forEach(function(x){set[x]=1});
+        var hit=function(w){w=w.toLowerCase().replace(/['\u2019]+$/,'');if(set[sha256(c.salt+':'+w)])return true;
+          var b=w.replace(/['\u2019]s$/,'');return b!==w&&!!set[sha256(c.salt+':'+b)]};
+        while((m=re.exec(t)))if(m[0].charAt(0)!=='\\')toks.push([m.index,m[0].length]);
+        for(i=0;i<toks.length;i++)for(n=Math.min(N,toks.length-i);n>=1;n--){
+          var s0=toks[i][0],e0=toks[i+n-1][0]+toks[i+n-1][1],seg=t.slice(s0,e0);
+          if(n>1&&!one.test(seg))continue;
+          if(hit(seg)){spans.push([s0,e0]);i+=n-1;break}}
+        for(i=spans.length-1;i>=0;i--)t=t.slice(0,spans[i][0])+'[name]'+t.slice(spans[i][1])}
+    }catch(x){}
+    return t}
+  /*sh-privacy end*/
   function record(r){
     try{
       if(!cfg)return null;r=r||{};

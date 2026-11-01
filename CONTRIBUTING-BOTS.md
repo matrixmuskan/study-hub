@@ -189,12 +189,16 @@ Do these checks before each push:
 4. A page was not built from the shared template.
 5. A file holds a GitHub token or the site password.
 6. A plaintext file holds an em dash, or the salt changed, or `.nojekyll` is missing.
-7. A file holds a private word from `STUDY_HUB_BLOCKLIST`. This check runs only on the box, because the list is not in the repo.
+7. A file holds a private word from `STUDY_HUB_BLOCKLIST`, as plain text or hidden as base64 (at any offset) or hex. This check runs only on the box, because the list is not in the repo.
 8. A page folder holds a file that is not `index.html`.
 9. A page uses purple or violet, a gradient with more than one color, or a color outside the palette (white, grays, the one accent `#0066cc`, and the green, red, and amber status colors). Older pages get the palette applied for them at publish time. A new page from `sh_page.py` must pass as written.
 10. A link, an anchor (`#id`), an image, a video, a poster, or a captions file does not work. Every `data:` URI must decode and have the right MIME type. Every video must have H.264 (or VP9 or AV1) video and AAC (or Opus) audio. Every manifest page must have a link on its subject hub page.
-11. A page that logs scores does not have the privacy rules: typed answers are cut to 40 characters, and names are replaced with `[name]`.
+11. A page that logs scores does not have the privacy rules (privacy v2). Typed answers must be cut to 40 characters. The page must have exactly one real `sh-redact` JSON element that holds only salted SHA-256 hashes of the lowercase private words (one per word in `STUDY_HUB_BLOCKLIST` plus the first name). The logger splits each attempt into words, hashes each word with the same salt, and writes `[name]` for a match. The words themselves, or base64 of them, are never in a page. `tools/sh_stage.py` writes this element at publish time, so do not write it by hand. The only reference logger is `assets/js/shlog.js`.
 
-`publish.sh` runs checks 9 and 10 on the plaintext before it encrypts anything. Then it opens every changed page in headless Chrome (`tools/sh_browsercheck.py`): it opens each tab, and it makes sure that every link works, every image loads, every video plays (readyState 1 or more), and no script error occurs. If a check fails, the script encrypts nothing and commits nothing.
+`validate.py --src <dir>` runs only on staged output (a folder made by `tools/sh_stage.py`, as `publish.sh` does). It refuses the raw mirror with a clear message, because older pages in the mirror get their skin and logger patch only at stage time. To check by hand: `python3 tools/sh_stage.py <mirror> <tmpdir> && python3 tools/validate.py --src <tmpdir>`, then delete `<tmpdir>`.
+
+To test the redaction in pages: `node tools/test_redact.js <decrypted or staged pages>` (it reads `STUDY_HUB_BLOCKLIST` from the env and prints counts only).
+
+`publish.sh` runs checks 9 and 10 on the plaintext before it encrypts anything. Then it opens every changed page in headless Chrome (`tools/sh_browsercheck.py`, which tries Playwright's Chromium first, then `/usr/bin/google-chrome`; on the box, no browser means no commit): it opens each tab, and it makes sure that every link works, every image loads, every video plays (readyState 1 or more), and no script error occurs. If a check fails, the script encrypts nothing and commits nothing.
 
 After each push to `main` and every day, the `live-check` workflow crawls the live site (`tools/sh_livecheck.py`). The `validate` workflow also runs the end-to-end publish test (`tools/test_publish.sh`) and makes sure that every `Validated: sh-2` trailer is true.
