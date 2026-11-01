@@ -85,8 +85,11 @@ body.sh{margin:0;font-family:var(--sh-font);font-size:19px;line-height:1.55;colo
 .sh-prose p{margin:0 0 14px}.sh-prose ul,.sh-prose ol{margin:0 0 14px;padding-left:26px}.sh-prose li{margin:6px 0}
 .sh-callout{border-radius:var(--sh-radius-sm);background:var(--sh-accent-soft);padding:18px 22px;margin:0 0 22px}
 .sh-callout b:first-child{color:var(--sh-accent)}
-.sh-figure{margin:0 0 22px}.sh-figure img{border-radius:var(--sh-radius-sm);display:block}
-.sh-figure figcaption{color:var(--sh-ink-3);font-size:15px;margin-top:8px}
+.sh-figure{margin:0 auto 22px;max-width:100%;text-align:center}
+.sh-figure img{display:block;margin:0 auto;max-width:100%;height:auto;border-radius:var(--sh-radius-sm);box-shadow:var(--sh-shadow);background:var(--sh-surface)}
+.sh-figure figcaption{color:var(--sh-ink-3);font-size:15px;line-height:1.4;margin-top:10px}
+.sh-video video{display:block;width:100%;height:auto;max-height:80vh;border-radius:var(--sh-radius);box-shadow:var(--sh-shadow);background:#000}
+.sh-video figcaption{color:var(--sh-ink-2);font-weight:600}
 .sh-terms{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin:0 0 22px}
 .sh-term{background:var(--sh-surface);border-radius:18px;box-shadow:var(--sh-shadow);padding:22px}
 .sh-term b{display:block;font-size:20px;margin-bottom:6px;letter-spacing:-.01em}

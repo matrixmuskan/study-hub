@@ -7,6 +7,8 @@ Usage:  python3 tools/sh_page.py <content.json | content.md> [--src DIR] [--no-m
 - Output goes to <src>/G<grade>/<Subject>/<id>/index.html  (src = $STUDY_HUB_SRC or ../study-hub-src).
 - When the page has a quiz and "log" is not false, score logging is added and the token placeholder is
   replaced from $STUDY_HUB_SCORES_TOKEN (the token is never printed). Without the token the build stops.
+- image and video blocks read local files and inline them as data: URIs (a page folder holds only index.html).
+  One file over 15 MB stops the build; more than 40 MB of media on one page gives a warning.
 - Then run tools/publish.sh to encrypt and commit.
 See templates/page.example.json and CONTRIBUTING-BOTS.md.
 """
@@ -19,6 +21,13 @@ ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,60}$")
 KINDS = ("game", "mock", "retest")
 PLACEHOLDER = "__SH_SCORES_TOKEN__"
 KIT_INJECT = "/workspace/study-hub-scores-kit/inject_token.sh"
+MAX_FILE_MB = 15        # one media file larger than this stops the build
+WARN_TOTAL_MB = 40      # a page with more inlined media than this gets a warning
+IMAGE_EXT = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
+             ".webp": "image/webp", ".avif": "image/avif", ".svg": "image/svg+xml"}
+VIDEO_EXT = {".mp4": "video/mp4", ".m4v": "video/mp4", ".webm": "video/webm"}
+VTT_EXT = {".vtt": "text/vtt"}
+MEDIA = {"bytes": 0, "files": 0}   # inlined media payload of the page being built
 
 
 def fail(msg):
@@ -27,7 +36,8 @@ def fail(msg):
 
 def parse_md(text):
     """Markdown input: front matter (key: value), then '# <Section label>' starts a section.
-    A fenced block ```quiz ... ``` holds quiz JSON. Everything else is Markdown text."""
+    A fenced block ```quiz ... ``` holds quiz JSON; ```image ... ``` and ```video ... ``` hold the JSON
+    fields of an image or video block (paths are relative to the .md file). Everything else is Markdown text."""
     m = re.match(r"^---\n(.*?)\n---\n(.*)$", text, re.S)
     if not m:
         fail("Markdown file needs front matter between --- lines")
@@ -42,24 +52,42 @@ def parse_md(text):
     for i in range(1, len(parts), 2):
         label, body = parts[i].strip(), parts[i + 1]
         blocks = []
-        for j, piece in enumerate(re.split(r"^```quiz\s*\n(.*?)^```\s*$", body, flags=re.M | re.S)):
-            if j % 2:
-                q = json.loads(piece)
-                q["type"] = "quiz"
+        pieces = re.split(r"^```(quiz|image|video)\s*\n(.*?)^```\s*$", body, flags=re.M | re.S)
+        for j in range(0, len(pieces), 3):
+            if pieces[j].strip():
+                blocks.append({"type": "text", "md": pieces[j].strip()})
+            if j + 2 < len(pieces):
+                try:
+                    q = json.loads(pieces[j + 2])
+                except ValueError as ex:
+                    fail(f"section '{label}': bad JSON in ```{pieces[j + 1]} block: {ex}")
+                q["type"] = pieces[j + 1]
                 blocks.append(q)
-            elif piece.strip():
-                blocks.append({"type": "text", "md": piece.strip()})
         sections.append({"id": re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-"), "label": label, "blocks": blocks})
     meta["sections"] = sections
     return meta
 
 
-def data_uri(path, base):
-    p = path if os.path.isabs(path) else os.path.join(base, path)
-    if not os.path.exists(p):
-        fail(f"image not found: {p}")
-    mt = mimetypes.guess_type(p)[0] or "application/octet-stream"
-    return "data:%s;base64,%s" % (mt, base64.b64encode(open(p, "rb").read()).decode())
+def data_uri(path, base, what="image", types=None):
+    """Read a local file and return it as a data: URI. Stops the build on a missing, wrong-type, or too-big file."""
+    if not isinstance(path, str) or not path.strip():
+        fail(f"{what}: 'src' (a local file path) is missing")
+    p = os.path.expanduser(path)
+    p = p if os.path.isabs(p) else os.path.join(base, p)
+    if not os.path.isfile(p):
+        fail(f"{what} file not found: {p}")
+    ext = os.path.splitext(p)[1].lower()
+    if types is not None and ext not in types:
+        fail(f"{what} file must be one of {', '.join(sorted(types))}: {p}")
+    size = os.path.getsize(p)
+    if size > MAX_FILE_MB * 1024 * 1024:
+        fail(f"{what} file is {size / 1048576:.1f} MB, the limit is {MAX_FILE_MB} MB per file: {p}. "
+             "Compress it first (see CONTRIBUTING-BOTS.md, section 4)")
+    mt = (types or {}).get(ext) or mimetypes.guess_type(p)[0] or "application/octet-stream"
+    b64 = base64.b64encode(open(p, "rb").read()).decode()
+    MEDIA["bytes"] += len(b64)
+    MEDIA["files"] += 1
+    return "data:%s;base64,%s" % (mt, b64)
 
 
 def render_block(b, base, quizzes, sec_id):
@@ -73,11 +101,27 @@ def render_block(b, base, quizzes, sec_id):
         head = ("<h2>%s</h2>" % e(b["title"])) if b.get("title") else ""
         return '<div class="sh-section sh-reveal">%s<div class="sh-terms">%s</div></div>' % (head, items)
     if t == "image":
-        src = b["src"] if b["src"].startswith("data:") else data_uri(b["src"], base)
+        if not str(b.get("alt", "")).strip():
+            fail(f"image block in section '{sec_id}' needs 'alt' text (what the picture shows)")
+        src = b.get("src", "")
+        src = src if isinstance(src, str) and src.startswith("data:image/") else data_uri(src, base, "image", IMAGE_EXT)
         cap = ("<figcaption>%s</figcaption>" % e(b["caption"])) if b.get("caption") else ""
-        if not b.get("alt"):
-            fail("image block needs alt text")
-        return '<figure class="sh-figure sh-reveal"><img src="%s" alt="%s" loading="lazy">%s</figure>' % (src, e(b["alt"]), cap)
+        return ('<figure class="sh-figure sh-reveal"><img src="%s" alt="%s" loading="lazy" decoding="async">%s</figure>'
+                % (src, e(b["alt"]), cap))
+    if t == "video":
+        src = data_uri(b.get("src"), base, "video", VIDEO_EXT)
+        title = b.get("title") or ""
+        poster = (' poster="%s"' % data_uri(b["poster"], base, "video poster", IMAGE_EXT)) if b.get("poster") else ""
+        track = ""
+        if b.get("captions"):
+            track = ('<track kind="captions" src="%s" srclang="en" label="English" default>'
+                     % data_uri(b["captions"], base, "video captions", VTT_EXT))
+        label = (' aria-label="%s"' % e(title)) if title else ""
+        cap = ("<figcaption>%s</figcaption>" % e(title)) if title else ""
+        return ('<figure class="sh-figure sh-video sh-reveal"><video controls playsinline preload="metadata"%s%s>'
+                '<source src="%s" type="%s">%s'
+                '<p>Your browser cannot play this video.</p></video>%s</figure>'
+                % (poster, label, src, src[5:src.index(";")], track, cap))
     if t == "html":
         return '<div class="sh-reveal">%s</div>' % b["html"]
     if t == "quiz":
@@ -180,6 +224,12 @@ def main():
     raw = open(a.content, encoding="utf-8").read()
     c = parse_md(raw) if a.content.endswith(".md") else json.loads(raw)
     rel, html_text, log = build(c, os.path.dirname(os.path.abspath(a.content)))
+    if MEDIA["files"]:
+        mb = MEDIA["bytes"] / 1048576
+        print(f"media: {MEDIA['files']} files inlined, {mb:.1f} MB as base64")
+        if mb > WARN_TOTAL_MB:
+            print(f"sh_page: WARNING: inlined media is {mb:.1f} MB (over {WARN_TOTAL_MB} MB). The page will be slow to "
+                  "open on a phone. Compress the videos or split the lesson into two pages", file=sys.stderr)
     checks(html_text)
     if a.out:
         open(a.out, "w", encoding="utf-8").write(html_text)
