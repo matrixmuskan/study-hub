@@ -222,6 +222,25 @@ grep -q "LOCK NOT HELD" <<<"$out" || { echo "$out"; die "no LOCK NOT HELD from s
 wait $LP
 tools/sh_lock.sh bash -c 'tools/sh_lock.sh true' || die "a real nested session was refused"
 ok "fake sessions refused (wrong lock path, lock not held, held by another session); a real nested session works"
+# 9b. Basy's bypass 1: rewrite the pid in the lock file while another session holds the lock. The pid text is not
+# trusted: SH_LOCK_PID must be an ancestor that really has the lock file open (/proc/<pid>/fd).
+tools/sh_lock.sh sleep 6 & LP=$!
+sleep 1
+echo "fake bot pid $$ since now: rewritten" > "$LK"
+out=$(SH_LOCK_HELD="$LK" SH_LOCK_PID=$$ tools/publish.sh "CI: bypass 1" 2>&1) && rc=0 || rc=$?
+[ $rc -eq 77 ] && grep -q "another session" <<<"$out" || { echo "$out"; die "bypass 1 (rewritten lock file pid) was accepted"; }
+out=$(SH_LOCK_HELD="$LK" SH_LOCK_PID=$$ python3 tools/sh_page.py "$T/content/good.json" 2>&1) && die "sh_page.py accepted bypass 1" || true
+grep -q "LOCK NOT HELD" <<<"$out" || { echo "$out"; die "no LOCK NOT HELD from sh_page.py for bypass 1"; }
+wait $LP
+ok "bypass 1 refused: a rewritten pid in the lock file does not make a session (publish.sh and sh_page.py)"
+# 9c. Basy's bypass 2: a clone that does not own the mirror takes the flock itself and claims a session
+git worktree add -q --detach "$T/other2" HEAD
+out=$(cd "$T/other2" && flock "$LK" bash -c 'SH_LOCK_HELD="$1" SH_LOCK_PID=$PPID tools/publish.sh "CI: bypass 2"' _ "$LK" 2>&1) && rc=0 || rc=$?
+[ $rc -ne 0 ] && grep -q "WRONG CLONE" <<<"$out" || { echo "$out"; die "bypass 2 (non-owner clone with its own flock) was accepted"; }
+out=$(cd "$T/other2" && flock "$LK" bash -c 'SH_LOCK_HELD="$1" SH_LOCK_PID=$PPID python3 tools/sh_page.py "$2"' _ "$LK" "$T/content/good.json" 2>&1) && die "sh_page.py accepted bypass 2" || true
+grep -q "WRONG CLONE" <<<"$out" || { echo "$out"; die "no WRONG CLONE from sh_page.py for bypass 2"; }
+git worktree remove --force "$T/other2"
+ok "bypass 2 refused: a non-owner clone that takes the flock itself gets WRONG CLONE (publish.sh and sh_page.py)"
 # 10. The owner clone is gone: the mirror is reclaimed and the reclaim is logged
 echo "$T/gone-clone" > "$STUDY_HUB_SRC/_state/repo"
 out=$(tools/sh_lock.sh true 2>&1) || { echo "$out"; die "a mirror whose owner is gone was not reclaimed"; }

@@ -147,10 +147,11 @@ finally:
 # attach maps fragment questions to the ids the logger sends (q<quiz>-<n>), by text, as sh_page.py numbers them
 page = [(0, 1, "q1-1", "[Sample A] How many even numbers?", "game"), (0, 2, "q1-2", "What is 2 + 2?", "game"),
         (1, 1, "q2-1", "Pick the odd one out.", "mock")]
-ids, pr = P.map_logger_ids([{"id": "practice-1", "q": "How many even numbers?"}, {"id": "mastery-1", "q": "Pick the odd one out."},
-                            {"id": "practice-2", "q": "What is 2 + 2?"}], page)
+ids, pr, qz = P.map_logger_ids([{"id": "practice-1", "q": "How many even numbers?"}, {"id": "mastery-1", "q": "Pick the odd one out."},
+                                {"id": "practice-2", "q": "What is 2 + 2?"}], page)
 check("attach maps fragment ids to logger ids by question text", ids == ["q1-1", "q2-1", "q1-2"] and pr == [])
-ids, pr = P.map_logger_ids([{"id": "mock-9", "q": "A question that is not on the page"}], page)
+check("attach writes the real quiz number (q2-n is quiz 1)", qz == [0, 1, 0])
+ids, pr, qz = P.map_logger_ids([{"id": "mock-9", "q": "A question that is not on the page"}], page)
 check("attach refuses a question that is not on the page", pr and "no logger id" in pr[0])
 import sh_lib as LL
 h = '<script type="application/json" id="sh-data">' + json.dumps({"quizzes": [{"kind": "game", "questions": [{"q": "a"}, {"q": "b", "id": "w-7"}]}, {"kind": "mock", "questions": [{"q": "c"}]}]}) + "</script>"

@@ -649,8 +649,9 @@ def _qnorm(s):
 
 def map_logger_ids(questions, page_ids):
     """Logger id (q<quiz>-<n>, as sh_page.py and sh.js make it) for each fragment question, matched to the page's
-    sh-data questions by text, in order. (ids, problems). A question that already has a page id keeps it."""
+    sh-data questions by text, in order. (ids, problems, quiz indexes). A question that already has a page id keeps it."""
     known = {x[2] for x in page_ids}
+    quiz_of = {x[2]: x[0] for x in page_ids}
     used, ids, out = set(), [], []
     for k, q in enumerate(questions, 1):
         if q.get("id") in known and q["id"] not in used:
@@ -663,7 +664,7 @@ def map_logger_ids(questions, page_ids):
             ids.append(str(q.get("id") or ""))
             continue
         used.add(hit[2]); ids.append(hit[2])
-    return ids, out
+    return ids, out, [quiz_of.get(i, 0) for i in ids]
 
 
 def attach_record(frag, entry, S, built_at, check_files=True, drop_closed=True, page_ids=None):
@@ -693,14 +694,14 @@ def attach_record(frag, entry, S, built_at, check_files=True, drop_closed=True, 
     qs = []
     lids = None
     if page_ids:
-        lids, mp = map_logger_ids(frag.get("questions") or [], page_ids)
+        lids, mp, lquiz = map_logger_ids(frag.get("questions") or [], page_ids)
         out += mp
     for n, q in enumerate(frag.get("questions") or [], 1):
         inf = q.get("inferred") is True
         src = q.get("src", "")
         if not inf and (not src or src.split("#")[0] not in ids):
             out.append("question %s: src is missing or not a listed source" % q.get("id", n))
-        qs.append({"quiz": 0, "kind": "mock", "section": "", "n": n, "id": lids[n - 1] if lids else str(q.get("id") or "q1-%d" % n), "q": q.get("q", ""),
+        qs.append({"quiz": lquiz[n - 1] if lids else 0, "kind": "mock", "section": "", "n": n, "id": lids[n - 1] if lids else str(q.get("id") or "q1-%d" % n), "q": q.get("q", ""),
                    "topic": q.get("fact", ""), "src": "" if inf else src, "inferred": inf,
                    "retests": [x for x in (q.get("retests") or []) if x not in closed], "type": "unknown", "n_options": 0})
         dropped |= {x for x in (q.get("retests") or []) if x in closed}
@@ -843,7 +844,8 @@ def attach_main(a, S):
         sys.exit("ATTACH FAILED: %s is not one manifest page" % frag.get("page"))
     old = S.get(scores_path(frag["page"]))
     re_attach = bool(old) and json.loads(old).get("attached") is True
-    if not is_legacy(frag["page"]) and not re_attach:
+    was_legacy = is_legacy(frag["page"])
+    if not was_legacy and not re_attach:
         sys.exit("ATTACH FAILED: %s is not in legacy_provenance; attach is only for pages built before the rules "
                  "(a new page is built with sh_page.py)" % frag["page"])
     try:
@@ -851,7 +853,8 @@ def attach_main(a, S):
         pf = os.path.join(L.default_src(), frag["page"], "index.html")
         page_ids = L.logger_ids(open(pf, encoding="utf-8").read()) if os.path.exists(pf) else None
         if page_ids is None:
-            print("attach: WARNING: %s has no sh-data in the mirror, so the fragment ids are kept as they are" % frag["page"])
+            sys.exit("ATTACH FAILED: %s has no sh-data in the mirror (%s), so its logger ids are not known. Rebuild the "
+                     "page with sh_page.py, or copy its plaintext into the mirror first" % (frag["page"], pf))
         raw, probs = attach_record(frag, ent[0], S, now_pt().isoformat(timespec="seconds"), check_files=not a.no_files,
                                    page_ids=page_ids)
         if probs:
@@ -873,8 +876,9 @@ def attach_main(a, S):
     open(cp, "w", encoding="utf-8").write(t2)
     f = manifest_fields(raw)
     print("attached %s: record %s in study-hub-scores; %d sources, %d questions, %d inferred, %d retests; manifest updated, "
-          "removed from legacy_provenance" % (frag["page"], how, f["n_sources"], f["n_questions"], f["n_inferred"], f.get("n_retests", 0)))
-    print("  next: tools/publish.sh commits manifest.json and the legacy_provenance change in tools/sh_config.json together")
+          "%s" % (frag["page"], how, f["n_sources"], f["n_questions"], f["n_inferred"], f.get("n_retests", 0),
+                  "removed from legacy_provenance" if was_legacy else "already out of legacy_provenance (re-attach)"))
+    print("  next: tools/publish.sh commits manifest.json%s" % (" and the legacy_provenance change in tools/sh_config.json" if was_legacy else ""))
     dr = json.loads(raw).get("dropped_closed_retests") or []
     if dr:
         print("  closed rows taken out of retests (school test already happened): %d: %s" % (len(dr), ", ".join(dr)))

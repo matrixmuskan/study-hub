@@ -27,13 +27,43 @@ def _is_ancestor(pid):
     return False
 
 
+def _holds_fd(pid, path):
+    t = os.path.realpath(path)
+    try:
+        return any(os.path.realpath(os.path.join("/proc/%d/fd" % pid, f)) == t for f in os.listdir("/proc/%d/fd" % pid))
+    except OSError:
+        return False
+
+
+def _owner_check(src):
+    """One clone per mirror (<src>/_state/repo). A gone owner is reclaimed and logged in <src>/_state/lock.log."""
+    import time
+    me = os.path.realpath(REPO)
+    os.makedirs(os.path.join(src, "_state"), exist_ok=True)
+    op = os.path.join(src, "_state", "repo")
+    owner = open(op).read().strip() if os.path.exists(op) else ""
+    if owner and owner != me:
+        if os.path.exists(os.path.join(owner, ".git")):
+            raise SystemExit("WRONG CLONE: the mirror %s belongs to %s. Build and publish only from there; branch work "
+                             "goes in a worktree with its own STUDY_HUB_SRC." % (src, owner))
+        msg = "%s RECLAIM: owner %s no longer exists; mirror now owned by %s (%s)" % (
+            time.strftime("%Y-%m-%dT%H:%M:%S%z"), owner, me, os.environ.get("SH_BOT", "unknown bot"))
+        open(os.path.join(src, "_state", "lock.log"), "a").write(msg + "\n")
+        print(msg, file=sys.stderr)
+        owner = ""
+    if not owner:
+        open(op, "w").write(me + "\n")
+
+
 def mirror_lock(src, what=""):
     """The same lock as tools/sh_lock.sh, for sh_page.py and attach run on their own: an exclusive flock on
-    <src>/.publish.lock for the life of the process (returns the open fd). Inside a session (SH_LOCK_HELD) it checks
-    that SH_LOCK_HELD is this lock file, the flock is held, and the holder (SH_LOCK_PID) is an ancestor; else it refuses.
-    One clone per mirror (<src>/_state/repo); a gone owner is reclaimed and logged. Waits up to SH_LOCK_WAIT (900 s)."""
+    <src>/.publish.lock for the life of the process (returns the open fd). The owner check (WRONG CLONE) always runs.
+    Inside a session (SH_LOCK_HELD) it checks that SH_LOCK_HELD is this lock file, the flock is held, and SH_LOCK_PID
+    is an ancestor that really has the lock file open (/proc/<pid>/fd); else it refuses. The lock is for cooperating
+    bots (no accidents), not a security boundary. Waits up to SH_LOCK_WAIT (900 s)."""
     import fcntl, time
     lp = os.path.join(src, ".publish.lock")
+    _owner_check(src)
     if os.environ.get("SH_LOCK_HELD"):
         if os.path.realpath(os.environ["SH_LOCK_HELD"]) != os.path.realpath(lp):
             raise SystemExit("LOCK NOT HELD: SH_LOCK_HELD is %s, not this mirror's lock (%s). Run inside tools/sh_lock.sh."
@@ -51,25 +81,9 @@ def mirror_lock(src, what=""):
             holder = int(os.environ.get("SH_LOCK_PID", "0"))
         except ValueError:
             holder = 0
-        m = re.search(r" pid (\d+) since ", open(lp, encoding="utf-8", errors="replace").read())
-        if not holder or not m or int(m.group(1)) != holder or not _is_ancestor(holder):
+        if not holder or not _is_ancestor(holder) or not _holds_fd(holder, lp):
             raise SystemExit("LOCK NOT HELD: the lock on %s belongs to another session, not to this process tree." % lp)
         return None
-    me = os.path.realpath(REPO)
-    os.makedirs(os.path.join(src, "_state"), exist_ok=True)
-    op = os.path.join(src, "_state", "repo")
-    owner = open(op).read().strip() if os.path.exists(op) else ""
-    if owner and owner != me:
-        if os.path.exists(os.path.join(owner, ".git")):
-            raise SystemExit("WRONG CLONE: the mirror %s belongs to %s. Build and publish only from there; branch work "
-                             "goes in a worktree with its own STUDY_HUB_SRC." % (src, owner))
-        msg = "%s RECLAIM: owner %s no longer exists; mirror now owned by %s (%s)" % (
-            time.strftime("%Y-%m-%dT%H:%M:%S%z"), owner, me, os.environ.get("SH_BOT", "unknown bot"))
-        open(os.path.join(src, "_state", "lock.log"), "a").write(msg + "\n")
-        print(msg, file=sys.stderr)
-        owner = ""
-    if not owner:
-        open(op, "w").write(me + "\n")
     fd = os.open(lp, os.O_RDWR | os.O_CREAT | os.O_APPEND, 0o600)
     t0, wait = time.time(), int(os.environ.get("SH_LOCK_WAIT", "900"))
     while True:
