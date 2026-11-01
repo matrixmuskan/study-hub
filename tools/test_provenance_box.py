@@ -9,6 +9,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sh_provenance as P
 import sh_scores as S
 
+# The B1-B6 fixtures below test the cumulative B5 (contest mode). The school-mode window is tested at the end.
+P.L.CFG["subject_modes"] = dict(P.L.CFG.get("subject_modes") or {}, Sci="contest", Math="contest")
 n = 0
 
 
@@ -216,6 +218,7 @@ try:
 finally:
     P.B5_MIN = 15
 # ---------- F1: patterns_from receipts ----------
+P.L.CFG["subject_modes"]["Sci"] = "school"
 c = content("Unit2", ["Sci-2"], weak=(A3, "G3/Sci/Unit1/2026-10-30T100000-game-ee55.json"))
 c["provenance"]["patterns_from"] = ["gmail:1a00000000000ma1"]
 check("F1/B2: patterns_from must be a receipt of the same subject", P.box_problems(publish(c, BUILT), S), "B2")
@@ -227,6 +230,53 @@ big = copy.deepcopy(c); big["sections"][0]["blocks"][0]["questions"] *= 6
 rec = json.loads(S.get(P.scores_path(publish(big, BUILT)["path"])))
 check("F1: a 12-question mock against a 2-question school test is out of range (warning)",
       [] if any("question count" in x for x in P.f1_report(rec, S)[1]) else ["no warning"])
+
+# ---------- school mode: closed rows and the prep window (fixture subject 'Grammar') ----------
+GR1, GR2 = "1a00000000000g01", "1a00000000000g02"
+for rid, d in ((GR1, "2026-10-10"), (GR2, "2026-10-24")):
+    w("G3/_receipts/%s.json" % rid, {"id": "gmail:" + rid, "subject": "Grammar", "date": d, "datetime": d + "T09:00:00-07:00",
+                                      "kind": "form_receipt", "title": "Grammar test " + d, "items": [{"q": "Pick one?", "options": ["a", "b"], "picked": "a"}]})
+
+
+def glog(rows):
+    b = io.StringIO(); x = csv.DictWriter(b, fieldnames=COLS, lineterminator="\n"); x.writeheader()
+    for r in rows:
+        x.writerow({c: r.get(c, "") for c in COLS})
+    w("G3/Grammar/_error_log.csv", b.getvalue())
+
+
+def gpage(lesson, retest_ids):
+    qs = [{"q": "Item %s?" % i, "options": ["a", "b"], "answer": 0, "src": "file:%s#row=2" % MSRC, "retests": [i]} for i in retest_ids]
+    qs.append({"q": "Warm up?", "options": ["a", "b"], "answer": 0, "src": "file:%s#row=2" % MSRC})
+    return {"grade": "G3", "subject": "Grammar", "id": lesson, "title": lesson, "added_by": "fixture",
+            "provenance": {"sources": [{"id": "file:" + MSRC, "kind": "study_guide", "sha256": MSHA}],
+                           "results_ingested": ["gmail:" + GR1, "gmail:" + GR2], "weak_spots_from": [], "patterns_from": ["gmail:" + GR2]},
+            "sections": [{"id": "q", "label": "Quiz", "blocks": [{"type": "quiz", "kind": "mock", "questions": qs}]}]}
+
+
+GROWS = [{"id": "G-1", "date": "2026-10-10", "round": "school", "resolved": "closed", "error_type": "look-alike word", "skill": "fill in the blank"},
+         {"id": "G-2", "date": "2026-10-10", "round": "school", "resolved": "closed", "error_type": "look-alike word", "skill": "pick the meaning"},
+         {"id": "G-3", "date": "2026-10-24", "round": "school", "resolved": "no"},
+         {"id": "G-4", "date": "2026-10-27", "round": "mock round 1", "resolved": "no"},
+         {"id": "G-5", "date": "2026-10-28", "round": "game", "resolved": "no"}]
+glog(GROWS)
+GB = "2026-10-31T10:00:00-07:00"
+pl = P.b5_plan(S, "G3", "Grammar", P.read_log(S.get("G3/Grammar/_error_log.csv").decode()), datetime.fromisoformat(GB))
+check("school mode: window starts at the last real test (10-24); only open rows after it count; closed rows are patterns",
+      [] if (pl["mode"], pl["window_from"], pl["open"], pl["outside"], pl["patterns"]) == ("school", "2026-10-24", ["G-4", "G-5"], ["G-3"], ["G-1", "G-2"])
+      else ["got %s" % pl])
+check("school mode: a page that re-tests the 2 rows in the window passes (closed and pre-window rows are not needed)",
+      P.box_problems(publish(gpage("U1", ["G-4", "G-5"]), GB), S))
+check("school mode: a page that re-tests only closed rows fails B5", P.box_problems(publish(gpage("U1", ["G-1", "G-2"]), GB), S), "B5")
+P.L.CFG["subject_modes"]["Grammar"] = "contest"
+check("contest mode: the same log is cumulative (G-3 must be re-tested too)", P.box_problems(publish(gpage("U1", ["G-4", "G-5"]), GB), S), "B5")
+P.L.CFG["subject_modes"]["Grammar"] = "school"
+glog(GROWS + [{"id": "G-6", "date": "2026-10-29", "resolved": "done"}])
+check("an unknown resolved status fails", P.box_problems(publish(gpage("U1", ["G-4", "G-5", "G-6"]), GB), S), "B5")
+glog(GROWS)
+rec = json.loads(S.get(P.scores_path(publish(gpage("U1", ["G-4", "G-5"]), GB)["path"])))
+check("F1 lists the closed rows as pattern input (trap types, question styles)",
+      [] if any("patterns from 2 closed rows" in x and "look-alike word (2)" in x for x in P.f1_report(rec, S)[0]) else ["got %s" % (P.f1_report(rec, S),)])
 import shutil
 shutil.rmtree(T)
 print("provenance box-rule tests passed (%d)" % n)
