@@ -6,9 +6,15 @@ title: Example: Lesson words
 added_by: Worldy
 test_date: 2026-11-26
 subtitle: Learn the words. Then practice.
-log: false
 ---
 # Learn
+```provenance
+{"sources": [
+  {"id": "file:/workspace/ww/example/words.csv", "kind": "word_list", "sha256": "<sha256sum of the file>"},
+  {"id": "gmail:1a164970d5ea012b", "kind": "form_receipt", "what": "WW Lesson 8 school test"}],
+ "results_ingested": ["gmail:1a164970d5ea012b"],
+ "weak_spots_from": []}
+```
 ### Word 1: shrewd
 **Shrewd** means clever and hard to fool.
 
@@ -25,6 +31,7 @@ log: false
 # Practice
 ```quiz
 {"kind": "game", "questions": [
-  {"q": "A shrewd person is", "options": ["easy to fool", "clever and hard to fool", "very tall"], "answer": 1, "word": "shrewd"}
+  {"q": "A shrewd person is", "options": ["easy to fool", "clever and hard to fool", "very tall"], "answer": 1, "word": "shrewd",
+   "src": "file:/workspace/ww/example/words.csv#row=2", "retests": ["L8-quarry-1"]}
 ]}
 ```
