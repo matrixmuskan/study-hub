@@ -6,7 +6,7 @@
 #   3. a page with a broken link must be refused (no commit);
 #   5. a page with no provenance is refused by sh_page.py, and P1 fails in validate.py;
 #   6. a page that ignores a school receipt (B4) is refused by publish.sh;
-#   4. an sh-2 page with the score logger must publish with privacy v3: its own logger sends no free text (only item
+#   4. an sh-2 page with the score logger must publish with privacy v4: its own logger sends no free text (only item
 #      ids, option letters and booleans), commits as Study Hub Bot (node, tools/test_redact.js), and the page holds no
 #      private-word list in any form (plain, hashed, base64 or hex).
 set -euo pipefail
@@ -173,7 +173,7 @@ old = '<body><script>var SHLog=(function(){ /*sh-privacy v2*/ function redact(t)
       '<script type="application/json" id="sh-redact">{"v":2,"salt":"x","n":1,"h":[]}</script></body>'
 assert L.logger_problems(old, bl), "logger_ok passed an old v2 page"
 new = L.patch_logger(old, bl, "x")
-assert not L.REDACT_ELEM_RE.findall(new) and "/*sh-privacy v3*/" in new and "redact(" not in new, "patch_logger did not upgrade to v3"
+assert not L.REDACT_ELEM_RE.findall(new) and "/*sh-privacy v4*/" in new and "redact(" not in new and "sh-build" in new, "patch_logger did not upgrade to v4"
 PY2
 node tools/test_redact.js "$T/logger-plain.html" > "$T/out4b.txt" || { cat "$T/out4b.txt"; die "logger page sends free text, a private word, or not as Study Hub Bot"; }
 ok "logger page: $(tail -1 "$T/out4b.txt")"

@@ -121,8 +121,11 @@ For a comic, a `.jpg` or `.webp` at about 1200 px wide is usually much smaller t
    - `options` (a list) and `answer` (the index of the right option, starting at 0).
    - `answer_text` (a string or a list of strings that are correct). Add `"numeric": true` for a number keyboard.
 4. Add `explain` to show a short reason after the answer.
-5. Add `word`, `sense`, `topic`, or `trap` when they help the page. The logger does not send them (privacy v3): a missed question is sent by its item id, and the build record in study-hub-scores maps the id back to the question.
-6. Do not put names or private information in questions.
+5. Add `word`, `sense`, or `topic` when they help the page. The logger does not send them: a missed question is sent by its item id, and the build record in study-hub-scores maps the id back to the question.
+6. Add the trap for each question, so the log is useful for the next mock (rule F1):
+   - `trap`: the trap type of the question, as a short key or a short phrase (`"opposite"`, `"Other-sense lure"`). The logger sends it as a key (`other-sense-lure`).
+   - `traps`: the known wrong answers: `{"B": "opposite"}` for options, `{"90": "Only half of them are even."}` for typed answers. A typed answer that is in `traps` is sent as the value; any other typed word is not sent (a number always is).
+7. Do not put names or private information in questions.
 
 When the child finishes a quiz, the page calls `SHLog.record`. The logger writes one file to the private repo `matrixmuskan/study-hub-scores`:
 
@@ -196,11 +199,11 @@ Do these checks before each push:
 8. A page folder holds a file that is not `index.html`.
 9. A page uses purple or violet, a gradient with more than one color, or a color outside the palette (white, grays, the one accent `#0066cc`, and the green, red, and amber status colors). Older pages get the palette applied for them at publish time. A new page from `sh_page.py` must pass as written.
 10. A link, an anchor (`#id`), an image, a video, a poster, or a captions file does not work. Every `data:` URI must decode and have the right MIME type. Every video must have H.264 (or VP9 or AV1) video and AAC (or Opus) audio. Every manifest page must have a link on its subject hub page.
-11. A page that logs scores does not have the privacy rules (privacy v3). The logger sends no free text at all: no question text, no typed answer, no option text. A missed item is sent as its number `n`, its item id `id` (`q<quiz>-<n>`, which `sh_page.py` gives each question), the `picked` and `correct` option letters, and the booleans `blank` and `typed`. `details` keep only numbers, booleans and short ids. Each file is committed as Study Hub Bot. No page holds a private-word list in any form (no `sh-redact` element). `tools/sh_stage.py` brings older logger copies up to v3 at publish time. The only reference logger is `assets/js/shlog.js`.
+11. A page that logs scores does not have the privacy rules (privacy v4). The logger sends the score and, for each missed item: `n`, a stable item id `id` (`q<quiz>-<n>` from `sh_page.py`, or `<kind>-<n>` for older pages), the `picked` option letter, a `value` (only a typed number, or a wrong answer that the page lists in `traps`), a `trap` key, and the booleans `blank` (from the page: only an empty answer) and `typed`. It never sends question text, option text, or a typed word. Ids and trap keys must be known: the page lists them (`SHLog.allow`, called by `sh.js` from `sh-data`), or the logger makes them from the quiz kind and `n`. `details` keep only a fixed list of keys (numbers, booleans, `mode`, known `section` ids, `rubric`, `partScores`). Each file also has `build`, the page's build id (`<meta name="sh-build">`, written at publish time; `sh_page.py` stores the same id as `build_id` in the provenance record). Each file is committed as Study Hub Bot. No page holds a private-word list. `tools/sh_stage.py` brings older logger copies up to v4 at publish time and adds small adapters for the older WW Lesson 8 and SS pages (they then send `n` and the option index). The only reference logger is `assets/js/shlog.js`.
 
 `validate.py --src <dir>` runs only on staged output (a folder made by `tools/sh_stage.py`, as `publish.sh` does). It refuses the raw mirror with a clear message, because older pages in the mirror get their skin and logger patch only at stage time. To check by hand: `python3 tools/sh_stage.py <mirror> <tmpdir> && python3 tools/validate.py --src <tmpdir>`, then delete `<tmpdir>`.
 
-To test the logger privacy in pages: `node tools/test_redact.js <decrypted or staged pages>`. It records an attempt full of free text and private words (from `STUDY_HUB_BLOCKLIST` in the env) and checks that only ids, letters, numbers and booleans leave the page, as Study Hub Bot. It prints counts only.
+To test the logger privacy in pages: `node tools/test_redact.js <decrypted or staged pages>`. To see the real pages log the trap and the value: `python3 tools/test_logger_pages.py` on the box (it plays a Noetic, a WW and an SS page headless, with nothing sent). It records an attempt full of free text and private words (from `STUDY_HUB_BLOCKLIST` in the env) and checks that only ids, letters, numbers and booleans leave the page, as Study Hub Bot. It prints counts only.
 
 Provenance (section 11):
 
@@ -255,7 +258,7 @@ A short worked example (one quiz, two questions):
 ]}
 ```
 
-`sh_page.py` writes the full record to `study-hub-scores/G3/<Subject>/<Lesson>/_provenance.json` (private). The public `manifest.json` gets only `provenance_sha256`, `n_sources`, `n_inferred`, `n_questions`, `n_retests`, and `built_at`. Source paths and question text never go into the public repo.
+`sh_page.py` writes the full record to `study-hub-scores/G3/<Subject>/<Lesson>/_provenance.json` (private). The record is a snapshot taken at build time: `open_rows`, `error_log_sha256` and `built_at` describe the error log at that moment, so they differ from the log at HEAD after rows are added, closed or resolved. That is expected; do not rebuild a page only to refresh them. The public `manifest.json` gets only `provenance_sha256`, `n_sources`, `n_inferred`, `n_questions`, `n_retests`, and `built_at`. Source paths and question text never go into the public repo.
 
 ### 11.2 The error log
 

@@ -6,12 +6,12 @@
     "path": "G3/SS/Final1-Ch1-2-8/",
     "test_date": "2026-10-21",
     "added_by": "Sissy",
-    "provenance_sha256": "7f0f02c6eaefb0cf2592ad9cc621d0a2c9de2eb5b6cb49917d81fbf2e8f0282f",
+    "provenance_sha256": "cfbf3f81ca1d302333a53677fbefc5563286c7f0a48b0c2226c88035d3314fdf",
     "n_sources": 8,
     "n_inferred": 0,
     "n_questions": 21,
-    "n_retests": 10,
-    "built_at": "2026-11-01T10:39:07-08:00"
+    "n_retests": 2,
+    "built_at": "2026-11-01T11:03:37-08:00"
   },
   {
     "grade": "G3",
@@ -20,12 +20,12 @@
     "path": "G3/SS/Continents-Oceans-Retake/",
     "test_date": "",
     "added_by": "Sissy",
-    "provenance_sha256": "3e3942db709fad8348a4402bbe29784c87c0ac5294fdf6b2a4bf68129f859d1f",
+    "provenance_sha256": "b7502f473aecf141d15b60b40a5cdc86f12df05df29b005fd2487c33d08a3d29",
     "n_sources": 6,
     "n_inferred": 0,
     "n_questions": 35,
-    "n_retests": 6,
-    "built_at": "2026-11-01T10:39:25-08:00"
+    "n_retests": 2,
+    "built_at": "2026-11-01T11:03:56-08:00"
   },
   {
     "grade": "G3",

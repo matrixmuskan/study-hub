@@ -145,6 +145,9 @@ def render_block(b, base, quizzes, sec_id):
                     fail(f"quiz question {n}: 'answer' must be the index of the right option")
             elif "answer_text" not in q:
                 fail(f"quiz question {n} needs 'options' plus 'answer', or 'answer_text'")
+            tm = q.get("traps")
+            if tm is not None and (not isinstance(tm, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in tm.items())):
+                fail(f"quiz question {n}: 'traps' must map an option letter or a typed wrong answer to a short text or trap key")
         for n, q in enumerate(qs, 1):   # item id: what the logger sends for a missed question (privacy v3, no text)
             q["id"] = q.get("id") or "q%d-%d" % (len(quizzes) + 1, n)
         quizzes.append({"kind": kind, "mode": b.get("mode", "practice" if kind == "game" else "test"), "section": sec_id,
@@ -276,14 +279,14 @@ def main():
     print("page written to", dst)
     extra = None
     if c.get("provenance") and not a.no_provenance:
-        extra = write_provenance(c, path)
+        extra = write_provenance(c, path, L.build_id(html_text))
     elif not legacy and not a.no_provenance:
         fail("internal: no provenance written")
     if not a.no_manifest:
         upsert_manifest(c, rel, extra)
 
 
-def write_provenance(c, path):
+def write_provenance(c, path, build_id=""):
     """Write the full provenance record to study-hub-scores (private) and return the public counts and hash."""
     import hashlib
     import sh_scores as S
@@ -292,7 +295,7 @@ def write_provenance(c, path):
         log = S.get("%s/%s/_error_log.csv" % (c["grade"], c["subject"])) or b""
         built = P.now_pt().isoformat()
         rec = P.record_bytes(c, path, built, hashlib.sha256(log).hexdigest() if log else "",
-                             P.open_row_ids(P.read_log(log.decode("utf-8"))))
+                             P.open_row_ids(P.read_log(log.decode("utf-8"))), build_id=build_id)
         how = S.put(P.scores_path(path), rec, "provenance: %s" % path)
         S.put(P.build_copy_path(path, built), rec, "build history: %s" % path)   # B5 history
     except S.ScoresError as ex:
