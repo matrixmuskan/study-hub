@@ -111,4 +111,36 @@ finally:
 bot = {"name": "Study Hub Bot", "email": "study-hub-bot@users.noreply.github.com"}
 check("sh_scores.put sets author and committer to Study Hub Bot",
       len(_sent) == 1 and _sent[0][0] == "PUT" and _sent[0][1].get("committer") == bot and _sent[0][1].get("author") == bot)
+
+# school-app:<id> is a valid neutral source id; a source that names a private word fails (dummy word, not a real term)
+c = copy.deepcopy(GOOD); c["provenance"]["sources"].append({"id": "school-app:95000001", "kind": "teacher_notice"})
+check("school-app:<id> source id is accepted", P.content_problems(c) == [])
+c = copy.deepcopy(GOOD); c["provenance"]["sources"].append({"id": "url:https://www.dummyapp.example/feeds/1", "kind": "teacher_notice"})
+check("a source url that names a blocklist word fails, and the word is not printed",
+      P.private_source_problems(c["provenance"]["sources"], bl="dummyapp") and
+      not any("dummyapp" in x for x in P.private_source_problems(c["provenance"]["sources"], bl="dummyapp")))
+check("no blocklist (CI): no private-source check", P.private_source_problems(c["provenance"]["sources"], bl="") == [])
+
+# config-diff (publish.sh): attach's legacy_provenance shrink is staged; any other config change stops the publish
+import subprocess, tempfile, shutil
+td = tempfile.mkdtemp()
+try:
+    os.makedirs(os.path.join(td, "tools"))
+    cfg = {"template_version": "sh-2", "legacy_provenance": ["G3/A/One/", "G3/A/Two/"]}
+    man = [{"path": "G3/A/One/"}, {"path": "G3/A/Two/"}]
+    w = lambda f, o: open(os.path.join(td, f), "w").write(json.dumps(o, indent=2))
+    w("tools/sh_config.json", cfg); w("manifest.json", man)
+    g = lambda *a: subprocess.run(["git", "-C", td] + list(a), capture_output=True, check=True)
+    g("init", "-q"); g("add", "-A"); g("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base")
+    check("config-diff: unchanged config is clean", P.config_diff(td)[0] == "clean")
+    w("tools/sh_config.json", dict(cfg, legacy_provenance=["G3/A/One/"]))
+    check("config-diff: shrink without a manifest hash stops the publish", P.config_diff(td)[0] == "dirty")
+    w("manifest.json", [{"path": "G3/A/One/"}, {"path": "G3/A/Two/", "provenance_sha256": SHA}])
+    check("config-diff: attach shrink with a manifest hash is staged", P.config_diff(td)[0] == "stage")
+    w("tools/sh_config.json", dict(cfg, legacy_provenance=["G3/A/One/"], template_version="sh-3"))
+    check("config-diff: any other config change stops the publish", P.config_diff(td)[0] == "dirty")
+    w("tools/sh_config.json", dict(cfg, legacy_provenance=["G3/A/One/", "G3/A/Two/", "G3/A/Three/"]))
+    check("config-diff: a grown legacy list stops the publish", P.config_diff(td)[0] == "dirty")
+finally:
+    shutil.rmtree(td)
 print("provenance public-rule tests passed (%d)" % n)
