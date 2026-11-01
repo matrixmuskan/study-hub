@@ -3,6 +3,10 @@
 
 Usage: python3 tools/migrate_error_logs.py [--dry-run] [SUBJECT=path.csv ...]
        python3 tools/migrate_error_logs.py --scan        (read only: every G3/*/_error_log.csv, counts only)
+       python3 tools/migrate_error_logs.py --close-school [--dry-run]
+           On each school-subject log (subject_modes in tools/sh_config.json), set resolved=closed on every open row
+           that comes from a real school test that already happened (round=school, dated today or earlier). Practice
+           rows (mock, game, retest) stay open. Prints the per-subject counts before and after.
 Default sources: SS=/workspace/ss/error_log.csv WW=/workspace/ww/error_log.csv
                  Noetic=/workspace/noetic/error_log.csv Kangaroo=/workspace/kangaroo/error_log.csv
 
@@ -126,9 +130,42 @@ def scan():
     return 1 if bad else 0
 
 
+def counts(rows):
+    from collections import Counter
+    c = Counter(P.status(r) or "(empty)" for r in rows)
+    return ", ".join("%s %d" % (k, c[k]) for k in sorted(c))
+
+
+def close_school(dry):
+    today = P.now_pt().date().isoformat()
+    logs = sorted(f for f in S.tree("G3/") if f.endswith("/_error_log.csv"))
+    for f in logs:
+        subj = f.split("/")[1]
+        rd = csv.DictReader(io.StringIO((S.get(f) or b"").decode("utf-8")))
+        rows = list(rd)
+        before = counts(rows)
+        if P.subject_mode(subj) != "school":
+            print("%-8s contest subject, unchanged: %d rows (%s)" % (subj, len(rows), before or "none"))
+            continue
+        n = 0
+        for r in rows:
+            d = (r.get("date") or "")[:10]
+            if P.status(r) == "no" and (r.get("round") or "").strip().lower() == "school" and d and d <= today:
+                r["resolved"] = "closed"
+                note = "closed %s: school test %s already happened (pattern input, no re-practice)" % (today, d)
+                r["notes"] = (r.get("notes") or "").rstrip("; ") + ("; " if r.get("notes") else "") + note
+                n += 1
+        how = "dry run" if dry or not n else S.put(f, to_csv(rd.fieldnames, rows), "error log: %s, %d rows closed (school test already happened)" % (subj, n))
+        print("%-8s school: %d rows; before: %s; after: %s; closed %d [%s]" % (subj, len(rows), before or "none", counts(rows) or "none", n, how))
+
+
 def main():
     if "--scan" in sys.argv:
         sys.exit(scan())
+    if "--close-school" in sys.argv:
+        if "--dry-run" not in sys.argv:
+            S.check_access(write=True)
+        return close_school("--dry-run" in sys.argv)
     if not PRIV_RX:
         sys.exit("MIGRATION FAILED: STUDY_HUB_BLOCKLIST is empty (source ~/.study-hub.env), so rows cannot be scrubbed")
     dry = "--dry-run" in sys.argv
