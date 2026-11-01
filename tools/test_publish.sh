@@ -25,7 +25,10 @@ export HOME="$T/home"; mkdir -p "$HOME"            # no ~/.study-hub.env: only t
 export STATICRYPT_PASSWORD="ci-dummy-$RANDOM-$RANDOM-pw" STUDY_HUB_SRC="$T/src" STUDY_HUB_BLOCKLIST=""
 # The private score repo is a local folder here (provenance records, error logs, receipts), and the token is a dummy.
 export STUDY_HUB_SCORES_DIR="$T/scores" STUDY_HUB_SCORES_TOKEN="ci-dummy-scores-token"
-mkdir -p "$STUDY_HUB_SCORES_DIR"
+mkdir -p "$STUDY_HUB_SCORES_DIR/G3/_receipts"
+# One past school test for SS (the mock's format pattern, rule F1): 1 multiple-choice question with 2 options.
+echo '{"id": "gmail:1a00000000a0a0a0", "subject": "SS", "kind": "form_receipt", "title": "CI past school test", "date": "2026-09-01", "datetime": "2026-09-01T09:00:00-07:00", "items": [{"n": 1, "q": "Which one shows directions?", "options": ["The key", "The compass rose"], "picked": "The compass rose"}]}' \
+  > "$STUDY_HUB_SCORES_DIR/G3/_receipts/1a00000000a0a0a0.json"
 mkdir -p "$STUDY_HUB_SRC" "$T/content"
 # CI has no plaintext of the real pages, so the test site starts empty: no pages and an empty manifest.
 git rm -rq --ignore-unmatch -- 'G*' index.html >/dev/null
@@ -46,7 +49,7 @@ open(os.path.join(d, "pic.png"), "wb").write(png(32, 18, (0, 102, 204)))
 import hashlib
 src = os.path.join(d, "facts.csv"); open(src, "w").write("fact\nThe compass rose shows directions.\n")
 prov = {"sources": [{"id": "file:" + src, "kind": "study_guide", "sha256": hashlib.sha256(open(src, "rb").read()).hexdigest()}],
-        "results_ingested": [], "weak_spots_from": []}
+        "results_ingested": ["gmail:1a00000000a0a0a0"], "weak_spots_from": [], "patterns_from": ["gmail:1a00000000a0a0a0"]}
 quiz = {"type": "quiz", "kind": "mock", "questions": [
     {"q": "What shows directions?", "options": ["The key", "The compass rose"], "answer": 1, "src": "file:%s#row=2" % src}]}
 base = {"grade": "G3", "subject": "SS", "added_by": "CI", "provenance": prov}
@@ -77,7 +80,9 @@ ok() { echo "PASS: $1"; }
 die() { echo "FAIL: $1"; exit 1; }
 
 # 1. good page
-python3 tools/sh_page.py "$T/content/good.json" >/dev/null
+python3 tools/sh_page.py "$T/content/good.json" > "$T/page1.txt" 2>&1 || { cat "$T/page1.txt"; die "sh_page.py failed on the good page"; }
+grep -q "format vs 1 school test" "$T/page1.txt" || { cat "$T/page1.txt"; die "sh_page.py printed no format comparison (F1)"; }
+! grep -q "WARNING: F1" "$T/page1.txt" || { cat "$T/page1.txt"; die "F1 warned on a mock that matches the school test"; }
 before=$(git rev-parse HEAD)
 tools/publish.sh "CI: sample page" > "$T/out1.txt" 2>&1 || { cat "$T/out1.txt"; die "publish.sh failed on a good page"; }
 after=$(git rev-parse HEAD)
@@ -147,6 +152,7 @@ PY2
 python3 tools/sh_page.py "$T/content/logger.json" >/dev/null
 tools/publish.sh "CI: logger page" > "$T/out4.txt" 2>&1 || { cat "$T/out4.txt"; die "publish.sh failed on the logger page"; }
 git log -1 --format=%B | grep -qx "Validated: sh-2" || die "logger page commit has no trailer"
+grep -q "WARNING: F1 G3/SS/CI-Logger/: mock format is out of range" "$T/out4.txt" || { cat "$T/out4.txt"; die "publish.sh did not warn on a mock (1 of 2 multiple choice) against a 100% multiple-choice school test (F1)"; }
 python3 - "$WT" "$T/logger-plain.html" <<'PY2' || die "logger page: hash list missing, or private words in plain/base64 form"
 import os, sys, json
 sys.path.insert(0, os.path.join(sys.argv[1], "tools")); import sh_decrypt as D, sh_lib as L

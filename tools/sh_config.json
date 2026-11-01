@@ -34,6 +34,8 @@
     "G3/WW/Lesson8/",
     "G3/WW/Lesson9/"
   ],
+  "school_subjects_note": "School tests (not contests). A mock on these pages must cite patterns_from (rule F1).",
+  "school_subjects": ["SS", "WW", "LA", "Math", "Sci", "Grammar"],
   "receipt_subjects": [
     ["(?i)\\bWW\\b|wordly wise|vocab test", "WW"],
     ["(?i)social studies|geography|\\bSS\\b|\\bCYK\\b|minoans", "SS"],

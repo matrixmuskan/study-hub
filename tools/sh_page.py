@@ -288,11 +288,22 @@ def write_provenance(c, path):
     try:
         where = S.check_access(write=True)
         log = S.get("%s/%s/_error_log.csv" % (c["grade"], c["subject"])) or b""
-        rec = P.record_bytes(c, path, P.now_pt().isoformat(), hashlib.sha256(log).hexdigest() if log else "")
+        built = P.now_pt().isoformat()
+        rec = P.record_bytes(c, path, built, hashlib.sha256(log).hexdigest() if log else "",
+                             P.open_row_ids(P.read_log(log.decode("utf-8"))))
         how = S.put(P.scores_path(path), rec, "provenance: %s" % path)
+        S.put(P.build_copy_path(path, built), rec, "build history: %s" % path)   # B5 history
     except S.ScoresError as ex:
         fail("provenance not written: %s" % ex)
     f = P.manifest_fields(rec)
+    try:
+        lines, probs = P.f1_report(json.loads(rec), S)
+    except S.ScoresError as ex:
+        lines, probs = ["format: cannot read the cited receipts: %s" % ex], []
+    for ln in lines:
+        print(ln)
+    for pr in probs:
+        print("sh_page: WARNING: F1 mock format is out of range: %s" % pr, file=sys.stderr)
     print("provenance: %s %s (%s); %d sources, %d questions, %d inferred, %d error-log rows retested"
           % (how, P.scores_path(path), where, f["n_sources"], f["n_questions"], f["n_inferred"], f["n_retests"]))
     return f
