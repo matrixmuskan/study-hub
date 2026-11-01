@@ -100,12 +100,12 @@
     "test_date": "2026-11-19",
     "added_by": "Naughty",
     "template": "sh-2",
-    "provenance_sha256": "0dc0579e1981eae4c3fc93c39ed2f27c4c5d385aca918a418eee2af390c7371d",
+    "provenance_sha256": "ef3ee54d8c83d8fa0dd9b35d8c7162ab856205b4b380b38f796e6cd7e65e4577",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 20,
     "n_retests": 0,
-    "built_at": "2026-11-01T12:14:41-08:00"
+    "built_at": "2026-11-01T12:57:02-08:00"
   },
   {
     "grade": "G3",
@@ -147,12 +147,12 @@
     "test_date": "2026-11-19",
     "added_by": "Naughty",
     "template": "sh-2",
-    "provenance_sha256": "06d9558d1524dd4920d9da0020933821bfc7f66b8247b2a3a3515753e353a554",
+    "provenance_sha256": "15e02ace4a81472326d4d663b44c7f2168ade360eac8a73fb4d1c0b8c7262037",
     "n_sources": 6,
     "n_inferred": 1,
     "n_questions": 18,
     "n_retests": 0,
-    "built_at": "2026-11-01T12:15:01-08:00"
+    "built_at": "2026-11-01T12:57:22-08:00"
   },
   {
     "grade": "G3",
@@ -162,12 +162,12 @@
     "test_date": "2026-11-19",
     "added_by": "Naughty",
     "template": "sh-2",
-    "provenance_sha256": "34a753c8b917f51f5f0c41a748eef0b98f105967cc80b5edecadf568b76235bb",
+    "provenance_sha256": "9314c6ce35bb741fe8141418802ac0b48358b420230f761121613212604883e9",
     "n_sources": 8,
     "n_inferred": 0,
     "n_questions": 18,
     "n_retests": 0,
-    "built_at": "2026-11-01T12:15:21-08:00"
+    "built_at": "2026-11-01T12:57:42-08:00"
   },
   {
     "grade": "G3",
@@ -177,11 +177,11 @@
     "test_date": "2026-11-19",
     "added_by": "Naughty",
     "template": "sh-2",
-    "provenance_sha256": "0d09b0b9a46d42e075a53b6222388f40d690f69f0a27ec3b5c464795ce9227f8",
+    "provenance_sha256": "69e02eb56bd1bf1ac51015e07a4d141d24452332348b4d5ec85676b750d2293b",
     "n_sources": 7,
     "n_inferred": 0,
     "n_questions": 18,
     "n_retests": 0,
-    "built_at": "2026-11-01T12:15:42-08:00"
+    "built_at": "2026-11-01T12:58:03-08:00"
   }
 ]
