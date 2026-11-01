@@ -1,0 +1,50 @@
+name: live-check
+# Crawls the LIVE site after each deploy and every day. Fails loudly (red run + email to the repo owner).
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 14 * * *"     # daily, 06:17 Pacific (standard time)
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: read
+concurrency:
+  group: live-check
+  cancel-in-progress: false
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    env:
+      # Optional. If a repository secret named STATICRYPT_PASSWORD exists, the pages are also decrypted in memory
+      # and get the full link, anchor, media, video, and design checks plus a headless Chrome run. Without it,
+      # the check covers HTTP status, encryption, template markers, and that the deploy matches the commit.
+      STATICRYPT_PASSWORD: ${{ secrets.STATICRYPT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Tools
+        run: |
+          pip install -q cryptography
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null
+      - name: Wait for the Pages deploy of this commit
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 60); do
+            b=$(gh api "repos/${{ github.repository }}/pages/builds/latest" --jq '.commit + " " + .status' 2>/dev/null || true)
+            echo "pages build: $b"
+            case "$b" in "${{ github.sha }} built") break ;; esac
+            sleep 15
+          done
+          sleep 45   # CDN
+      - name: Crawl the live site
+        run: python3 tools/sh_livecheck.py --url https://matrixmuskan.github.io/study-hub --repo .
+      - name: Headless Chrome crawl (only with the password secret)
+        if: env.STATICRYPT_PASSWORD != ''
+        run: |
+          pip install -q playwright && python3 -m playwright install --with-deps chromium >/dev/null
+          python3 tools/sh_browsercheck.py --live https://matrixmuskan.github.io/study-hub --external --chrome ""
