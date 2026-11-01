@@ -34,10 +34,11 @@
   {
     "grade": "G3",
     "subject": "WW",
-    "title": "Lesson 9: Word Quest (words, practice game, mock test)",
+    "title": "Lesson 9: Word Quest (words, practice, mock test, review)",
     "path": "G3/WW/Lesson9/",
     "test_date": "2026-11-05",
-    "added_by": "Worldy"
+    "added_by": "Worldy",
+    "template": "sh-2"
   },
   {
     "grade": "G3",
