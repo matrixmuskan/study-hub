@@ -14,11 +14,19 @@ Rules (repo):
   R6  No em dashes in plaintext files. .nojekyll exists. .staticrypt.json salt is unchanged from origin/main.
   R7  Private words from STUDY_HUB_BLOCKLIST (env, never in the repo) are in no plaintext file.
   R8  Content folders hold only index.html.
+  R9  Design standard (tools/sh_checks.py): shared CSS/JS and the login template use only the palette (no purple,
+      no multi-color gradients); every subject uses the one site accent.
 With --src: the staged or mirror plaintext pages also must carry the template marker, and the blocklist runs on them.
+  R9  (pages) no purple/violet, no multi-color gradients, no non-palette colors in a page's own styles.
+  R10 Links (tools/sh_checks.py): every internal href/src/poster resolves, every '#id' anchor exists, every data: URI
+      decodes with the right MIME type, every video has playable H.264/VP9/AV1 + AAC/Opus streams (ffprobe), and
+      every manifest page is linked from its subject hub page.
+  R11 Every page that logs scores truncates typed answers to 40 characters and redacts names (private list inside the page).
 """
 import argparse, json, os, re, subprocess, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sh_lib as L
+import sh_checks as C
 
 REPO = L.REPO
 SKIP_DIRS = {".git", "node_modules"}
@@ -132,8 +140,23 @@ def main():
     except Exception:
         pass
 
+    # Design standard for shared files (no password needed, runs in CI)
+    for f, pr in C.lint_paths([os.path.join(REPO, "assets"), os.path.join(REPO, "tools", "password_template.html")], strict=True) + C.lint_config():
+        err("R9", "%s: %s" % (os.path.relpath(f, REPO) if os.path.isabs(f) else f, pr))
+
     # Plaintext (local only)
     if a.src:
+        for rel, link, kind, cause in C.check_links(a.src, also=(REPO,)):
+            err("R10", "plaintext %s: %s %s: %s" % (rel, kind, link[:80], cause))
+        for it in items:
+            path = it.get("path", "")
+            hub = os.path.join(a.src, "/".join(path.split("/")[:2]), "index.html")
+            if os.path.exists(hub):
+                leaf = path.rstrip("/").split("/")[-1] + "/"
+                if ('href="../../%s"' % path) not in open(hub, encoding="utf-8").read() and ('href="%s"' % leaf) not in open(hub, encoding="utf-8").read():
+                    err("R10", "plaintext %s: hub page has no link to %s" % (os.path.relpath(hub, a.src), path))
+            else:
+                err("R10", "plaintext: no subject hub page for %s" % path)
         for root, dirs, fs in os.walk(a.src):
             dirs[:] = [d for d in dirs if not d.startswith("_")]
             for f in fs:
@@ -150,6 +173,10 @@ def main():
                     err("R7", f"plaintext {rel}: private word found")
                 if pw and len(pw) >= 6 and pw in t:
                     err("R5", f"plaintext {rel}: holds the site password")
+                if not L.logger_ok(t):
+                    err("R11", f"plaintext {rel}: score logger is missing the privacy rules (40-character answers, name redaction)")
+                for pr in C.design_problems(t, is_html=True):
+                    err("R9", f"plaintext {rel}: {pr}")
 
     if errors:
         print("VALIDATION FAILED (%d problems):" % len(errors))

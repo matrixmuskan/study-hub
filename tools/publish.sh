@@ -33,12 +33,39 @@ python3 "$REPO/tools/sh_stage.py" "$SRC" "$STAGE" >/dev/null
 mapfile -t PAGES < <(cd "$STAGE" && find . -name '*.html' -type f | sed 's|^\./||' | sort)
 cd "$REPO"   # staticrypt resolves -c and -d relative to the working directory
 # Only re-encrypt pages whose staged plaintext changed (StatiCrypt output is random each run,
-# so re-encrypting unchanged big pages would bloat git history). Hashes live in the mirror.
+# so re-encrypting unchanged big pages would bloat git history). Hashes live in the mirror and are
+# written only after a successful commit, so they always match what is committed.
 HASHES="$SRC/_state/staged_sha256.txt"; mkdir -p "$SRC/_state"; touch "$HASHES"
+NEWHASHES="$STAGE/.hashes"; cp "$HASHES" "$NEWHASHES"
 TPL_HASH=$(sha256sum "$REPO/tools/password_template.html" | cut -c1-12)
+CHANGED=()
 for p in "${PAGES[@]}"; do
   h=$( (sha256sum "$STAGE/$p" | cut -d' ' -f1; echo "$TPL_HASH") | sha256sum | cut -d' ' -f1)
   if [ -f "$p" ] && grep -qx "$h  $p" "$HASHES" && [ "${FORCE:-0}" != 1 ]; then echo "unchanged $p"; continue; fi
+  CHANGED+=("$p")
+  grep -v "  $p\$" "$NEWHASHES" > "$NEWHASHES.tmp" || true; echo "$h  $p" >> "$NEWHASHES.tmp"; mv "$NEWHASHES.tmp" "$NEWHASHES"
+done
+
+# Checks on the plaintext BEFORE anything is encrypted: links, anchors, media, video codecs, design standard.
+fail() { echo "CHECK FAILED: $1. Nothing was encrypted or committed."; exit 1; }
+python3 "$REPO/tools/sh_checks.py" links "$STAGE" || fail "broken links or media (see above)"
+python3 "$REPO/tools/sh_checks.py" design "$STAGE" || fail "design standard (see above)"
+if [ "${#CHANGED[@]}" -gt 0 ]; then
+  if python3 -c 'import playwright' 2>/dev/null; then
+    python3 "$REPO/tools/sh_browsercheck.py" --root "$STAGE" --pages "${CHANGED[@]}" || fail "browser check: links, images, or videos do not work in Chrome"
+  else
+    echo "WARNING: playwright is not installed, so the browser check (videos play, tabs, script errors) did not run."
+    echo "         Install it with: pip install playwright && python3 -m playwright install chromium"
+    [ "${CI:-}" = "true" ] || fail "browser check is required on the box"
+  fi
+fi
+
+restore() {  # put back the committed ciphertext for every page this run touched
+  for p in "${CHANGED[@]}"; do
+    if git ls-files --error-unmatch "$p" >/dev/null 2>&1; then git checkout -q -- "$p"; else rm -f "$p"; fi
+  done
+}
+for p in "${CHANGED[@]}"; do
   out_dir="$(dirname "$p")"
   mkdir -p "$out_dir"
   npx -y "staticrypt@$STATICRYPT_VERSION" "$STAGE/$p" \
@@ -50,22 +77,21 @@ for p in "${PAGES[@]}"; do
     --template-instructions "Enter the family password. Ask Muskan if you forgot." \
     --template-button "Open" \
     --template-remember "Remember me for 30 days" \
-    --template-color-primary "#0066cc" --template-color-secondary "#e8f1fb" >/dev/null
+    --template-color-primary "#0066cc" --template-color-secondary "#e8f1fb" >/dev/null || { restore; fail "StatiCrypt failed on $p"; }
   # Mark the encrypted file as built from an sh-2 staged page (validate.py checks this)
   tv=$(grep -o '<meta name="study-hub-template" content="[^"]*">' "$STAGE/$p" | head -1 | sed 's/.*content="\([^"]*\)".*/\1/')
-  [ -n "$tv" ] || { echo "Staged page has no template marker: $p"; exit 1; }
+  [ -n "$tv" ] || { restore; fail "staged page has no template marker: $p"; }
   printf '\n<!-- study-hub-template: %s -->\n' "$tv" >> "$p"
-  grep -v "  $p\$" "$HASHES" > "$HASHES.tmp" || true; echo "$h  $p" >> "$HASHES.tmp"; mv "$HASHES.tmp" "$HASHES"
   echo "encrypted $p"
 done
 
-# Safety: validate the repo (encryption, manifest, folders, template, secrets). A failure stops here,
-# so nothing is committed; the trailer below is added only when validation passed.
+# Safety: validate the repo (encryption, manifest, folders, template, secrets, links, design). A failure stops
+# here, puts the old ciphertext back, and commits nothing; the trailer is added only when validation passed.
 VALIDATED=""
 if python3 "$REPO/tools/validate.py" --src "$STAGE"; then
   VALIDATED=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["template_version"])' "$REPO/tools/sh_config.json")
 else
-  echo "Validation failed: nothing committed. Fix the problems above and run publish.sh again."; exit 1
+  restore; fail "validation"
 fi
 
 git add -A -- ':(glob)G*/**' index.html manifest.json  # only publish outputs; tools/assets changes go through a PR
@@ -73,6 +99,10 @@ if git diff --cached --quiet; then echo "nothing to commit"
 else
   msg=(-m "${1:-Publish study hub pages}")
   [ -n "$VALIDATED" ] && msg+=(-m "Validated: $VALIDATED")
-  git commit -q "${msg[@]}" && git log --oneline -1
+  git commit -q "${msg[@]}" || { restore; fail "git commit"; }
+  git log --oneline -1
 fi
+cp "$NEWHASHES" "$HASHES"
+# Plaintext hashes of every mirror page (content and hub pages), so the next run can see what changed in the mirror.
+(cd "$SRC" && find . -name '*.html' -type f -not -path './_*' | sed 's|^\./||' | sort | xargs -r sha256sum) > "$SRC/_state/plaintext_sha256.txt"
 echo "Done. Review, then push with: git pull --rebase && git push origin main"
