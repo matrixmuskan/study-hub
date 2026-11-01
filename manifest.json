@@ -74,10 +74,11 @@
   {
     "grade": "G3",
     "subject": "Noetic",
-    "title": "Warm-up Mock: Spring 2024 paper (45-minute timed test, results and error log)",
+    "title": "Warm-up Mock: Spring 2024 paper",
     "path": "G3/Noetic/Mock-Warmup-Spring2024/",
-    "test_date": "2026-10-22",
-    "added_by": "Naughty"
+    "test_date": "2026-11-19",
+    "added_by": "Naughty",
+    "template": "sh-2"
   },
   {
     "grade": "G3",
@@ -110,5 +111,32 @@
     "path": "G3/LA/LWW-Final-Q2/",
     "test_date": "2026-10-28",
     "added_by": "Booky"
+  },
+  {
+    "grade": "G3",
+    "subject": "Noetic",
+    "title": "Chapter 1: Overlaps and Counting quiz",
+    "path": "G3/Noetic/Ch1-Quiz/",
+    "test_date": "2026-11-19",
+    "added_by": "Naughty",
+    "template": "sh-2"
+  },
+  {
+    "grade": "G3",
+    "subject": "Noetic",
+    "title": "Chapter 2: Logic and Digit Puzzles quiz",
+    "path": "G3/Noetic/Ch2-Quiz/",
+    "test_date": "2026-11-19",
+    "added_by": "Naughty",
+    "template": "sh-2"
+  },
+  {
+    "grade": "G3",
+    "subject": "Noetic",
+    "title": "Chapter 3: Acting It Out quiz",
+    "path": "G3/Noetic/Ch3-Quiz/",
+    "test_date": "2026-11-19",
+    "added_by": "Naughty",
+    "template": "sh-2"
   }
 ]
