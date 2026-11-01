@@ -805,6 +805,7 @@ def attach_main(a, S):
     it out of legacy_provenance. Box only. The page HTML does not change."""
     if not a.subject or not os.path.isfile(a.subject):
         sys.exit("usage: sh_provenance.py attach <fragment.json>")
+    _lock = L.mirror_lock(L.default_src(), "sh_provenance.py attach " + a.subject)   # attach edits manifest and config
     frag = json.load(open(a.subject, encoding="utf-8"))
     mp = os.path.join(L.REPO, "manifest.json")
     items = json.load(open(mp, encoding="utf-8"))

@@ -232,6 +232,7 @@ def main():
     ap.add_argument("--out", help="write here instead of the mirror (for previews; placeholder token kept)")
     ap.add_argument("--no-provenance", action="store_true", help="do not write _provenance.json (legacy pages and tests only)")
     a = ap.parse_args()
+    _lock = None if a.out else L.mirror_lock(a.src, "sh_page.py " + a.content)   # held until this process ends
     if os.path.exists(os.path.expanduser("~/.study-hub.env")) and not os.environ.get("STUDY_HUB_BLOCKLIST"):
         for line in open(os.path.expanduser("~/.study-hub.env")):
             if line.startswith("STUDY_HUB_BLOCKLIST="):

@@ -8,6 +8,8 @@ set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="${STUDY_HUB_SRC:-$(dirname "$REPO")/study-hub-src}"
 export STUDY_HUB_SRC="$SRC"
+# One session per mirror: publish runs under tools/sh_lock.sh (the same lock as sh_page.py and attach).
+[ -n "${SH_LOCK_HELD:-}" ] || exec "$REPO/tools/sh_lock.sh" "$0" "$@"
 STATICRYPT_VERSION="3.5.4"   # pinned: tools/password_template.html is from this version
 if { [ -z "${STATICRYPT_PASSWORD:-}" ] || [ -z "${STUDY_HUB_KID_FIRST_NAME:-}" ]; } && [ -f "$HOME/.study-hub.env" ]; then set -a; . "$HOME/.study-hub.env"; set +a; fi
 : "${STATICRYPT_PASSWORD:?Set STATICRYPT_PASSWORD (ask Muskan) or create ~/.study-hub.env}"
@@ -120,4 +122,4 @@ fi
 cp "$NEWHASHES" "$HASHES"
 # Plaintext hashes of every mirror page (content and hub pages), so the next run can see what changed in the mirror.
 (cd "$SRC" && find . -name '*.html' -type f -not -path './_*' | sed 's|^\./||' | sort | xargs -r sha256sum) > "$SRC/_state/plaintext_sha256.txt"
-echo "Done. Review, then push with: git pull --rebase && git push origin main"
+echo "Done. Push with: git push origin main (inside the same tools/sh_lock.sh session; never git pull --rebase onto a rewritten main)"
