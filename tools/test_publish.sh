@@ -13,6 +13,8 @@ trap cleanup EXIT
 git -C "$REPO" worktree add -q --detach "$WT" HEAD
 cd "$WT"
 git config user.name "Study Hub Bot"; git config user.email "study-hub-bot@users.noreply.github.com"
+export PYTHONUSERBASE="${PYTHONUSERBASE:-$HOME/.local}" npm_config_cache="${npm_config_cache:-$HOME/.npm}"
+export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}"
 export HOME="$T/home"; mkdir -p "$HOME"            # no ~/.study-hub.env: only the dummy password below
 export STATICRYPT_PASSWORD="ci-dummy-$RANDOM-$RANDOM-pw" STUDY_HUB_SRC="$T/src" STUDY_HUB_BLOCKLIST=""
 unset STUDY_HUB_SCORES_TOKEN || true
