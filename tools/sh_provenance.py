@@ -490,7 +490,7 @@ def _q_missed(q, keys):
 
 def _norm_q(s):
     s = re.sub(r"\[name\]", "", s or "", flags=re.I)
-    fn = (L.CFG.get("kid_first_name") or "").lower()
+    fn = L.kid_first_name().lower()
     s = s.lower().replace(fn, "") if fn else s.lower()
     return re.sub(r"[^a-z0-9]+", "", s)[:40]
 

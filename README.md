@@ -1,4 +1,4 @@
-# Krishiv's Study Hub (for bots and helpers)
+# Study Hub (for bots and helpers)
 
 Static GitHub Pages site: https://matrixmuskan.github.io/study-hub/
 
@@ -50,7 +50,7 @@ Basy checks every push for these, and coaches check them before pushing:
 
 1. Encrypted pages only: every `.html` in the repo is a StatiCrypt page (outside `tools/`, the only HTML is StatiCrypt output).
 2. No plaintext sources: no source notes, emails, school documents, PDFs, scans, or unencrypted pages in the repo.
-3. No private info: no school name, teacher names, home address, birthday, or family details. The only name allowed is the kid's first name, Krishiv.
+3. No private info: no school name, teacher names, home address, birthday, or family details. The only name allowed is the kid's first name (it is not written in this repo: it lives in `~/.study-hub.env` on the box as `STUDY_HUB_KID_FIRST_NAME`).
 4. Correct folder: `G<grade>/<Subject code>/<Chapter-or-Lesson id>/index.html`.
 5. Correct manifest: one `manifest.json` entry per page, `path` matches the folder, `added_by` is the owning bot.
 6. Unchanged salt: `.staticrypt.json` is not edited (a new salt breaks "remember me" on every page).
@@ -62,18 +62,19 @@ Basy checks every push for these, and coaches check them before pushing:
 
 - `publish.sh` refuses to encrypt if a page contains any word from `STUDY_HUB_BLOCKLIST` (kept in `~/.study-hub.env`, not in the repo).
 
-- No school name, teacher names, home address, birthday, or other personal details on any page. The only name allowed is the kid's first name, Krishiv. Say "the teacher" instead of a name.
+- No school name, teacher names, home address, birthday, or other personal details on any page. The only name allowed is the kid's first name (it is not written in this repo: it lives in `~/.study-hub.env` on the box as `STUDY_HUB_KID_FIRST_NAME`). Say "the teacher" instead of a name.
 - No em dashes anywhere.
 - Passwords: pages are protected only through StatiCrypt with the shared salt in `.staticrypt.json` (do not change the salt, or "remember me" stops working across pages). The password is not stored in this repo; ask Muskan. `tools/publish.sh` reads it from the `STATICRYPT_PASSWORD` environment variable or from `~/.study-hub.env` (outside the repo, chmod 600).
 - Never commit plaintext pages, source notes, emails, or school documents.
-- `.nojekyll` must stay so GitHub Pages serves files as-is.
+- Deploy: `.github/workflows/pages.yml` uploads only the site files (`tools/site_files.py`: `G<n>/` pages, `index.html`, `assets/`, `manifest.json`) with `actions/upload-pages-artifact` and `actions/deploy-pages`; the Pages source is GitHub Actions. `tools/`, `*.md`, `templates/`, `docs/` and `.staticrypt.json` are not served (404); `live-check` verifies this and that every served file is byte-identical to the commit.
+- The child's first name is never in a tracked file: `validate.py` rule R12 checks every tracked file against a salted hash (`name_guard` in `tools/sh_config.json`) in CI, and against the name itself on the box. `publish.sh` stops if `STUDY_HUB_KID_FIRST_NAME` is missing.
 
 ## Files
 
 - `manifest.json`: list of content pages shown on the hub pages.
 - `assets/css/sh.css`, `assets/js/sh.js`: the shared design system (sh-2). Inlined into every page at publish time.
 - `assets/css/sh-legacy.css`: the sh-2 skin for pages built before sh-2 (looks only, scripts unchanged).
-- `assets/js/shlog.js`: the score logger (the only reference; `/workspace/study-hub-scores-kit/logger.js` is a copy). Privacy v4: no free text leaves the page. A missed item is its number, a known item id, the option letter, a typed number or listed wrong answer, a trap key, and 2 booleans; details are a fixed list of keys; each file has the page build id and is committed as Study Hub Bot. `tools/sh_stage.py` upgrades older inline copies at publish time.
+- `assets/js/shlog.js`: the score logger (the only reference; `/workspace/study-hub-scores-kit/logger.js` is a copy). Privacy v4: no free text leaves the page. A missed item is its number, a known item id, the option letter, a typed number or listed wrong answer, a trap key (only for a wrong pick or a listed typed answer, never for a blank item), and 2 booleans; details are a fixed list of keys; each file has the page build id and is committed as Study Hub Bot. `tools/sh_stage.py` upgrades older inline copies at publish time.
 - `tools/sh_config.json`: subject codes, names, accent colors, grade names.
 - `tools/sh_page.py`: content file (JSON or Markdown) to a plaintext page in the mirror, plus manifest entry.
 - `tools/build_index.py`: builds the plaintext home, grade, and subject pages into the mirror from the manifest.

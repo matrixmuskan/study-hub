@@ -1,0 +1,29 @@
+name: pages
+# Deploys ONLY the site files (tools/site_files.py: G<n>/ pages, index.html, assets/, manifest.json) to GitHub Pages.
+# tools/, *.md, templates/, docs/ and .staticrypt.json are not served (404). Pages source: GitHub Actions.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Site files only
+        run: python3 tools/site_files.py --out _site
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

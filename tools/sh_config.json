@@ -1,7 +1,8 @@
 {
   "template_version": "sh-2",
   "site_title": "Study Hub",
-  "kid_first_name": "Krishiv",
+  "name_guard_note": "The child's first name is never in this repo. On the box it is STUDY_HUB_KID_FIRST_NAME in ~/.study-hub.env. validate.py (R12) fails on any tracked file with a word whose salted PBKDF2-SHA256 matches name_guard.",
+  "name_guard": {"salt": "8954f0d0c57c846ccc81a4f5b0370b15", "iterations": 5000, "sha256": "9315387d3b0d713877a40a6c38fa8992a81b9a01ec3616aa0e431c806a4450e1"},
   "grades": {"G3": "Grade 3", "G4": "Grade 4", "G5": "Grade 5"},
   "subjects": {
     "SS":       {"name": "Social Studies",        "mono": "Ss", "accent": "#0066cc", "soft": "#e8f1fb"},
