@@ -266,12 +266,19 @@ There is one error log per subject: `study-hub-scores/G3/<Subject>/_error_log.cs
 A subject can add more columns after these (for example `sense` or `paper`). Rules:
 
 - `id` is stable. Never change or reuse it. Examples: `L8-quarry-1` (WW), `SS-2026-09-02-1a2b3c` (made by the import when a row had no id).
-- `resolved` is `no`, `yes`, or `void`. The `no` rows are the open rows. Each new page re-tests them in a rotation (rule B5), so a page never has to re-test all of them:
+- `resolved` is `no`, `yes`, `void`, or `closed`. Any other value fails the build.
+  - `closed` means: the school test already happened, so the row is pattern input only, with no re-practice (Muskan's rule: when the test happens, it is done; the goal of the next test is the pattern). It is not `yes`: B6 does not apply to it, and it never needs correct answers.
+  - Each subject has a mode (`subject_modes` in `tools/sh_config.json`). School: SS, WW, LA, Math, Sci, Grammar. Contest: Noetic, Kangaroo, MOEMS.
+  - When a real school test happens, set `closed` on its rows (`python3 tools/migrate_error_logs.py --close-school` does this for rows with `round=school`). Rows from practice (mock, game, retest) stay `no`.
+- The open rows that B5 counts:
+  - School subject: only `no` rows dated after the last real school test of the subject (the current prep window). The last test is the newest ingested receipt of the subject, or the newest `round=school` row. Older `no` rows are ignored (`plan` lists them so you can close them).
+  - Contest subject: every `no` row (cumulative).
+- Each new page re-tests the open rows in a rotation (rule B5), so a page never has to re-test all of them:
   - (a) The page re-tests at least min(15, open rows), chosen oldest-first: first the open rows that were re-tested least recently (never re-tested comes first), then by row `date`, then by `id`.
   - (b) Every open row is re-tested at least once in any 3 consecutive builds of the subject. A row that was open in the last 2 builds and was re-tested in neither must be re-tested in this build.
   - (c) A row that was missed again since the last build must be re-tested in this build. "Missed again" means a later attempt has the row's question in `missed`, or the row has an `attempt=` note with a later attempt.
   - Every id in `retests` must be a real row.
-  - To see what to re-test, run `python3 tools/sh_provenance.py plan G3/<Subject>`. It prints the ids to put in `retests`. The build history is in `study-hub-scores/G3/<Subject>/_builds/` (`sh_page.py` writes one copy per build, with the open rows at that time).
+  - To see what to re-test, run `python3 tools/sh_provenance.py plan G3/<Subject>`. It prints the ids to put in `retests`, then a `patterns` section: the closed rows with their trap types (`error_type`) and question styles (`skill`). Use them to shape the mock (rule F1), not as re-practice. The build history is in `study-hub-scores/G3/<Subject>/_builds/` (`sh_page.py` writes one copy per build, with the open rows at that time).
 - A row can be `yes` only after 2 correct answers on the same fact, on 2 different days (Pacific time). Put each one in `notes` as `correct=<attempt path>`, set `correct_count` to 2 or more, and put both days in `last_correct_dates` (for example `2026-11-03;2026-11-05`). The page of each attempt must have a question with this row id in `retests`, and the attempt must not list that question in `missed` (rule B6).
 - Put each score file that you read in `notes` as `attempt=<path>`.
 
@@ -292,7 +299,7 @@ The old box logs (`/workspace/<coach>/error_log.csv`) were imported by `tools/mi
 | B2 | every question has `src` or `inferred`; `file:` sources exist with the same sha256; `gmail:` ids have a receipt | `sh_page.py`, `publish.sh` |
 | B3 | every older score file of the subject is in `weak_spots_from` or an `attempt=` note | `publish.sh` |
 | B4 | every older receipt of the subject is in `results_ingested` | `publish.sh` |
-| B5 | re-test rotation: at least min(15, open rows) oldest-first; every open row once in any 3 consecutive builds; a row missed again since the last build now | `publish.sh` (`plan` shows the ids) |
+| B5 | re-test rotation over the open rows B5 counts (school: `no` rows after the last real school test; contest: every `no` row): at least min(15, open rows) oldest-first; every open row once in any 3 consecutive builds; a row missed again since the last build now. `resolved` is one of `no`, `yes`, `void`, `closed`; `closed` rows never count | `publish.sh` (`plan` shows the ids) |
 | B6 | `resolved=yes` only with 2 correct answers on 2 PT days | `publish.sh` |
 | B7 | a page with a quiz logs to study-hub-scores | `sh_page.py`, `validate.py --src` |
 | F1 | a school-subject mock cites `patterns_from` (required) and matches their question count, question types, option count and length (warning) | `sh_page.py` (required, prints the comparison), `publish.sh` (warning) |
@@ -301,7 +308,9 @@ The old box logs (`/workspace/<coach>/error_log.csv`) were imported by `tools/mi
 
 ### 11.5 School mocks match the real test (rule F1)
 
-For school subjects (`school_subjects` in `tools/sh_config.json`: SS, WW, LA, Math, Sci, Grammar), the goal of a training page is a mock paper with the same difficulty and format as the real school test. Contest subjects (Noetic, Kangaroo, MOEMS) use past papers instead.
+For school subjects (`subject_modes` in `tools/sh_config.json`: SS, WW, LA, Math, Sci, Grammar are `school`), the goal of a training page is a mock paper with the same difficulty and format as the real school test. Contest subjects (Noetic, Kangaroo, MOEMS) use past papers instead.
+
+The pattern input is the past school receipts in `patterns_from` and the subject's `closed` rows (11.2): their trap types (`error_type`) and question styles (`skill`). `sh_page.py` and `plan` print them. Build the mock to the same traps and styles, with new items, not the old questions again.
 
 1. A page with a `mock` quiz must have `patterns_from`: 1 or more past school receipts of the same teacher and subject. `sh_page.py` stops without it. Each id must be an ingested receipt of the same subject (rule B2).
 2. `sh_page.py` prints a comparison of the mock with the mean of those receipts:

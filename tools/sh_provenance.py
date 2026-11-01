@@ -16,7 +16,8 @@ Rules
     B3  every score file under G3/<Subject>/ older than the build is in weak_spots_from or in an error-log note
         "attempt=<path>".
     B4  every receipt for the subject (G3/_receipts/*.json) dated before the build is in results_ingested.
-    B5  re-test rotation over the open rows (resolved=no) of the subject's error log, using the build history in
+    B5  (school subjects: only open rows after the last real school test, the current prep window; closed rows never
+        count. Contest subjects: every open row.) Re-test rotation over the open rows (resolved=no) of the error log, using the build history in
         study-hub-scores (G3/<Subject>/_builds/):
         (a) the page re-tests at least min(15, open rows), chosen oldest-first: the open rows that were re-tested
             least recently (never first), then by row date, then by id;
@@ -25,7 +26,7 @@ Rules
         (c) a row that was missed again since the last build (a later attempt missed a question that re-tests it, or
             an "attempt=" note after the last build) must be re-tested now;
         and every retests id is a real row. "python3 tools/sh_provenance.py plan G3/<Subject>" prints what to re-test.
-    F1  school subjects (tools/sh_config.json "school_subjects"): a page with a mock cites patterns_from (past school
+    F1  school subjects (tools/sh_config.json "subject_modes" = school): a page with a mock cites patterns_from (past school
         receipts of that teacher and subject, as gmail:<id>). sh_page.py prints a format and difficulty comparison of
         the mock with those receipts (question count, question types, option count, stem length), and publish.sh
         warns when it is out of range (F1_TOL). Citing is required (sh_page.py, B2); the range is a warning.
@@ -131,7 +132,7 @@ def content_problems(c):
         inf = sum(q["inferred"] for q in qs)
         if inf / len(qs) > MAX_INFERRED:
             out.append("%d of %d questions are inferred (%.0f%%); the limit is 20%%" % (inf, len(qs), 100.0 * inf / len(qs)))
-    if c.get("subject") in L.CFG.get("school_subjects", []) and any(q["kind"] == "mock" for q in qs):
+    if subject_mode(c.get("subject")) == "school" and any(q["kind"] == "mock" for q in qs):
         pf = p.get("patterns_from")
         if not isinstance(pf, list) or not pf:
             out.append("F1: a school-subject mock needs provenance.patterns_from: past school receipts of this teacher and "
@@ -204,14 +205,22 @@ def format_compare(questions, receipts):
 def f1_report(rec, S, grade="G3"):
     """(lines, problems) for a record of a school subject with a mock, or ([], []) when F1 does not apply."""
     subj = rec["page"].split("/")[1]
-    if rec.get("attached") or subj not in L.CFG.get("school_subjects", []) or not any(q.get("kind") == "mock" for q in rec["questions"]):
+    if rec.get("attached") or subject_mode(subj) != "school" or not any(q.get("kind") == "mock" for q in rec["questions"]):
         return [], []
     rcs = []
     for g in rec["provenance"].get("patterns_from", []):
         b = S.get("%s/_receipts/%s.json" % (grade, g[6:]))
         if b:
             rcs.append(json.loads(b))
-    return format_compare(rec["questions"], rcs)
+    lines, probs = format_compare(rec["questions"], rcs)
+    # closed rows (school tests that already happened) are the pattern input: their trap types and question styles
+    log = S.get("%s/%s/_error_log.csv" % (grade, subj))
+    if log:
+        pr, traps, styles = pattern_summary(read_log(log.decode("utf-8")))
+        if pr:
+            lines.append("patterns from %d closed rows (past school tests): traps %s; styles %s"
+                         % (len(pr), ", ".join("%s (%d)" % t for t in traps[:5]), ", ".join("%s (%d)" % t for t in styles[:5])))
+    return lines, probs
 
 
 def manifest_fields(rec_bytes):
@@ -231,6 +240,62 @@ def build_copy_path(rel_dir, built_at):
     g, subj, lesson = rel_dir.strip("/").split("/")[:3]
     stamp = re.sub(r"[^0-9T]", "", datetime.fromisoformat(built_at).astimezone(PT).strftime("%Y-%m-%dT%H%M%S"))
     return "%s/%s/_builds/%s-%s.json" % (g, subj, stamp, lesson)
+
+
+STATUSES = ("no", "yes", "void", "closed")
+
+
+def subject_mode(subj):
+    """'school' or 'contest' (tools/sh_config.json subject_modes). An unknown subject counts as school."""
+    return (L.CFG.get("subject_modes") or {}).get(subj, "school")
+
+
+def status(r):
+    return (r.get("resolved") or "").strip().lower()
+
+
+def last_school_test(S, grade, subj, rows, built, files=None):
+    """Date (YYYY-MM-DD) of the last real school test of the subject on or before 'built': the newest ingested
+    receipt of the subject, or the newest error-log row from a school test (round=school). None if there is none."""
+    day = built.date().isoformat() if hasattr(built, "date") else str(built)[:10]
+    dates = [(r.get("date") or "")[:10] for r in rows if (r.get("round") or "").strip().lower() == "school"]
+    files = files if files is not None else S.tree(grade + "/")
+    for f in files:
+        if f.startswith(grade + "/_receipts/") and f.endswith(".json"):
+            try:
+                rc = json.loads(S.get(f))
+            except (ValueError, TypeError):
+                continue
+            if rc.get("subject") == subj:
+                dates.append((rc.get("date") or "")[:10])
+    dates = [d for d in dates if d and d <= day]
+    return max(dates) if dates else None
+
+
+def b5_rows(S, grade, subj, rows, built, files=None):
+    """(rows B5 counts, window start date or None). School: open rows dated after the last real test (the current
+    prep window); closed rows never count. Contest: every open row (cumulative)."""
+    opened = [r for r in rows if status(r) == "no" and r.get("id")]
+    if subject_mode(subj) != "school":
+        return opened, None
+    lt = last_school_test(S, grade, subj, rows, built, files)
+    if lt is None:
+        return opened, None
+    return [r for r in opened if (r.get("date") or "")[:10] > lt], lt
+
+
+def pattern_rows(rows):
+    """Closed rows (school test already happened): pattern input for F1 and patterns_from, never re-practice."""
+    return [r for r in rows if status(r) == "closed" and r.get("id")]
+
+
+def pattern_summary(rows):
+    """Trap types and question styles of the closed rows, most common first."""
+    from collections import Counter
+    pr = pattern_rows(rows)
+    traps = Counter((r.get("error_type") or "").strip() or "(no error_type)" for r in pr)
+    styles = Counter((r.get("skill") or "").strip() or "(no skill)" for r in pr)
+    return pr, traps.most_common(), styles.most_common()
 
 
 def open_row_ids(rows):
@@ -286,7 +351,8 @@ def b5_plan(S, grade, subj, rows, built, page=None, files=None):
     files = files if files is not None else S.tree(grade + "/")
     prior = [r for r in history(S, grade, subj, files)
              if datetime.fromisoformat(r["built_at"]) < built and not (page and r["page"] == page and r["built_at"] == built.isoformat())]
-    opened = [r for r in rows if (r.get("resolved") or "").strip().lower() == "no" and r.get("id")]
+    opened, window_from = b5_rows(S, grade, subj, rows, built, files)
+    all_open = [r["id"] for r in rows if status(r) == "no" and r.get("id")]
     last = {}
     for rec in prior:
         for q in rec.get("questions", []):
@@ -316,7 +382,10 @@ def b5_plan(S, grade, subj, rows, built, page=None, files=None):
         open_ids = {r["id"] for r in opened}
         again = {k2: v for k2, v in again.items() if k2 in open_ids}
     return {"open": [r["id"] for r in order], "k": k, "oldest": oldest, "due": due, "again": again,
-            "builds": len(prior), "last_build": prior[-1]["built_at"] if prior else None}
+            "builds": len(prior), "last_build": prior[-1]["built_at"] if prior else None,
+            "mode": subject_mode(subj), "window_from": window_from,
+            "outside": [x for x in all_open if x not in {r["id"] for r in opened}],
+            "patterns": [r["id"] for r in pattern_rows(rows)]}
 
 
 # ---------- public rules ----------
@@ -490,6 +559,9 @@ def box_problems(entry, S, check_files=True):
         for x, a in sorted(plan["again"].items()):
             if x not in retested:
                 out.append(("B5", "%s: (c) row %s was missed again since the last build (%s); re-test it now" % (path, x, a)))
+    for r in rows:
+        if status(r) not in STATUSES:
+            out.append(("B5", "%s/%s/_error_log.csv row %s: resolved must be one of %s" % (grade, subj, r.get("id"), ", ".join(STATUSES))))
     for rid in sorted(retested - row_ids):
         out.append(("B5", "%s: retests names %s, which is not an error-log row id" % (path, rid)))
     # B6
@@ -610,11 +682,24 @@ def main():
         except S.ScoresError as ex:
             sys.exit("PLAN FAILED: %s" % ex)
         need = list(dict.fromkeys(pl["oldest"] + pl["due"] + sorted(pl["again"])))
-        print("%s: %d open rows, %d earlier builds (last %s)" % (a.subject, len(pl["open"]), pl["builds"], pl["last_build"] or "none"))
+        if pl["mode"] == "school":
+            print("%s: school subject; prep window after the last real test (%s): %d open rows count for B5, %d earlier builds (last %s)"
+                  % (a.subject, pl["window_from"] or "none yet", len(pl["open"]), pl["builds"], pl["last_build"] or "none"))
+            if pl["outside"]:
+                print("open rows from before the window (B5 ignores them; set closed if their test happened): %s" % ", ".join(pl["outside"]))
+        else:
+            print("%s: contest subject (cumulative): %d open rows, %d earlier builds (last %s)"
+                  % (a.subject, len(pl["open"]), pl["builds"], pl["last_build"] or "none"))
         print("(a) oldest-first, at least %d: %s" % (pl["k"], ", ".join(pl["oldest"]) or "none"))
         print("(b) due by the %d-build window: %s" % (B5_WINDOW, ", ".join(pl["due"]) or "none"))
         print("(c) missed again since the last build: %s" % (", ".join(sorted(pl["again"])) or "none"))
         print("put these ids in 'retests' (%d): %s" % (len(need), json.dumps(need)))
+        pr, traps, styles = pattern_summary(rows)
+        print("patterns (closed rows: school test already happened; pattern input for the mock and patterns_from, not re-practice): %d" % len(pr))
+        if pr:
+            print("  trap types: %s" % ", ".join("%s (%d)" % t for t in traps))
+            print("  question styles: %s" % ", ".join("%s (%d)" % t for t in styles))
+            print("  rows: %s" % ", ".join(r["id"] for r in pr))
         return
     if a.cmd == "attach":
         return attach_main(a, S)
