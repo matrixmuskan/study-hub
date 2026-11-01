@@ -53,12 +53,12 @@
     "test_date": "2026-11-05",
     "added_by": "Worldy",
     "template": "sh-2",
-    "provenance_sha256": "2172bc544562092ee76aa30cc0933cd5561e718de48491ffc7f883f645b9d024",
+    "provenance_sha256": "4d044a6bb11fd134ae320dfaa781ab70ac9af38177253ad16f19531257bedbe6",
     "n_sources": 13,
     "n_inferred": 0,
     "n_questions": 117,
     "n_retests": 0,
-    "built_at": "2026-11-01T12:15:53-08:00"
+    "built_at": "2026-11-01T12:41:53-08:00"
   },
   {
     "grade": "G3",
