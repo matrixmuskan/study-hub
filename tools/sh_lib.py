@@ -365,7 +365,23 @@ _CUT_RE = re.compile(r"function cut\(v\)\{[^\n]*?\}\s*")
 _PRIV_RE = re.compile(r"/\*sh-privacy v\d+\*/.*?/\*sh-privacy end\*/", re.S)
 _OLD_COMMENT_RE = re.compile(r"[ \t]*// Privacy:[^\n]*\n(?:[ \t]*//[^\n]*\n)*")
 REDACT_ELEM_RE = re.compile(r'[ \t]*<script type="application/json" id="sh-redact">(.*?)</script>\n?', re.S)
-PRIVACY_VERSION = "/*sh-privacy v3*/"
+PRIVACY_VERSION = "/*sh-privacy v4*/"
+SH_DATA_RE = re.compile(r'<script type="application/json" id="sh-data">(.*?)</script>', re.S)
+BUILD_META_RE = re.compile(r'[ \t]*<meta name="sh-build" content="[0-9a-f]*">\n?')
+_REC_V3 = "missed:(r.missed||[]).map(clean),details:facts(r.details),"
+_REC_V4 = "missed:cleanAll(r.missed,kind),details:facts(r.details),build:buildId(),"
+_RET_OLD = "return {init:init,record:record,flush:flush,queue:load,_b64:b64};"
+_RET_NEW = "return {init:init,record:record,flush:flush,queue:load,allow:allow,_b64:b64};"
+# Older pages (not built by sh_page.py) build their own missed list. These small additions, made at stage time, give
+# the logger what it needs (n, the option index k, item kind); the page's own source files are not changed.
+LEGACY_ADAPTERS = [
+    ("G3/WW/Lesson8/index.html", "missed:(G.rm||[]).map(m=>{const q=PRACTICE[m.i];return {q:q.q,",
+     "missed:(G.rm||[]).map(m=>{const q=PRACTICE[m.i];return {n:m.i+1,k:m.oi,q:q.q,"),
+    ("G3/SS/Continents-Oceans-Retake/index.html", "missed:missList.map(m=>{const q=m.q;return {n:m.n,",
+     "missed:missList.map(m=>{const q=m.q;return {n:m.n,k:m.k,blank:m.k==null,"),
+    ("G3/SS/Final1-Ch1-2-8/index.html", "const missed=G.rm.map(m=>{const q=D.QUIZ[m.idx],isTrap=m.k===q.trap;return {n:m.idx+1,",
+     "const missed=G.rm.map(m=>{const q=D.QUIZ[m.idx],isTrap=m.k===q.trap;return {n:m.idx+1,k:m.k,blank:m.k==null,"),
+]
 STAGE_MARK = ".sh-staged"
 _PUT_OLD = "body:JSON.stringify({message:item.message,content:item.content})"
 _PUT_NEW = "body:JSON.stringify({message:item.message,content:item.content,committer:BOT,author:BOT})"
@@ -385,6 +401,27 @@ def redact_terms(blocklist=""):
     if CFG.get("kid_first_name"):
         terms.add(CFG["kid_first_name"].strip().lower())
     return sorted(terms)
+
+
+def build_id(h):
+    """Stable id of a page build: sha256 of its sh-data (without the token), or of the page source when it has no
+    sh-data. 16 hex characters. sh_page.py stores the same id in the provenance record."""
+    import hashlib
+    m = SH_DATA_RE.search(h)
+    if m:
+        try:
+            d = json.loads(m.group(1))
+            return data_build_id(d)
+        except ValueError:
+            pass
+    src = BUILD_META_RE.sub("", h)
+    return hashlib.sha256(src.encode("utf-8")).hexdigest()[:16]
+
+
+def data_build_id(d):
+    import hashlib
+    d = {k: v for k, v in d.items() if k not in ("token", "build")}
+    return hashlib.sha256(json.dumps(d, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
 
 
 def _privacy_block():
@@ -413,8 +450,18 @@ def patch_logger(h, blocklist="", rel_path=""):
     body = body.replace(*_REC_OLD)
     body = body.replace("details:r.details||{}", "details:facts(r.details)")
     body = body.replace(_PUT_OLD, _PUT_NEW)
-    h = h[:start] + body + h[end:]
-    return REDACT_ELEM_RE.sub("", h)
+    body = body.replace(_REC_V3, _REC_V4).replace("var payload={v:1,", "var payload={v:2,")
+    h = h[:start] + body + h[end:].replace(_RET_OLD, _RET_NEW, 1)
+    h = REDACT_ELEM_RE.sub("", h)
+    for rel, a, b in LEGACY_ADAPTERS:
+        if rel_path == rel and a in h and b not in h:
+            h = h.replace(a, b)
+    # build id for the logger (meta tag, before </head>)
+    h = BUILD_META_RE.sub("", h)
+    k = h.lower().find("</head>")
+    if k >= 0:
+        h = h[:k] + '<meta name="sh-build" content="%s">\n' % build_id(h) + h[k:]
+    return h
 
 
 def logger_problems(h, blocklist=""):
@@ -427,10 +474,13 @@ def logger_problems(h, blocklist=""):
         out.append("more than one SHLog copy")
     i = h.find("var SHLog=")
     body = h[i:h.find("return {init:init", i)]
-    need = [PRIVACY_VERSION, "function clean(m)", "function facts(d,depth)", "missed:(r.missed||[]).map(clean)",
-            "details:facts(r.details)", _PUT_NEW, _REC_OLD[1]]
+    need = [PRIVACY_VERSION, "function clean(m,kind)", "function facts(d,depth)", _REC_V4, _PUT_NEW, _REC_OLD[1]]
     if not all(x in body for x in need) or "redact(" in body or "function sha256(" in body:
-        out.append("logger does not have the current privacy code (sh-privacy v3: no free text, bot identity)")
+        out.append("logger does not have the current privacy code (sh-privacy v4: no free text, known ids and trap keys, bot identity)")
+    if _RET_NEW not in h[i:]:
+        out.append("logger does not export allow()")
+    if not re.search(r'<meta name="sh-build" content="[0-9a-f]{16}">', h):
+        out.append("page has no sh-build id")
     if REDACT_ELEM_RE.search(h):
         out.append("page still has an sh-redact element (privacy v3 has no private-word list)")
     return out

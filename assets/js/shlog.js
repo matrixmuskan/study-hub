@@ -1,6 +1,6 @@
 /* SHLog v1: study-hub score logger. Dependency-free. Paste inside the page's <script>.
    SHLog.init({grade:'G3', subject:'WW', lesson:'Lesson8', token:'(build-time placeholder, see README)'})
-   SHLog.record({kind:'mock'|'game'|'retest', score, total, missed:[{n,id,picked,correct}], details:{numbers, booleans, ids}})
+   SHLog.record({kind:'mock'|'game'|'retest', score, total, missed:[{n,id,picked,value,trap,blank,typed}], details:{fixed keys}}); SHLog.allow({ids,traps,sections,build})
    Writes one JSON file per attempt to matrixmuskan/study-hub-scores via the GitHub contents API.
    Queue first (localStorage 'shlog_queue'), then PUT. Never throws, never blocks the page. */
 var SHLog=(function(){
@@ -53,25 +53,58 @@ var SHLog=(function(){
       }
       return Promise.resolve(next()).catch(function(){busy=false;return {sent:sent,left:load().length}});
     }catch(e){busy=false;return Promise.resolve({sent:0,left:-1})}}
-  /*sh-privacy v3*/
-  // Privacy: the logger sends no free text at all. A missed item is sent as its number, its item id, the picked and the
-  // right option letters, and two booleans (blank, typed). A typed answer is never sent, and neither is question text.
-  // details keep only numbers, booleans and short ids. Commits are made as Study Hub Bot, never as a person.
+  /*sh-privacy v4*/
+  // Privacy: the logger sends no free text. For each missed item it sends: n, a stable item id, the picked option
+  // letter, a value (only a number, or a trap key the page lists for that question), a trap key, and the blank and
+  // typed booleans. A value is a number or a wrong answer the page lists. Ids and trap keys must be known: listed by the page (SHLog.allow, from sh-data) or made here from
+  // the quiz kind and n. details keep only a fixed list of keys with numbers, booleans and known ids. Every file is
+  // committed as Study Hub Bot.
   var BOT={name:'Study Hub Bot',email:'study-hub-bot@users.noreply.github.com'};
-  function idv(v){v=v==null?'':String(v);return /^[A-Za-z0-9_.:-]{1,40}$/.test(v)?v:null}
+  var REG={ids:{},traps:{},sections:{},values:{}};
+  var TRAPS=['trap','confusion','opposite','near-miss','other-sense','look-alike','related-idea','careless','misread',
+    'off-by-one','double-count','unit','sign','order','partial','reversed','distractor'];
+  var MODES=['practice','test','mastery','game','mock','retest','all','fix-it','all questions'];
+  var NUMK=['answered','blank','round','redoRound','practice','score','total','part','checklistDone','checklistTotal',
+    'comprehensionPoints','writingPoints','words','sentences','timerMinutes','minutesUsed','planOpen','fixNextFilled',
+    'allMastered','masteredTotal','wordsTotal','stars','seconds','readingComprehension','organization','wordChoice','conventions'];
+  var OBJK=['rubric','partScores'];
+  var GEN=/^(?:q\d{1,2}|mock|game|retest|quiz|test|attempt|check)-(?:p\d{1,2}-)?\d{1,3}$/;
+  TRAPS.forEach(function(t){REG.traps[t]=1});
+  function allow(o){try{o=o||{};(o.ids||[]).forEach(function(x){if(typeof x==='string'&&x.length<=40)REG.ids[x]=1});
+    (o.traps||[]).forEach(function(x){if(typeof x==='string'&&/^[a-z0-9][a-z0-9_-]{0,31}$/.test(x))REG.traps[x]=1});
+    (o.sections||[]).forEach(function(x){if(typeof x==='string'&&x.length<=40)REG.sections[x]=1});
+    (o.values||[]).forEach(function(x){if(typeof x==='string'&&x.length<=24)REG.values[x]=1});
+    if(o.build&&/^[0-9a-f]{8,64}$/.test(o.build))REG.build=o.build}catch(e){}}
+  function known(id){id=id==null?'':String(id);return REG.ids[id]||GEN.test(id)?id:null}
+  function num(v){v=v==null?'':String(v).trim();return /^-?\d{1,9}(?:[.,]\d{1,4})?(?:\/\d{1,6})?$/.test(v)?v.replace(',','.'):null}
   function letter(v){if(typeof v==='number')return v>=0&&v<8&&v%1===0?'ABCDEFGH'.charAt(v):null;
     var m=/^\s*([A-H])(?:[.)](?:\s|$)|\s*$)/.exec(v==null?'':String(v));return m?m[1]:null}
-  function clean(m){m=m||{};var o={},id=idv(m.id),pk=m.picked,b=pk==null||String(pk).trim()===''||String(pk)==='(blank)';
-    if(+m.n>0)o.n=Math.floor(+m.n);if(id)o.id=id;
-    if(!b&&letter(pk))o.picked=letter(pk);if(letter(m.correct))o.correct=letter(m.correct);
-    o.blank=m.blank===true||b;o.typed=typeof m.typed==='boolean'?m.typed:(!o.blank&&!o.picked);return o}
+  function trapKey(v){v=v==null?'':String(v);return REG.traps[v]?v:null}
+  function clean(m,kind){m=m||{};var o={},pk=m.picked,n=Math.floor(+m.n)>0?Math.floor(+m.n):0;
+    if(n)o.n=n;
+    var id=known(m.id)||(n?known(seg(kind||'attempt').toLowerCase()+'-'+(+m.part>0?'p'+Math.floor(+m.part)+'-':'')+n):null);
+    if(id)o.id=id;
+    var item=m.type==='checklist';
+    var blank=typeof m.blank==='boolean'?m.blank:(!item&&(pk==null||String(pk).trim()===''||String(pk)==='(blank)')&&m.k==null&&m.value==null);
+    var L=(typeof m.k==='number')?letter(m.k):letter(pk);
+    if(!blank&&L)o.picked=L;
+    var typed=typeof m.typed==='boolean'?m.typed:(!item&&!blank&&!L);
+    var v0=m.value!=null?m.value:(typed?pk:null),v=num(v0)||(v0!=null&&REG.values[String(v0)]?String(v0):null)||trapKey(m.value);
+    if(!blank&&v!=null)o.value=v;
+    var t=trapKey(m.trap)||trapKey(m.type);
+    if(t)o.trap=t;
+    if(letter(m.correct))o.correct=letter(m.correct);
+    o.blank=!!blank;o.typed=!!typed;if(item)o.item='checklist';return o}
+  function cleanAll(list,kind){return (list||[]).slice(0,200).map(function(m){return clean(m,kind)})}
   function facts(d,depth){var o={};depth=depth||0;if(!d||typeof d!=='object'||depth>2)return o;
-    Object.keys(d).slice(0,50).forEach(function(k){var v=d[k],key=idv(k);if(!key)return;
-      if(typeof v==='number'&&isFinite(v)||typeof v==='boolean')o[key]=v;
-      else if(typeof v==='string'&&idv(v))o[key]=v;
-      else if(Array.isArray(v))o[key]=v.slice(0,50).filter(function(x){return typeof x==='number'&&isFinite(x)||typeof x==='boolean'||(typeof x==='string'&&idv(x))});
-      else if(v&&typeof v==='object')o[key]=facts(v,depth+1)});
+    Object.keys(d).forEach(function(k){var v=d[k];
+      if(NUMK.indexOf(k)>=0&&(typeof v==='number'&&isFinite(v)||typeof v==='boolean'))o[k]=v;
+      else if(k==='mode'&&MODES.indexOf(v)>=0)o[k]=v;
+      else if(k==='section'&&typeof v==='string'&&(REG.sections[v]||v===''))o[k]=v;
+      else if(OBJK.indexOf(k)>=0&&v&&typeof v==='object')o[k]=Array.isArray(v)?v.slice(0,20).map(function(x){return facts(x,depth+1)}):facts(v,depth+1)});
     return o}
+  function buildId(){if(REG.build)return REG.build;
+    try{var el=document.querySelector('meta[name="sh-build"]'),b=el&&el.getAttribute('content');return b&&/^[0-9a-f]{8,64}$/.test(b)?b:null}catch(e){return null}}
   /*sh-privacy end*/
   function record(r){
     try{
@@ -79,9 +112,9 @@ var SHLog=(function(){
       var d=new Date(),kind=seg(r.kind||'attempt').toLowerCase();
       var score=+r.score||0,total=+r.total||0;
       var path=[seg(cfg.grade),seg(cfg.subject),seg(cfg.lesson),stamp(d)+'-'+kind+'-'+rand4()+'.json'].join('/');
-      var payload={v:1,grade:cfg.grade,subject:cfg.subject,lesson:cfg.lesson,kind:kind,score:score,total:total,
+      var payload={v:2,grade:cfg.grade,subject:cfg.subject,lesson:cfg.lesson,kind:kind,score:score,total:total,
         pct:total?Math.round(score*1000/total)/10:null,
-        missed:(r.missed||[]).map(clean),details:facts(r.details),
+        missed:cleanAll(r.missed,kind),details:facts(r.details),build:buildId(),
         clientTime:isoLocal(d),tz:(function(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone}catch(e){return ''}})(),
         page:pagePath()};
       var item={path:path,message:cfg.grade+' '+cfg.subject+' '+cfg.lesson+' '+kind+' '+score+'/'+total,content:b64(JSON.stringify(payload,null,1)+'\n'),tries:0};
@@ -95,5 +128,5 @@ var SHLog=(function(){
       setTimeout(flush,1500); // retry anything left from earlier visits, after the page has settled
     }catch(e){}
     return SHLog}
-  return {init:init,record:record,flush:flush,queue:load,_b64:b64};
+  return {init:init,record:record,flush:flush,queue:load,allow:allow,_b64:b64};
 })();
