@@ -121,7 +121,7 @@ For a comic, a `.jpg` or `.webp` at about 1200 px wide is usually much smaller t
    - `options` (a list) and `answer` (the index of the right option, starting at 0).
    - `answer_text` (a string or a list of strings that are correct). Add `"numeric": true` for a number keyboard.
 4. Add `explain` to show a short reason after the answer.
-5. Add `word`, `sense`, `topic`, or `trap` when they help. The logger sends them for missed questions.
+5. Add `word`, `sense`, `topic`, or `trap` when they help the page. The logger does not send them (privacy v3): a missed question is sent by its item id, and the build record in study-hub-scores maps the id back to the question.
 6. Do not put names or private information in questions.
 
 When the child finishes a quiz, the page calls `SHLog.record`. The logger writes one file to the private repo `matrixmuskan/study-hub-scores`:
@@ -196,11 +196,11 @@ Do these checks before each push:
 8. A page folder holds a file that is not `index.html`.
 9. A page uses purple or violet, a gradient with more than one color, or a color outside the palette (white, grays, the one accent `#0066cc`, and the green, red, and amber status colors). Older pages get the palette applied for them at publish time. A new page from `sh_page.py` must pass as written.
 10. A link, an anchor (`#id`), an image, a video, a poster, or a captions file does not work. Every `data:` URI must decode and have the right MIME type. Every video must have H.264 (or VP9 or AV1) video and AAC (or Opus) audio. Every manifest page must have a link on its subject hub page.
-11. A page that logs scores does not have the privacy rules (privacy v2). Typed answers must be cut to 40 characters. The page must have exactly one real `sh-redact` JSON element that holds only salted SHA-256 hashes of the lowercase private words (one per word in `STUDY_HUB_BLOCKLIST` plus the first name). The logger splits each attempt into words, hashes each word with the same salt, and writes `[name]` for a match. The words themselves, or base64 of them, are never in a page. `tools/sh_stage.py` writes this element at publish time, so do not write it by hand. The only reference logger is `assets/js/shlog.js`.
+11. A page that logs scores does not have the privacy rules (privacy v3). The logger sends no free text at all: no question text, no typed answer, no option text. A missed item is sent as its number `n`, its item id `id` (`q<quiz>-<n>`, which `sh_page.py` gives each question), the `picked` and `correct` option letters, and the booleans `blank` and `typed`. `details` keep only numbers, booleans and short ids. Each file is committed as Study Hub Bot. No page holds a private-word list in any form (no `sh-redact` element). `tools/sh_stage.py` brings older logger copies up to v3 at publish time. The only reference logger is `assets/js/shlog.js`.
 
 `validate.py --src <dir>` runs only on staged output (a folder made by `tools/sh_stage.py`, as `publish.sh` does). It refuses the raw mirror with a clear message, because older pages in the mirror get their skin and logger patch only at stage time. To check by hand: `python3 tools/sh_stage.py <mirror> <tmpdir> && python3 tools/validate.py --src <tmpdir>`, then delete `<tmpdir>`.
 
-To test the redaction in pages: `node tools/test_redact.js <decrypted or staged pages>` (it reads `STUDY_HUB_BLOCKLIST` from the env and prints counts only).
+To test the logger privacy in pages: `node tools/test_redact.js <decrypted or staged pages>`. It records an attempt full of free text and private words (from `STUDY_HUB_BLOCKLIST` in the env) and checks that only ids, letters, numbers and booleans leave the page, as Study Hub Bot. It prints counts only.
 
 Provenance (section 11):
 
@@ -228,13 +228,15 @@ Add a `provenance` block to the content file. In a Markdown content file, put th
     {"id": "gmail:1a164970d5ea012b", "kind": "form_receipt", "what": "WW Lesson 8 school test"}
   ],
   "results_ingested": ["gmail:1a164970d5ea012b", "gmail:1a1409dea6cffcef"],
-  "weak_spots_from": ["G3/WW/Lesson9/2026-11-03T171500-mock-ab12.json"]
+  "weak_spots_from": ["G3/WW/Lesson9/2026-11-03T171500-mock-ab12.json"],
+  "patterns_from": ["gmail:1a164970d5ea012b", "gmail:1a1409dea6cffcef"]
 }
 ```
 
 - `sources`: 1 or more. `id` starts with `file:`, `gmail:`, `paper:`, `url:`, `sheet:`, or `handoff:`. `kind` is one of `form_receipt`, `score_released`, `word_list`, `book_page`, `study_guide`, `past_paper`, `past_form`, `teacher_notice`, `handoff`, `web`, `other`. A `file:` source must have its `sha256`. A `gmail:` source must have a receipt in study-hub-scores (11.3).
 - `results_ingested`: every school receipt and "Score released" mail for the subject that is older than the build, as `gmail:<id>`.
 - `weak_spots_from`: score files from study-hub-scores that you used. Every score file of the subject that is older than the build must be here, or in an error-log note `attempt=<path>`.
+- `patterns_from` (school subjects, when the page has a `mock`): past school tests of the same teacher and subject, as `gmail:<id>` receipts that are ingested (11.3). The mock must copy their format (rule F1, 11.5).
 - `sh_page.py` adds `error_log` and `error_log_sha256` for you.
 
 Each quiz question gets two more fields:
@@ -264,7 +266,12 @@ There is one error log per subject: `study-hub-scores/G3/<Subject>/_error_log.cs
 A subject can add more columns after these (for example `sense` or `paper`). Rules:
 
 - `id` is stable. Never change or reuse it. Examples: `L8-quarry-1` (WW), `SS-2026-09-02-1a2b3c` (made by the import when a row had no id).
-- `resolved` is `no`, `yes`, or `void`. Every `no` row must be re-tested by the next page (rule B5).
+- `resolved` is `no`, `yes`, or `void`. The `no` rows are the open rows. Each new page re-tests them in a rotation (rule B5), so a page never has to re-test all of them:
+  - (a) The page re-tests at least min(15, open rows), chosen oldest-first: first the open rows that were re-tested least recently (never re-tested comes first), then by row `date`, then by `id`.
+  - (b) Every open row is re-tested at least once in any 3 consecutive builds of the subject. A row that was open in the last 2 builds and was re-tested in neither must be re-tested in this build.
+  - (c) A row that was missed again since the last build must be re-tested in this build. "Missed again" means a later attempt has the row's question in `missed`, or the row has an `attempt=` note with a later attempt.
+  - Every id in `retests` must be a real row.
+  - To see what to re-test, run `python3 tools/sh_provenance.py plan G3/<Subject>`. It prints the ids to put in `retests`. The build history is in `study-hub-scores/G3/<Subject>/_builds/` (`sh_page.py` writes one copy per build, with the open rows at that time).
 - A row can be `yes` only after 2 correct answers on the same fact, on 2 different days (Pacific time). Put each one in `notes` as `correct=<attempt path>`, set `correct_count` to 2 or more, and put both days in `last_correct_dates` (for example `2026-11-03;2026-11-05`). The page of each attempt must have a question with this row id in `retests`, and the attempt must not list that question in `missed` (rule B6).
 - Put each score file that you read in `notes` as `attempt=<path>`.
 
@@ -285,8 +292,31 @@ The old box logs (`/workspace/<coach>/error_log.csv`) were imported by `tools/mi
 | B2 | every question has `src` or `inferred`; `file:` sources exist with the same sha256; `gmail:` ids have a receipt | `sh_page.py`, `publish.sh` |
 | B3 | every older score file of the subject is in `weak_spots_from` or an `attempt=` note | `publish.sh` |
 | B4 | every older receipt of the subject is in `results_ingested` | `publish.sh` |
-| B5 | every `resolved=no` row is in some `retests` | `publish.sh` |
+| B5 | re-test rotation: at least min(15, open rows) oldest-first; every open row once in any 3 consecutive builds; a row missed again since the last build now | `publish.sh` (`plan` shows the ids) |
 | B6 | `resolved=yes` only with 2 correct answers on 2 PT days | `publish.sh` |
 | B7 | a page with a quiz logs to study-hub-scores | `sh_page.py`, `validate.py --src` |
+| F1 | a school-subject mock cites `patterns_from` (required) and matches their question count, question types, option count and length (warning) | `sh_page.py` (required, prints the comparison), `publish.sh` (warning) |
 
 `publish.sh` checks B1 to B6 for each changed page that is not a legacy page. It needs `STUDY_HUB_SCORES_TOKEN`. If a rule fails, it encrypts nothing and commits nothing. Tests: `tools/test_provenance.py` (CI), `tools/test_publish.sh` cases 5 and 6 (CI), `tools/test_provenance_box.py` (box, fixture subject).
+
+### 11.5 School mocks match the real test (rule F1)
+
+For school subjects (`school_subjects` in `tools/sh_config.json`: SS, WW, LA, Math, Sci, Grammar), the goal of a training page is a mock paper with the same difficulty and format as the real school test. Contest subjects (Noetic, Kangaroo, MOEMS) use past papers instead.
+
+1. A page with a `mock` quiz must have `patterns_from`: 1 or more past school receipts of the same teacher and subject. `sh_page.py` stops without it. Each id must be an ingested receipt of the same subject (rule B2).
+2. `sh_page.py` prints a comparison of the mock with the mean of those receipts:
+
+```
+format vs 2 school test(s):                        mock  school
+  questions                  30      31
+  multiple choice          100%    100%
+  options per question      4.0     4.0
+  words per question         11      10   (difficulty proxy)
+```
+
+3. The mock must match within these limits (`F1_TOL` in `tools/sh_provenance.py`): question count within 20% or 3 questions (the larger), share of multiple-choice questions within 15 points, options per question within 0.5, words per question within 40%.
+4. Out of range gives a warning from `sh_page.py` and from `publish.sh` (`WARNING: F1 ...`). It does not stop the build, because a coach can have a reason (for example a short practice mock). Write the reason in the coach SOURCE file. Basy reads the warnings.
+
+### 11.6 Pages from before the rules (attach)
+
+A page in `legacy_provenance` that was not built with `sh_page.py` can get a record without a rebuild. Write a fragment `{"page", "provenance": {"sources", "results_ingested", "weak_spots_from"}, "questions": [{"id", "q", "src" or "inferred": true, "retests"}], "prompts"}` (for example `/workspace/ss/provenance/Final1-Ch1-2-8.provenance.json`), then run `python3 tools/sh_provenance.py attach <fragment.json>` on the box. It checks the fragment (B1, B2, P2, real `retests` ids, B6), writes the record with `"attached": true` to study-hub-scores, adds the hash and counts to the manifest entry, and takes the page out of `legacy_provenance`. Commit `manifest.json` and `tools/sh_config.json` in a PR. B3, B4 and the B5 rotation do not apply to an attached record, because they are rules for new builds. `attach` refuses a page that is not in `legacy_provenance`, and the list can only get shorter.
