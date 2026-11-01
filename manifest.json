@@ -6,12 +6,12 @@
     "path": "G3/SS/Final1-Ch1-2-8/",
     "test_date": "2026-10-21",
     "added_by": "Sissy",
-    "provenance_sha256": "e88e2ac34b5af5cb21c9773d37d50acfa4c2dd152707b11a553f2f474239813b",
+    "provenance_sha256": "54c29285661be0b8fd9ede40531ed8e37727fc1c87fdce99de98c5bbc3ee0490",
     "n_sources": 8,
     "n_inferred": 0,
-    "n_questions": 29,
-    "n_retests": 2,
-    "built_at": "2026-11-01T11:23:26-08:00",
+    "n_questions": 21,
+    "n_retests": 0,
+    "built_at": "2026-11-01T12:14:09-08:00",
     "template": "sh-2"
   },
   {
@@ -21,12 +21,12 @@
     "path": "G3/SS/Continents-Oceans-Retake/",
     "test_date": "2026-10-28",
     "added_by": "Sissy",
-    "provenance_sha256": "0142a0e028baf84a5f438103502ad1591977939272c0f893158f5ff3dd0793db",
+    "provenance_sha256": "6227b1442dbcafcf5d06cced4c8d953307934e703f3b695018cbff5498472c68",
     "n_sources": 6,
     "n_inferred": 0,
-    "n_questions": 35,
-    "n_retests": 2,
-    "built_at": "2026-11-01T11:23:35-08:00",
+    "n_questions": 21,
+    "n_retests": 0,
+    "built_at": "2026-11-01T12:14:19-08:00",
     "template": "sh-2"
   },
   {
@@ -53,12 +53,12 @@
     "test_date": "2026-11-05",
     "added_by": "Worldy",
     "template": "sh-2",
-    "provenance_sha256": "507c9942cbd68b7ab073e0c0e4e1d55941d5c6bba157fa85f4fffef310b286be",
+    "provenance_sha256": "2172bc544562092ee76aa30cc0933cd5561e718de48491ffc7f883f645b9d024",
     "n_sources": 13,
     "n_inferred": 0,
-    "n_questions": 101,
+    "n_questions": 117,
     "n_retests": 0,
-    "built_at": "2026-11-01T11:28:18-08:00"
+    "built_at": "2026-11-01T12:15:53-08:00"
   },
   {
     "grade": "G3",
@@ -99,7 +99,13 @@
     "path": "G3/Noetic/Mock-Warmup-Spring2024/",
     "test_date": "2026-11-19",
     "added_by": "Naughty",
-    "template": "sh-2"
+    "template": "sh-2",
+    "provenance_sha256": "0dc0579e1981eae4c3fc93c39ed2f27c4c5d385aca918a418eee2af390c7371d",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 20,
+    "n_retests": 0,
+    "built_at": "2026-11-01T12:14:41-08:00"
   },
   {
     "grade": "G3",
@@ -140,7 +146,13 @@
     "path": "G3/Noetic/Ch1-Quiz/",
     "test_date": "2026-11-19",
     "added_by": "Naughty",
-    "template": "sh-2"
+    "template": "sh-2",
+    "provenance_sha256": "06d9558d1524dd4920d9da0020933821bfc7f66b8247b2a3a3515753e353a554",
+    "n_sources": 6,
+    "n_inferred": 1,
+    "n_questions": 18,
+    "n_retests": 0,
+    "built_at": "2026-11-01T12:15:01-08:00"
   },
   {
     "grade": "G3",
@@ -149,7 +161,13 @@
     "path": "G3/Noetic/Ch2-Quiz/",
     "test_date": "2026-11-19",
     "added_by": "Naughty",
-    "template": "sh-2"
+    "template": "sh-2",
+    "provenance_sha256": "34a753c8b917f51f5f0c41a748eef0b98f105967cc80b5edecadf568b76235bb",
+    "n_sources": 8,
+    "n_inferred": 0,
+    "n_questions": 18,
+    "n_retests": 0,
+    "built_at": "2026-11-01T12:15:21-08:00"
   },
   {
     "grade": "G3",
@@ -158,6 +176,12 @@
     "path": "G3/Noetic/Ch3-Quiz/",
     "test_date": "2026-11-19",
     "added_by": "Naughty",
-    "template": "sh-2"
+    "template": "sh-2",
+    "provenance_sha256": "0d09b0b9a46d42e075a53b6222388f40d690f69f0a27ec3b5c464795ce9227f8",
+    "n_sources": 7,
+    "n_inferred": 0,
+    "n_questions": 18,
+    "n_retests": 0,
+    "built_at": "2026-11-01T12:15:42-08:00"
   }
 ]
