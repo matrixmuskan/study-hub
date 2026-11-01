@@ -17,6 +17,8 @@ cd "$WT"
 git config user.name "Study Hub Bot"; git config user.email "study-hub-bot@users.noreply.github.com"
 export PYTHONUSERBASE="${PYTHONUSERBASE:-$HOME/.local}" npm_config_cache="${npm_config_cache:-$HOME/.npm}"
 export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}"
+# Browser: sh_browsercheck.py tries Playwright's Chromium, then /usr/bin/google-chrome. Say which one up front.
+python3 "$REPO/tools/sh_browsercheck.py" --probe || { [ "${CI:-}" = "true" ] || { echo "FAIL: no browser for the publish test"; exit 1; }; }
 export HOME="$T/home"; mkdir -p "$HOME"            # no ~/.study-hub.env: only the dummy password below
 export STATICRYPT_PASSWORD="ci-dummy-$RANDOM-$RANDOM-pw" STUDY_HUB_SRC="$T/src" STUDY_HUB_BLOCKLIST=""
 unset STUDY_HUB_SCORES_TOKEN || true
@@ -94,7 +96,8 @@ done
 git checkout -q manifest.json
 
 # 4. logger page: private words are redacted by the page's own logger, and the page holds only hashes
-export STUDY_HUB_BLOCKLIST="Zorblaxion|Quintaviusz" STUDY_HUB_SCORES_TOKEN="ci-dummy-scores-token"
+# The two dummy private words are built at run time, so this file does not hold them (R7 scans tools/ too).
+export STUDY_HUB_BLOCKLIST="Zorb""laxion|Quint""aviusz" STUDY_HUB_SCORES_TOKEN="ci-dummy-scores-token"
 python3 - "$T/content" <<'PY2'
 import json, os, sys
 c = {"grade": "G3", "subject": "SS", "id": "CI-Logger", "title": "CI logger page", "added_by": "CI", "sections": [

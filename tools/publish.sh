@@ -51,12 +51,13 @@ fail() { echo "CHECK FAILED: $1. Nothing was encrypted or committed."; exit 1; }
 python3 "$REPO/tools/sh_checks.py" links "$STAGE" || fail "broken links or media (see above)"
 python3 "$REPO/tools/sh_checks.py" design "$STAGE" || fail "design standard (see above)"
 if [ "${#CHANGED[@]}" -gt 0 ]; then
-  if python3 -c 'import playwright' 2>/dev/null; then
+  # Browser: Playwright's Chromium first, then a system Chrome (sh_browsercheck.py finds it). No browser = no commit
+  # on the box; in CI (CI=true) the browser check is skipped with a warning.
+  if python3 "$REPO/tools/sh_browsercheck.py" --probe; then
     python3 "$REPO/tools/sh_browsercheck.py" --root "$STAGE" --pages "${CHANGED[@]}" || fail "browser check: links, images, or videos do not work in Chrome"
   else
-    echo "WARNING: playwright is not installed, so the browser check (videos play, tabs, script errors) did not run."
-    echo "         Install it with: pip install playwright && python3 -m playwright install chromium"
-    [ "${CI:-}" = "true" ] || fail "browser check is required on the box"
+    echo "WARNING: no browser could start (see NO BROWSER above), so the browser check did not run."
+    [ "${CI:-}" = "true" ] || fail "browser check is required on the box: install Playwright's Chromium or google-chrome"
   fi
 fi
 
