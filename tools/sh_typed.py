@@ -10,7 +10,8 @@ makes 'typed' the typed letters a-z, max 40, and allows a trap key from SPELL). 
   (c) second check: its own scripts use a spelling trap key (SPELL) or the SpellTrap classifier,
   (d) its logger copy, run with the page's subject and the exception turned on, sends a string 'typed' or a spelling
       trap key (node tools/typed_harness.js), so a changed logger copy cannot leak typed text either.
-asset_problems() checks assets/js/shlog.js keeps the subject gate (CI, no plaintext needed).
+asset_problems() checks the SpellingBee logger (sh_lib.logger_src) keeps the subject gate and that every other page
+keeps assets/js/shlog.js unchanged (CI, no plaintext needed).
 """
 import json, os, re, shutil, subprocess
 
@@ -85,10 +86,18 @@ def page_problems(path, rel):
     return out
 
 
-def asset_problems(repo):
-    """shlog.js must keep the subject gate and the fixed spelling list."""
-    t = open(os.path.join(repo, "assets", "js", "shlog.js"), encoding="utf-8").read()
+def asset_problems(sb=None, other=None):
+    """The SpellingBee logger (sh_lib.logger_src) keeps the subject gate and the fixed spelling list, and every other
+    page's logger is assets/js/shlog.js unchanged, with no spelling code."""
+    import sh_lib as L
+    sb = L.logger_src("G3/%s/X/index.html" % SUBJECT) if sb is None else sb
+    other = L.logger_src("G3/WW/X/index.html") if other is None else other
     need = ["function spelling(){return !!(REG.spelling&&cfg&&cfg.subject==='%s')}" % SUBJECT,
             "if(spelling()&&!item){",
             "var SPELL=[%s];" % ",".join("'%s'" % k for k in SPELL)]
-    return ["assets/js/shlog.js: the spelling exception lost its gate (%s)" % n[:60] for n in need if n not in t]
+    out = ["SpellingBee logger: the spelling exception lost its gate (%s)" % n[:60] for n in need if n not in sb]
+    if other != L.asset("js/shlog.js") or "spelling()" in other or "REG.spelling" in other:
+        out.append("the logger of non-SpellingBee pages is not assets/js/shlog.js unchanged, or has spelling code")
+    if "spelling" in L.asset("js/shlog.js"):
+        out.append("assets/js/shlog.js has spelling code (it belongs only in sh_lib.SPELL_PATCHES)")
+    return out

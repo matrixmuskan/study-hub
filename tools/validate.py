@@ -33,7 +33,8 @@ With --src: the staged or mirror plaintext pages also must carry the template ma
       name; box: also the name itself from STUDY_HUB_KID_FIRST_NAME).
   R13 (tools/sh_typed.py) Only SpellingBee pages may send typed text: any other page fails if it turns on the
       spelling exception, puts any non-boolean (any string, even '') in 'typed', uses a spelling trap key, or its logger copy (run under node with
-      the page's subject) sends a string 'typed' or a spelling trap key. In CI: shlog.js keeps the subject gate.
+      the page's subject) sends a string 'typed' or a spelling trap key. In CI: the SpellingBee logger keeps the subject
+      gate and every other page's logger is assets/js/shlog.js unchanged.
   R11 Every page that logs scores has privacy v4: the logger sends no free text (a missed item is its number, a known
       item id, the option letter, a number or listed wrong answer, a trap key, blank and typed; details are a fixed list
       of keys), it commits as Study Hub Bot, the page has an sh-build id, and no sh-redact element.
@@ -205,7 +206,7 @@ def main():
         pass
 
     # R13: the spelling exception keeps its subject gate (CI)
-    for pr in T.asset_problems(REPO):
+    for pr in T.asset_problems():
         err("R13", pr)
 
     # Design standard for shared files (no password needed, runs in CI)

@@ -11,8 +11,10 @@
 //     the picked letter, and blank only for a blank answer;
 //   - the PUT sets author and committer to Study Hub Bot;
 //   - the page has no sh-redact element (no private-word list in any form);
-//   - the one exception: subject SpellingBee with SHLog.allow({spelling:true}) sends typed as letters a-z (max 40) and
-//     a trap key only from the fixed spelling list; any other subject asking for it gets the boolean only;
+//   - the one exception: SpellingBee content pages carry the spelling logger path (tools/sh_lib.py SPELL_PATCHES);
+//     with SHLog.allow({spelling:true}) and subject SpellingBee they send typed as letters a-z (max 40) and a trap key
+//     only from the fixed spelling list; any other subject asking for it gets the boolean only; every other page has
+//     the plain logger, which never sends typed text;
 //   - SpellingBee pages: the page's SpellGuard, then the logger's spelling path: made-up name-like strings far from the
 //     target word are dropped (0 sent), and a near-miss misspelling (eliet for elite) is kept.
 // Prints counts only, never the terms. The blocklist is optional: without it, the free-text checks still run.
@@ -121,8 +123,14 @@ for (const file of process.argv.slice(2)) {
       return out2.length ? JSON.parse(Buffer.from(out2[0].content, 'base64').toString('utf8')) : null;
     };
     const sp = await spellRun('SpellingBee');
+    const spellingPage = /G\d+\/SpellingBee\/[^/]+\/index\.html$/.test(file.replace(/\\/g, '/'));
+    const hasSpell = code.includes('function spelling()');
+    if (spellingPage !== hasSpell) fails.push(spellingPage ? 'SpellingBee page without the spelling logger path' : 'a non-SpellingBee page carries the spelling logger path');
     if (!sp) fails.push('spelling: no PUT');
-    else {
+    else if (!hasSpell) {
+      // the plain logger (assets/js/shlog.js): even subject SpellingBee asking for spelling gets the boolean only
+      if (sp.missed.some(m => typeof m.typed !== 'boolean' || SPELL.has(m.trap))) fails.push('plain logger sent typed text or a spelling trap');
+    } else {
       const S = sp.missed;
       S.forEach((m, k) => {
         if (!Object.keys(m).every(x => MISS.has(x))) fails.push('spelling item ' + (k + 1) + ' has an unexpected field');

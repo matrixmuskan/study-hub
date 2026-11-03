@@ -7,7 +7,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sh_lib as L
 import sh_typed as T
 
-LOG = L.asset("js/shlog.js")
+LOG = L.logger_src("G3/WW/X/index.html")            # = assets/js/shlog.js
+SBLOG = L.logger_src("G3/SpellingBee/X/index.html")  # shlog.js + SPELL_PATCHES
 bad = 0
 
 
@@ -44,22 +45,23 @@ case("Noetic page puts a quoted string in typed", "G3/Noetic/Fake/index.html", p
 case("WW page sends a spelling trap key", "G3/WW/Fake/index.html", page("var m={n:1,id:'q1-1',trap:'vowel_swap',typed:true};"), True)
 case("WW page uses the SpellTrap classifier", "G3/WW/Fake/index.html", page("var t=SpellTrap.classify(a,b);"), True)
 case("hub page turns on the exception", "G3/index.html", page("SHLog.allow({spelling:true});"), True)
-ungated = LOG.replace("cfg.subject==='SpellingBee'", "true")
+ungated = SBLOG.replace("cfg.subject==='SpellingBee'", "true")
 case("WW page whose logger copy lost the subject gate", "G3/WW/Fake/index.html", page(GOOD_JS, ungated), True)
 case("SpellingBee page uses the exception (allowed)", "G3/SpellingBee/Fake/index.html",
-     page("SHLog.allow({spelling:true});var m={n:1,typed:'eliet',trap:'vowel_swap'};var t=SpellTrap.classify(a,b);"), False)
+     page("SHLog.allow({spelling:true});var m={n:1,typed:'eliet',trap:'vowel_swap'};var t=SpellTrap.classify(a,b);", SBLOG), False)
+case("WW page that carries the SpellingBee logger copy (gate keeps it boolean)", "G3/WW/Fake/index.html", page(GOOD_JS, SBLOG), False)
 case("WW page says spelling:false (allowed)", "G3/WW/Fake/index.html", page("var o={spelling:false};" + GOOD_JS), False)
 
-# asset gate (CI)
-pr = T.asset_problems(L.REPO)
+# logger sources (CI)
+pr = T.asset_problems()
 bad += bool(pr)
-print("%s shlog.js keeps the subject gate: %s" % ("FAIL" if pr else "ok  ", "; ".join(pr) or "passes"))
-d = tempfile.mkdtemp()
-os.makedirs(os.path.join(d, "assets", "js"))
-open(os.path.join(d, "assets", "js", "shlog.js"), "w").write(ungated)
-pr = T.asset_problems(d)
+print("%s SpellingBee logger keeps the gate; other pages keep shlog.js unchanged: %s" % ("FAIL" if pr else "ok  ", "; ".join(pr) or "passes"))
+pr = T.asset_problems(sb=ungated)
 bad += not pr
-print("%s shlog.js without the gate fails: %s" % ("ok  " if pr else "FAIL", "; ".join(pr) or "passes (wrong)"))
+print("%s SpellingBee logger without the gate fails: %s" % ("ok  " if pr else "FAIL", "; ".join(pr) or "passes (wrong)"))
+pr = T.asset_problems(other=SBLOG)
+bad += not pr
+print("%s spelling code in the other pages' logger fails: %s" % ("ok  " if pr else "FAIL", "; ".join(pr) or "passes (wrong)"))
 
 # real staged pages (box)
 if "--stage" in sys.argv:

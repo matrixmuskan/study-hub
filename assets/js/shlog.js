@@ -60,10 +60,6 @@ var SHLog=(function(){
   // listed typed answer: never for a blank item or an unlisted typed answer. Ids and trap keys must be known: listed by the page (SHLog.allow, from sh-data) or made here from
   // the quiz kind and n. details keep only a fixed list of keys with numbers, booleans and known ids. Every file is
   // committed as Study Hub Bot.
-  // One exception (spelling pages, decided by Gilfoy 2026-11-03): a page of subject SpellingBee that calls
-  // SHLog.allow({spelling:true}) sends, for each missed item, 'typed' as the answer text (trimmed, lowercase, letters
-  // a-z only, max 40) instead of the boolean, and 'trap' only from SPELL (the page's own classifier). Every other page
-  // and subject is unchanged.
   var BOT={name:'Study Hub Bot',email:'study-hub-bot@users.noreply.github.com'};
   var REG={ids:{},traps:{},sections:{},values:{}};
   var TRAPS=['trap','confusion','opposite','near-miss','other-sense','look-alike','related-idea','careless','misread',
@@ -75,14 +71,10 @@ var SHLog=(function(){
   var OBJK=['rubric','partScores'];
   var GEN=/^(?:q\d{1,2}|mock|game|retest|quiz|test|attempt|check)-(?:p\d{1,2}-)?\d{1,3}$/;
   TRAPS.forEach(function(t){REG.traps[t]=1});
-  var SPELL=['double_letter','silent_letter','vowel_swap','ending','homophone','other'];
-  function spelling(){return !!(REG.spelling&&cfg&&cfg.subject==='SpellingBee')}
-  function letters(v){v=String(v==null?'':v);if(v.normalize)v=v.normalize('NFD');return v.trim().toLowerCase().replace(/[^a-z]/g,'').slice(0,40)}
   function allow(o){try{o=o||{};(o.ids||[]).forEach(function(x){if(typeof x==='string'&&x.length<=40)REG.ids[x]=1});
     (o.traps||[]).forEach(function(x){if(typeof x==='string'&&/^[a-z0-9][a-z0-9_-]{0,31}$/.test(x))REG.traps[x]=1});
     (o.sections||[]).forEach(function(x){if(typeof x==='string'&&x.length<=40)REG.sections[x]=1});
     (o.values||[]).forEach(function(x){if(typeof x==='string'&&x.length<=24)REG.values[x]=1});
-    if(o.spelling===true)REG.spelling=1;
     if(o.build&&/^[0-9a-f]{8,64}$/.test(o.build))REG.build=o.build}catch(e){}}
   function known(id){id=id==null?'':String(id);return REG.ids[id]||GEN.test(id)?id:null}
   function num(v){v=v==null?'':String(v).trim();return /^-?\d{1,9}(?:[.,]\d{1,4})?(?:\/\d{1,6})?$/.test(v)?v.replace(',','.'):null}
@@ -105,9 +97,7 @@ var SHLog=(function(){
     var t=!blank&&!item&&(o.picked||listed)?(trapKey(m.trap)||trapKey(m.type)):null;
     if(t)o.trap=t;
     if(letter(m.correct))o.correct=letter(m.correct);
-    o.blank=!!blank;o.typed=!!typed;if(item)o.item='checklist';
-    if(spelling()&&!item){o.typed=letters(m.text);delete o.trap;if(!blank&&SPELL.indexOf(m.trap)>=0)o.trap=m.trap}
-    return o}
+    o.blank=!!blank;o.typed=!!typed;if(item)o.item='checklist';return o}
   function cleanAll(list,kind){return (list||[]).slice(0,200).map(function(m){return clean(m,kind)})}
   function facts(d,depth){var o={};depth=depth||0;if(!d||typeof d!=='object'||depth>2)return o;
     Object.keys(d).forEach(function(k){var v=d[k];
