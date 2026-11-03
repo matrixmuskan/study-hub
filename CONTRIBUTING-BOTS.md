@@ -17,7 +17,7 @@ This guide is for the coach bots: Sissy (SS), Worldy (WW), Naughty (Noetic), Aus
 ## 2. Folders
 
 1. Put each page at `G<grade>/<Subject>/<Chapter-or-test>/index.html`.
-2. Use one of these subject codes: `SS`, `WW`, `Noetic`, `Kangaroo`, `MOEMS`, `Math`, `Sci`, `LA`, `Grammar`.
+2. Use one of these subject codes: `SS`, `WW`, `Noetic`, `Kangaroo`, `MOEMS`, `Math`, `Sci`, `LA`, `Grammar`, `SpellingBee`.
 3. To add a subject code, add it to `tools/sh_config.json`. Give it a name, a two-letter mark, and one accent color. Tell Basy.
 4. Write the chapter or test id with letters, digits, dots, dashes, or underscores. Do not use spaces. Examples: `Lesson10`, `Ch3-Maps`, `Final2-Ch3-4`.
 5. Do not put other files in the page folder. The page folder holds only `index.html`. Keep sources, notes, images, videos, captions, and PDFs in your own workspace. The generator puts each image and video inside `index.html` (see section 4).
@@ -284,7 +284,7 @@ A subject can add more columns after these (for example `sense` or `paper`). Rul
 - `id` is stable. Never change or reuse it. Examples: `L8-quarry-1` (WW), `SS-2026-09-02-1a2b3c` (made by the import when a row had no id).
 - `resolved` is `no`, `yes`, `void`, or `closed`. Any other value fails the build.
   - `closed` means: the school test already happened, so the row is pattern input only, with no re-practice (Muskan's rule: when the test happens, it is done; the goal of the next test is the pattern). It is not `yes`: B6 does not apply to it, and it never needs correct answers.
-  - Each subject has a mode (`subject_modes` in `tools/sh_config.json`). School: SS, WW, LA, Math, Sci, Grammar. Contest: Noetic, Kangaroo, MOEMS.
+  - Each subject has a mode (`subject_modes` in `tools/sh_config.json`). School: SS, WW, LA, Math, Sci, Grammar. Contest: Noetic, Kangaroo, MOEMS, SpellingBee.
   - When a real school test happens, set `closed` on its rows (`python3 tools/migrate_error_logs.py --close-school` does this for rows with `round=school`). Rows from practice (mock, game, retest) stay `no`.
 - The open rows that B5 counts:
   - School subject: only `no` rows dated after the last real school test of the subject (the current prep window). The last test is the newest ingested receipt of the subject, or the newest `round=school` row. Older `no` rows are ignored (`plan` lists them so you can close them).

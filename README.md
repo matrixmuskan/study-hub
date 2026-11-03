@@ -11,7 +11,7 @@ G<grade>/<Subject code>/<Chapter-or-Lesson id>/index.html
 ```
 
 - Grade: `G3`, `G4`, ...
-- Subject codes: `SS` (Social Studies), `WW` (Wordly Wise), `Noetic` (Noetic Math contest), `Kangaroo` (Math Kangaroo), `MOEMS` (Math Olympiads for Elementary and Middle Schools), `Math`, `Sci` (Science), `LA` (Language Arts), `Grammar`. Add new codes to `SUBJECTS` in `tools/build_index.py`.
+- Subject codes: `SS` (Social Studies), `WW` (Wordly Wise), `Noetic` (Noetic Math contest), `Kangaroo` (Math Kangaroo), `MOEMS` (Math Olympiads for Elementary and Middle Schools), `Math`, `Sci` (Science), `LA` (Language Arts), `Grammar`, `SpellingBee` (Spelling Bee contest). Add new codes to `SUBJECTS` in `tools/build_index.py`.
 - Chapter or lesson id: short, no spaces, e.g. `Final1-Ch1-2-8`, `Lesson8`, `Ch3-Fractions`.
 - Each page must be ONE self-contained HTML file (images, fonts, scripts embedded as data URIs) so it works offline and after encryption.
 

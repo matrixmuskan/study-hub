@@ -93,9 +93,9 @@ page_ok = '<script type="application/json" id="sh-data">{"quizzes":[{"questions"
 check("B7: quiz page with logger passes", V.b7_problems(page_ok) == [])
 check("B7: page with no quiz passes", V.b7_problems("<p>hello</p>") == [])
 # subject modes: school subjects end their prep window at a real test; contest subjects are cumulative
-check("subject modes: SS, WW, LA, Math, Sci, Grammar are school; Noetic, Kangaroo, MOEMS are contest",
+check("subject modes: SS, WW, LA, Math, Sci, Grammar are school; Noetic, Kangaroo, MOEMS, SpellingBee are contest",
       all(P.subject_mode(x) == "school" for x in ("SS", "WW", "LA", "Math", "Sci", "Grammar"))
-      and all(P.subject_mode(x) == "contest" for x in ("Noetic", "Kangaroo", "MOEMS")))
+      and all(P.subject_mode(x) == "contest" for x in ("Noetic", "Kangaroo", "MOEMS", "SpellingBee")))
 check("closed is a valid status, separate from yes", "closed" in P.STATUSES and "yes" in P.STATUSES)
 # every Contents API write is made as Study Hub Bot (never the token owner)
 import sh_scores as SC

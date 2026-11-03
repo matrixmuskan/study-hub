@@ -13,7 +13,8 @@
     "Math":     {"name": "Math",                  "mono": "Ma", "accent": "#0066cc", "soft": "#e8f1fb"},
     "Sci":      {"name": "Science",               "mono": "Sc", "accent": "#0066cc", "soft": "#e8f1fb"},
     "LA":       {"name": "Language Arts",         "mono": "La", "accent": "#0066cc", "soft": "#e8f1fb"},
-    "Grammar":  {"name": "Grammar",               "mono": "Gr", "accent": "#0066cc", "soft": "#e8f1fb"}
+    "Grammar":  {"name": "Grammar",               "mono": "Gr", "accent": "#0066cc", "soft": "#e8f1fb"},
+    "SpellingBee": {"name": "Spelling Bee",       "mono": "Sb", "accent": "#0066cc", "soft": "#e8f1fb"}
   },
   "legacy_provenance_note": "Pages built before provenance (Nov 1, 2026). Grandfathered: validate.py warns for each. This list may only shrink. A rebuilt page with a provenance block leaves the list.",
   "legacy_provenance": [
@@ -30,7 +31,8 @@
   ],
   "subject_modes_note": "school: a real school test ends the prep window; its error-log rows become closed (pattern input, no re-practice), B5 counts only open rows after the last real test, and a mock must cite patterns_from (F1). contest: B5 counts every open row (cumulative).",
   "subject_modes": {"SS": "school", "WW": "school", "LA": "school", "Math": "school", "Sci": "school", "Grammar": "school",
-                    "Noetic": "contest", "Kangaroo": "contest", "MOEMS": "contest"},
+                    "Noetic": "contest", "Kangaroo": "contest", "MOEMS": "contest",
+                    "SpellingBee": "contest"},
   "receipt_subjects": [
     ["(?i)\\bWW\\b|wordly wise|vocab test", "WW"],
     ["(?i)social studies|geography|\\bSS\\b|\\bCYK\\b|minoans", "SS"],
