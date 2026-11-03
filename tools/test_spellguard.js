@@ -3,7 +3,8 @@
 // The repo is public: the fixture uses made-up 3-letter terms and a public list of everyday words (not a school list,
 // not the child's name, not private terms, no hashes). A local run with the real word list and the private terms from
 // ~/.study-hub.env is done on the box and never committed (counts only).
-//   attack: 10 terms x 50 words x 8 ways = 4,000 pairs; at most 14 may leak (kept with the term still in typed).
+//   attack: 10 terms x 50 words x 8 ways = 4,000 pairs; the leak count (kept with the term still in typed) must EQUAL
+//   LEAKS, the exact count under the correct rule (the policy limit is 14), so a looser rule fails the test.
 //   real misspellings: every kid-like 1- and 2-edit misspelling of the words must be kept (100%).
 'use strict';
 const G = require('../assets/js/spellguard.js'), S = require('./spellguard_sets.js');
@@ -13,6 +14,7 @@ const WORDS = ['garden', 'pencil', 'window', 'basket', 'ladder', 'rocket', 'puzz
   'yellow', 'zipper', 'anchor', 'bridge', 'candle', 'dragon', 'engine', 'forest', 'giant', 'hammer', 'island', 'jungle',
   'kettle', 'lantern', 'meadow', 'needle', 'ocean', 'planet', 'quilt', 'river', 'silver', 'turtle', 'umbrella',
   'village', 'whistle', 'blanket', 'chimney', 'thunder'];
+const LEAKS = 0;   // exact leaks of this committed set under max(2, floor(len/4)) and at most 2 letters longer
 let bad = 0;
 const ok = (c, m) => { console.log((c ? 'ok   ' : 'FAIL ') + m); if (!c) bad++; };
 // rule
@@ -21,11 +23,15 @@ ok(!G.keep('zzzzzzz', 'proclaim'), 'far-off answer dropped');
 ok(G.keep('responsibilty', 'responsibility') && G.keep('rsponsibilty', 'responsibility') && G.keep('rsponsiblty', 'responsibility') && !G.keep('rsponsblty', 'responsibility'),
   'limit max(2, floor(len/4)): a 14-letter word keeps distance 3, drops 4');
 ok(G.keep('ladderxy', 'ladder') && !G.keep('ladderxyz', 'ladder'), 'at most 2 letters longer than the target');
+ok(!G.keep('bxsxexnt', 'basement'), 'bxsxexnt vs basement dropped (distance 4)');
+ok(!G.keep('bxsxmxnt', 'basement'), 'bxsxmxnt vs basement dropped (same length, distance 3: an 8-letter word allows only 2)');
+ok(!G.keep('responsibilityxyz', 'responsibility'), 'responsibilityxyz dropped (distance 3 is inside the limit: only the length check drops it)');
+ok(G.keep('responsibilityxy', 'responsibility'), 'responsibilityxy kept (2 letters longer, distance 2)');
 ok(!G.keep('', 'ladder') && !G.keep('ladder', ''), 'blank typed or no target: dropped');
 // sets
 const A = S.attack(TERMS, WORDS), L = S.leaks(G, A);
 ok(A.length === 4000, 'attack set has 4,000 pairs (' + A.length + ')');
-ok(L.length <= 14, 'attack leaks: ' + L.length + ' of ' + A.length + ' (limit 14)');
+ok(L.length === LEAKS && LEAKS <= 14, 'attack leaks: ' + L.length + ' of ' + A.length + ' (must equal ' + LEAKS + '; policy limit 14)');
 const M = S.misspellings(WORDS, G.lev), kept = M.filter(p => G.keep(p.typed, p.word)).length;
 ok(M.length > 0 && kept === M.length, 'real 1- and 2-edit misspellings kept: ' + kept + ' of ' + M.length + ' (100% needed)');
 console.log('spellguard regression: ' + bad + ' failed');
