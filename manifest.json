@@ -183,5 +183,20 @@
     "n_questions": 18,
     "n_retests": 0,
     "built_at": "2026-11-01T13:24:40-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "SpellingBee",
+    "title": "Two Bee: 50 study words (spelling bee practice game)",
+    "path": "G3/SpellingBee/TwoBee/",
+    "test_date": "",
+    "added_by": "Grok Bot",
+    "template": "sh-2",
+    "provenance_sha256": "2bea8e9217fc80296cb18d242d2fc5c307b6eee2a8f935ac2930d8ede521784f",
+    "n_sources": 2,
+    "n_inferred": 0,
+    "n_questions": 50,
+    "n_retests": 0,
+    "built_at": "2026-11-02T20:39:15-08:00"
   }
 ]
