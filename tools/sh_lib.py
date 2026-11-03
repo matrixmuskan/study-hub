@@ -179,7 +179,7 @@ def page(rel_path, title, body, code=None, data=None, log=False, crumb_title=Non
     """Full sh-2 page skeleton. data is embedded as JSON for sh.js."""
     scripts = '<script id="sh-js">%s</script>' % asset("js/sh.js")
     if log:
-        scripts = '<script id="sh-log">%s</script>\n' % asset("js/shlog.js") + scripts
+        scripts = '<script id="sh-log">%s</script>\n' % logger_src(rel_path) + scripts
     data_tag = ""
     if data is not None:
         data_tag = '<script type="application/json" id="sh-data">%s</script>' % json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
@@ -212,7 +212,7 @@ def refresh(h, rel_path=None):
     for bid, (tag, name) in BLOCKS.items():
         pat = re.compile(r'(<%s id="%s">)(.*?)(</%s>)' % (tag, bid, tag), re.S)
         if pat.search(h):
-            new = asset(name)
+            new = logger_src(rel_path) if bid == "sh-log" else asset(name)
             h = pat.sub(lambda m: m.group(1) + new + m.group(3), h, count=1)
     if rel_path:
         code = rel_path.split("/")[1] if rel_path.count("/") >= 2 else None
@@ -566,8 +566,47 @@ def data_build_id(d):
     return hashlib.sha256(json.dumps(d, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()[:16]
 
 
-def _privacy_block():
-    return _PRIV_RE.search(asset("js/shlog.js")).group(0)
+# SpellingBee-only logger path (decided by Gilfoy, 2026-11-03). assets/js/shlog.js stays the logger of every other
+# page, byte for byte, so their staged pages do not change. A content page of subject SpellingBee gets shlog.js with
+# these insertions: after SHLog.allow({spelling:true}) it sends, for each missed item, 'typed' as the answer text
+# (trimmed, lowercase, letters a-z only, max 40) instead of the boolean, and 'trap' only from SPELL. The copy keeps
+# its own subject gate too (cfg.subject must be SpellingBee).
+SPELL_SUBJECT = "SpellingBee"
+SPELL_RE = re.compile(r"^G\d+/%s/[^/]+/" % SPELL_SUBJECT)
+SPELL_PATCHES = [
+    ("  TRAPS.forEach(function(t){REG.traps[t]=1});\n",
+     "  TRAPS.forEach(function(t){REG.traps[t]=1});\n"
+     "  // SpellingBee only (tools/sh_lib.py SPELL_PATCHES): typed letters a-z (max 40) and a trap key from SPELL.\n"
+     "  var SPELL=['double_letter','silent_letter','vowel_swap','ending','homophone','other'];\n"
+     "  function spelling(){return !!(REG.spelling&&cfg&&cfg.subject==='SpellingBee')}\n"
+     "  function letters(v){v=String(v==null?'':v);if(v.normalize)v=v.normalize('NFD');return v.trim().toLowerCase().replace(/[^a-z]/g,'').slice(0,40)}\n"),
+    ("    if(o.build&&/^[0-9a-f]{8,64}$/.test(o.build))REG.build=o.build}catch(e){}}",
+     "    if(o.spelling===true)REG.spelling=1;\n    if(o.build&&/^[0-9a-f]{8,64}$/.test(o.build))REG.build=o.build}catch(e){}}"),
+    ("    o.blank=!!blank;o.typed=!!typed;if(item)o.item='checklist';return o}",
+     "    o.blank=!!blank;o.typed=!!typed;if(item)o.item='checklist';\n"
+     "    if(spelling()&&!item){o.typed=letters(m.text);delete o.trap;if(!blank&&SPELL.indexOf(m.trap)>=0)o.trap=m.trap}\n"
+     "    return o}"),
+]
+
+
+def is_spelling(rel_path):
+    return bool(rel_path) and bool(SPELL_RE.match(rel_path.lstrip("./")))
+
+
+def logger_src(rel_path=None):
+    """The logger for a page: assets/js/shlog.js, plus SPELL_PATCHES for SpellingBee content pages."""
+    src = asset("js/shlog.js")
+    if not is_spelling(rel_path):
+        return src
+    for a, b in SPELL_PATCHES:
+        if src.count(a) != 1:
+            raise SystemExit("SPELL_PATCHES: anchor not found once in assets/js/shlog.js: %s" % a.strip()[:60])
+        src = src.replace(a, b)
+    return src
+
+
+def _privacy_block(rel_path=None):
+    return _PRIV_RE.search(logger_src(rel_path)).group(0)
 
 
 def patch_logger(h, blocklist="", rel_path=""):
@@ -580,7 +619,7 @@ def patch_logger(h, blocklist="", rel_path=""):
     if end < 0:
         return h
     body = h[start:end]
-    block = _privacy_block()
+    block = _privacy_block(rel_path)
     if _PRIV_RE.search(body):
         body = _PRIV_RE.sub(lambda m: block, body, count=1)
     else:   # older inline copies: drop their cut/clean/redact (and comments), insert the current block

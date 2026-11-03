@@ -31,6 +31,10 @@ With --src: the staged or mirror plaintext pages also must carry the template ma
       sends (sh-data: q<quiz>-<n> or the question's own id), so logged misses join to their sources.
   R12 The child's first name is in no tracked file (CI: a salted PBKDF2 hash in sh_config.json name_guard, never the
       name; box: also the name itself from STUDY_HUB_KID_FIRST_NAME).
+  R13 (tools/sh_typed.py) Only SpellingBee pages may send typed text: any other page fails if it turns on the
+      spelling exception, puts any non-boolean (any string, even '') in 'typed', uses a spelling trap key, or its logger copy (run under node with
+      the page's subject) sends a string 'typed' or a spelling trap key. In CI: the SpellingBee logger keeps the subject
+      gate and every other page's logger is assets/js/shlog.js unchanged.
   R11 Every page that logs scores has privacy v4: the logger sends no free text (a missed item is its number, a known
       item id, the option letter, a number or listed wrong answer, a trap key, blank and typed; details are a fixed list
       of keys), it commits as Study Hub Bot, the page has an sh-build id, and no sh-redact element.
@@ -42,6 +46,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sh_lib as L
 import sh_checks as C
 import sh_provenance as P
+import sh_typed as T
 
 REPO = L.REPO
 SKIP_DIRS = {".git", "node_modules"}
@@ -200,6 +205,10 @@ def main():
     except Exception:
         pass
 
+    # R13: the spelling exception keeps its subject gate (CI)
+    for pr in T.asset_problems():
+        err("R13", pr)
+
     # Design standard for shared files (no password needed, runs in CI)
     for f, pr in C.lint_paths([os.path.join(REPO, "assets"), os.path.join(REPO, "tools", "password_template.html")], strict=True) + C.lint_config():
         err("R9", "%s: %s" % (os.path.relpath(f, REPO) if os.path.isabs(f) else f, pr))
@@ -237,6 +246,8 @@ def main():
                     err("R5", f"plaintext {rel}: holds the site password")
                 for pr in L.logger_problems(t, bl):
                     err("R11", f"plaintext {rel}: score logger privacy: {pr}")
+                for pr in T.page_problems(p, rel):
+                    err("R13", f"plaintext {rel}: {pr}")
                 for pr in C.design_problems(t, is_html=True):
                     err("R9", f"plaintext {rel}: {pr}")
                 if L.CONTENT_RE.match(rel):

@@ -10,7 +10,13 @@
 //   - ids and trap keys the page did not list are dropped, and the useful facts stay: the trap key, a typed number,
 //     the picked letter, and blank only for a blank answer;
 //   - the PUT sets author and committer to Study Hub Bot;
-//   - the page has no sh-redact element (no private-word list in any form).
+//   - the page has no sh-redact element (no private-word list in any form);
+//   - the one exception: SpellingBee content pages carry the spelling logger path (tools/sh_lib.py SPELL_PATCHES);
+//     with SHLog.allow({spelling:true}) and subject SpellingBee they send typed as letters a-z (max 40) and a trap key
+//     only from the fixed spelling list; any other subject asking for it gets the boolean only; every other page has
+//     the plain logger, which never sends typed text;
+//   - SpellingBee pages: the page's SpellGuard, then the logger's spelling path: made-up name-like strings far from the
+//     target word are dropped (0 sent), and a near-miss misspelling (eliet for elite) is kept.
 // Prints counts only, never the terms. The blocklist is optional: without it, the free-text checks still run.
 'use strict';
 const fs = require('fs'), vm = require('vm');
@@ -23,7 +29,7 @@ function onlyFacts(d, depth) {
   if (d && typeof d === 'object') return depth < 4 && Object.keys(d).every(k => ID.test(k) && onlyFacts(d[k], depth + 1));
   return typeof d === 'number' || typeof d === 'boolean' || (typeof d === 'string' && ID.test(d));
 }
-let bad = 0, pages = 0;
+let bad = 0, pages = 0, spellGuardRuns = 0, spellGuardTerms = 0;
 for (const file of process.argv.slice(2)) {
   const h = fs.readFileSync(file, 'utf8');
   const i = h.indexOf('var SHLog=');
@@ -97,6 +103,80 @@ for (const file of process.argv.slice(2)) {
     const bot = 'study-hub-bot@users.noreply.github.com';
     if (!sent[0].committer || sent[0].committer.email !== bot || !sent[0].author || sent[0].author.email !== bot) fails.push('PUT does not set author and committer to Study Hub Bot');
     if (/id="sh-redact"/.test(h)) fails.push('page still has an sh-redact element');
+    // Spelling exception: only subject SpellingBee with SHLog.allow({spelling:true}) sends the typed letters and a
+    // trap key from the fixed spelling list. Any other subject that asks for it still sends the boolean only.
+    const SPELL = new Set(['double_letter', 'silent_letter', 'vowel_swap', 'ending', 'homophone', 'other']);
+    const spellRun = async (subject) => {
+      const st = {}, out2 = [];
+      const c2 = Object.assign({}, ctx, { localStorage: { getItem: k => st[k] || null, setItem: (k, v) => { st[k] = String(v) } },
+        fetch: (url, o) => { out2.push(JSON.parse(o.body)); return Promise.resolve({ status: 201 }) } });
+      vm.createContext(c2);
+      vm.runInContext(code + '\nthis.SHLog=SHLog;', c2);
+      c2.SHLog.allow({ ids: ['q1-1', 'q1-2', 'q1-3', 'q1-4'], spelling: true });
+      c2.SHLog.init({ grade: 'G3', subject: subject, lesson: 'T', token: 'test-token' });
+      c2.SHLog.record({ kind: 'game', score: 1, total: 5, missed: [
+        { n: 1, id: 'q1-1', value: 3, text: ' Preclaim! ', trap: 'vowel_swap', blank: false, typed: true },
+        { n: 2, id: 'q1-2', value: 1, text: 'the answer ' + words + ' ' + 'x'.repeat(60), trap: 'opposite', blank: false, typed: true },
+        { n: 3, id: 'q1-3', value: null, text: '', trap: 'other', blank: true, typed: true },
+        { n: 4, id: 'q1-4', value: 2, text: 'eliet', trap: words, blank: false, typed: true }] });
+      await c2.SHLog.flush();
+      return out2.length ? JSON.parse(Buffer.from(out2[0].content, 'base64').toString('utf8')) : null;
+    };
+    const sp = await spellRun('SpellingBee');
+    const spellingPage = /G\d+\/SpellingBee\/[^/]+\/index\.html$/.test(file.replace(/\\/g, '/'));
+    const hasSpell = code.includes('function spelling()');
+    if (spellingPage !== hasSpell) fails.push(spellingPage ? 'SpellingBee page without the spelling logger path' : 'a non-SpellingBee page carries the spelling logger path');
+    if (!sp) fails.push('spelling: no PUT');
+    else if (!hasSpell) {
+      // the plain logger (assets/js/shlog.js): even subject SpellingBee asking for spelling gets the boolean only
+      if (sp.missed.some(m => typeof m.typed !== 'boolean' || SPELL.has(m.trap))) fails.push('plain logger sent typed text or a spelling trap');
+    } else {
+      const S = sp.missed;
+      S.forEach((m, k) => {
+        if (!Object.keys(m).every(x => MISS.has(x))) fails.push('spelling item ' + (k + 1) + ' has an unexpected field');
+        if (typeof m.typed !== 'string' || !/^[a-z]{0,40}$/.test(m.typed)) fails.push('spelling item ' + (k + 1) + ' typed is not letters a-z, max 40');
+        if (m.trap !== undefined && !SPELL.has(m.trap)) fails.push('spelling item ' + (k + 1) + ' trap is not in the fixed spelling list');
+      });
+      if (S[0].typed !== 'preclaim' || S[0].trap !== 'vowel_swap' || S[0].value !== '3') fails.push('spelling item 1: typed letters, trap or letter position lost');
+      if (S[1].typed.length !== 40 || S[1].trap !== undefined) fails.push('spelling item 2: not cut to 40 letters, or a trap key outside the list passed');
+      if (S[2].typed !== '' || S[2].trap !== undefined || S[2].blank !== true) fails.push('spelling item 3: a blank item got text or a trap key');
+      if (S[3].typed !== 'eliet' || S[3].trap !== undefined) fails.push('spelling item 4: free-text trap passed');
+    }
+    // SpellingBee pages: the page's own SpellGuard (src/spellguard.js) runs before the record is queued. It drops typed
+    // when it is far from the target word (edit distance > max(2, floor(len/3)), or more than 3 letters longer).
+    // (a) made-up name-like strings far from the target are dropped; (b) a near-miss misspelling (eliet for elite) is kept.
+    if (/G\d+\/SpellingBee\//.test(file.replace(/\\/g, '/')) && h.includes('SpellGuard')) {
+      const gs = h.indexOf('/* SpellGuard'), ge = h.indexOf('</script>', gs);
+      if (gs < 0) fails.push('spelling page has no SpellGuard code');
+      else {
+        const gx = { module: { exports: {} }, Promise, Math, String, Array };
+        vm.createContext(gx); vm.runInContext(h.slice(gs, ge), gx);
+        const SG = gx.module.exports;
+        const names = ['Zorbalina', 'Quentavius', 'Marigoldine', 'Thaddeusz'];   // made up, far from the targets
+        const items = names.map((t, k) => ({ n: k + 1, id: 'q1-' + (k + 1), value: 1, blank: false, typed: true, text: t, trap: 'other', word: ['kelp', 'elite', 'fierce', 'lunar'][k] }));
+        items.push({ n: 5, id: 'q1-5', value: 4, blank: false, typed: true, text: 'eliet', trap: 'vowel_swap', word: 'elite' });
+        const kept = await SG.filter(items);
+        const st = {}, out3 = [];
+        const c3 = Object.assign({}, ctx, { localStorage: { getItem: k => st[k] || null, setItem: (k, v) => { st[k] = String(v) } },
+          fetch: (url, o) => { out3.push(JSON.parse(o.body)); return Promise.resolve({ status: 201 }) } });
+        vm.createContext(c3); vm.runInContext(code + '\nthis.SHLog=SHLog;', c3);
+        c3.SHLog.allow({ ids: items.map(x => x.id), spelling: true });
+        c3.SHLog.init({ grade: 'G3', subject: 'SpellingBee', lesson: 'T', token: 'test-token' });
+        c3.SHLog.record({ kind: 'game', score: 0, total: items.length, missed: kept });
+        await c3.SHLog.flush();
+        const o3 = out3.length ? Buffer.from(out3[0].content, 'base64').toString('utf8') : '';
+        const M3 = o3 ? JSON.parse(o3).missed : [];
+        const hits = names.filter(t => new RegExp(t, 'i').test(o3)).length;
+        if (!o3) fails.push('spelling guard run: no PUT');
+        else {
+          if (hits || M3.slice(0, 4).some(m => m.typed !== '' || 'trap' in m)) fails.push('spelling guard: ' + hits + ' of ' + names.length + ' made-up names far from the target were sent');
+          if (!M3[4] || M3[4].typed !== 'eliet' || M3[4].trap !== 'vowel_swap' || M3[4].value !== '4') fails.push('spelling guard: the near miss eliet for elite was not kept');
+          if (!fails.length) spellGuardRuns++, spellGuardTerms = names.length;
+        }
+      }
+    }
+    const ns = await spellRun('WW');
+    if (!ns || ns.missed.some(m => m.typed !== true || 'trap' in m)) fails.push('a non-SpellingBee page that asks for spelling still got typed text or a spelling trap');
   })().catch(e => fails.push('logger did not run: ' + e.message)).then(() => {
     if (fails.length) { bad++; console.log('FAIL ' + file.split('/').slice(-4).join('/') + ': ' + fails.join('; ')); }
     else console.log('ok   ' + file.split('/').slice(-4).join('/') + ': no free text, 0 of ' + terms.length + ' terms, bot identity');
@@ -104,7 +184,7 @@ for (const file of process.argv.slice(2)) {
 }
 process.on('beforeExit', () => {
   if (process.exitCode === undefined) {
-    console.log('privacy test: ' + pages + ' logger pages, ' + bad + ' failed');
+    console.log('privacy test: ' + pages + ' logger pages, ' + bad + ' failed' + (spellGuardRuns ? '; spelling guard: ' + spellGuardRuns + ' page(s), ' + spellGuardTerms + ' far-off names dropped, near miss kept' : ''));
     process.exitCode = bad || !pages ? 1 : 0;
   }
 });
