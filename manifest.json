@@ -192,11 +192,11 @@
     "test_date": "",
     "added_by": "SpellingBee",
     "template": "sh-2",
-    "provenance_sha256": "2a9c605811892f7461fc88d12f2b56ff66fa10e15a3af6e1d40c2c736f896e76",
+    "provenance_sha256": "9ba19d7962789e9b39efc3a81c0beee1c545028e7b2f9ff7bd43b1511bd402df",
     "n_sources": 3,
     "n_inferred": 0,
     "n_questions": 50,
     "n_retests": 3,
-    "built_at": "2026-11-03T10:18:49-08:00"
+    "built_at": "2026-11-03T10:45:42-08:00"
   }
 ]
