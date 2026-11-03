@@ -12,7 +12,9 @@
 //   - the PUT sets author and committer to Study Hub Bot;
 //   - the page has no sh-redact element (no private-word list in any form);
 //   - the one exception: subject SpellingBee with SHLog.allow({spelling:true}) sends typed as letters a-z (max 40) and
-//     a trap key only from the fixed spelling list; any other subject asking for it gets the boolean only.
+//     a trap key only from the fixed spelling list; any other subject asking for it gets the boolean only;
+//   - SpellingBee pages: the page's SpellGuard runs on each private term (and the child's first name) typed as a near
+//     try at a word, then the spelling path of the logger; none of them may be sent (0 hits).
 // Prints counts only, never the terms. The blocklist is optional: without it, the free-text checks still run.
 'use strict';
 const fs = require('fs'), vm = require('vm');
@@ -25,7 +27,7 @@ function onlyFacts(d, depth) {
   if (d && typeof d === 'object') return depth < 4 && Object.keys(d).every(k => ID.test(k) && onlyFacts(d[k], depth + 1));
   return typeof d === 'number' || typeof d === 'boolean' || (typeof d === 'string' && ID.test(d));
 }
-let bad = 0, pages = 0;
+let bad = 0, pages = 0, spellGuardRuns = 0, spellGuardTerms = 0;
 for (const file of process.argv.slice(2)) {
   const h = fs.readFileSync(file, 'utf8');
   const i = h.indexOf('var SHLog=');
@@ -132,6 +134,38 @@ for (const file of process.argv.slice(2)) {
       if (S[2].typed !== '' || S[2].trap !== undefined || S[2].blank !== true) fails.push('spelling item 3: a blank item got text or a trap key');
       if (S[3].typed !== 'eliet' || S[3].trap !== undefined) fails.push('spelling item 4: free-text trap passed');
     }
+    // SpellingBee pages: the page's own SpellGuard (src/spellguard.js) runs before the record is queued. Run the
+    // spelling path with each private term and the child's first name typed as a near try at a word: 0 hits expected.
+    if (/G\d+\/SpellingBee\//.test(file.replace(/\\/g, '/')) && h.includes('SpellGuard')) {
+      const gs = h.indexOf('/* SpellGuard'), ge = h.indexOf('</script>', gs);
+      const dm = /<script type="application\/json" id="sp-data">([\s\S]*?)<\/script>/.exec(h);
+      const guard = dm ? JSON.parse(dm[1]).guard : null;
+      const kid = (process.env.STUDY_HUB_KID_FIRST_NAME || '').trim();
+      const all = terms.concat(kid ? [kid] : []);
+      if (gs < 0 || !guard) fails.push('spelling page has no SpellGuard code or guard data');
+      else if (all.length) {
+        const gx = { module: { exports: {} }, TextEncoder, Uint8Array, Promise, Math, String, Array, parseInt };
+        vm.createContext(gx); vm.runInContext(h.slice(gs, ge), gx);
+        const SG = gx.module.exports;
+        const items = all.map((t, k) => ({ n: k + 1, id: 'q1-' + (k + 1), value: 1, blank: false, typed: true, text: t, trap: 'other', word: t.toLowerCase() + 'x' }));
+        const kept = await SG.filter(items, guard, require('crypto').webcrypto);
+        const st = {}, out3 = [];
+        const c3 = Object.assign({}, ctx, { localStorage: { getItem: k => st[k] || null, setItem: (k, v) => { st[k] = String(v) } },
+          fetch: (url, o) => { out3.push(JSON.parse(o.body)); return Promise.resolve({ status: 201 }) } });
+        vm.createContext(c3); vm.runInContext(code + '\nthis.SHLog=SHLog;', c3);
+        c3.SHLog.allow({ ids: items.map(x => x.id), spelling: true });
+        c3.SHLog.init({ grade: 'G3', subject: 'SpellingBee', lesson: 'T', token: 'test-token' });
+        c3.SHLog.record({ kind: 'game', score: 0, total: items.length, missed: kept });
+        await c3.SHLog.flush();
+        const o3 = out3.length ? Buffer.from(out3[0].content, 'base64').toString('utf8') : '';
+        const norm = t => t.normalize('NFD').toLowerCase().replace(/[^a-z]/g, '');
+        const typedOut = o3 ? JSON.parse(o3).missed.map(m => m.typed) : [];
+        const hits = all.filter(t => typedOut.includes(norm(t)) || new RegExp('(^|[^A-Za-z])' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^A-Za-z])', 'i').test(o3)).length;
+        if (!o3) fails.push('spelling guard run: no PUT');
+        else if (hits) fails.push('spelling guard: ' + hits + ' of ' + all.length + ' private terms sent as typed text');
+        else spellGuardRuns++, spellGuardTerms = all.length;
+      }
+    }
     const ns = await spellRun('WW');
     if (!ns || ns.missed.some(m => m.typed !== true || 'trap' in m)) fails.push('a non-SpellingBee page that asks for spelling still got typed text or a spelling trap');
   })().catch(e => fails.push('logger did not run: ' + e.message)).then(() => {
@@ -141,7 +175,7 @@ for (const file of process.argv.slice(2)) {
 }
 process.on('beforeExit', () => {
   if (process.exitCode === undefined) {
-    console.log('privacy test: ' + pages + ' logger pages, ' + bad + ' failed');
+    console.log('privacy test: ' + pages + ' logger pages, ' + bad + ' failed' + (spellGuardRuns ? '; spelling guard: ' + spellGuardRuns + ' page(s), ' + spellGuardTerms + ' private terms typed, 0 sent' : ''));
     process.exitCode = bad || !pages ? 1 : 0;
   }
 });
