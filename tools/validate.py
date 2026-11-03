@@ -32,7 +32,7 @@ With --src: the staged or mirror plaintext pages also must carry the template ma
   R12 The child's first name is in no tracked file (CI: a salted PBKDF2 hash in sh_config.json name_guard, never the
       name; box: also the name itself from STUDY_HUB_KID_FIRST_NAME).
   R13 (tools/sh_typed.py) Only SpellingBee pages may send typed text: any other page fails if it turns on the
-      spelling exception, puts a string in 'typed', uses a spelling trap key, or its logger copy (run under node with
+      spelling exception, puts any non-boolean (any string, even '') in 'typed', uses a spelling trap key, or its logger copy (run under node with
       the page's subject) sends a string 'typed' or a spelling trap key. In CI: shlog.js keeps the subject gate.
   R11 Every page that logs scores has privacy v4: the logger sends no free text (a missed item is its number, a known
       item id, the option letter, a number or listed wrong answer, a trap key, blank and typed; details are a fixed list

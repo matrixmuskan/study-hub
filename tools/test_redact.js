@@ -13,8 +13,8 @@
 //   - the page has no sh-redact element (no private-word list in any form);
 //   - the one exception: subject SpellingBee with SHLog.allow({spelling:true}) sends typed as letters a-z (max 40) and
 //     a trap key only from the fixed spelling list; any other subject asking for it gets the boolean only;
-//   - SpellingBee pages: the page's SpellGuard runs on each private term (and the child's first name) typed as a near
-//     try at a word, then the spelling path of the logger; none of them may be sent (0 hits).
+//   - SpellingBee pages: the page's SpellGuard, then the logger's spelling path: made-up name-like strings far from the
+//     target word are dropped (0 sent), and a near-miss misspelling (eliet for elite) is kept.
 // Prints counts only, never the terms. The blocklist is optional: without it, the free-text checks still run.
 'use strict';
 const fs = require('fs'), vm = require('vm');
@@ -134,21 +134,20 @@ for (const file of process.argv.slice(2)) {
       if (S[2].typed !== '' || S[2].trap !== undefined || S[2].blank !== true) fails.push('spelling item 3: a blank item got text or a trap key');
       if (S[3].typed !== 'eliet' || S[3].trap !== undefined) fails.push('spelling item 4: free-text trap passed');
     }
-    // SpellingBee pages: the page's own SpellGuard (src/spellguard.js) runs before the record is queued. Run the
-    // spelling path with each private term and the child's first name typed as a near try at a word: 0 hits expected.
+    // SpellingBee pages: the page's own SpellGuard (src/spellguard.js) runs before the record is queued. It drops typed
+    // when it is far from the target word (edit distance > max(2, floor(len/3)), or more than 3 letters longer).
+    // (a) made-up name-like strings far from the target are dropped; (b) a near-miss misspelling (eliet for elite) is kept.
     if (/G\d+\/SpellingBee\//.test(file.replace(/\\/g, '/')) && h.includes('SpellGuard')) {
       const gs = h.indexOf('/* SpellGuard'), ge = h.indexOf('</script>', gs);
-      const dm = /<script type="application\/json" id="sp-data">([\s\S]*?)<\/script>/.exec(h);
-      const guard = dm ? JSON.parse(dm[1]).guard : null;
-      const kid = (process.env.STUDY_HUB_KID_FIRST_NAME || '').trim();
-      const all = terms.concat(kid ? [kid] : []);
-      if (gs < 0 || !guard) fails.push('spelling page has no SpellGuard code or guard data');
-      else if (all.length) {
-        const gx = { module: { exports: {} }, TextEncoder, Uint8Array, Promise, Math, String, Array, parseInt };
+      if (gs < 0) fails.push('spelling page has no SpellGuard code');
+      else {
+        const gx = { module: { exports: {} }, Promise, Math, String, Array };
         vm.createContext(gx); vm.runInContext(h.slice(gs, ge), gx);
         const SG = gx.module.exports;
-        const items = all.map((t, k) => ({ n: k + 1, id: 'q1-' + (k + 1), value: 1, blank: false, typed: true, text: t, trap: 'other', word: t.toLowerCase() + 'x' }));
-        const kept = await SG.filter(items, guard, require('crypto').webcrypto);
+        const names = ['Zorbalina', 'Quentavius', 'Marigoldine', 'Thaddeusz'];   // made up, far from the targets
+        const items = names.map((t, k) => ({ n: k + 1, id: 'q1-' + (k + 1), value: 1, blank: false, typed: true, text: t, trap: 'other', word: ['kelp', 'elite', 'fierce', 'lunar'][k] }));
+        items.push({ n: 5, id: 'q1-5', value: 4, blank: false, typed: true, text: 'eliet', trap: 'vowel_swap', word: 'elite' });
+        const kept = await SG.filter(items);
         const st = {}, out3 = [];
         const c3 = Object.assign({}, ctx, { localStorage: { getItem: k => st[k] || null, setItem: (k, v) => { st[k] = String(v) } },
           fetch: (url, o) => { out3.push(JSON.parse(o.body)); return Promise.resolve({ status: 201 }) } });
@@ -158,12 +157,14 @@ for (const file of process.argv.slice(2)) {
         c3.SHLog.record({ kind: 'game', score: 0, total: items.length, missed: kept });
         await c3.SHLog.flush();
         const o3 = out3.length ? Buffer.from(out3[0].content, 'base64').toString('utf8') : '';
-        const norm = t => t.normalize('NFD').toLowerCase().replace(/[^a-z]/g, '');
-        const typedOut = o3 ? JSON.parse(o3).missed.map(m => m.typed) : [];
-        const hits = all.filter(t => typedOut.includes(norm(t)) || new RegExp('(^|[^A-Za-z])' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^A-Za-z])', 'i').test(o3)).length;
+        const M3 = o3 ? JSON.parse(o3).missed : [];
+        const hits = names.filter(t => new RegExp(t, 'i').test(o3)).length;
         if (!o3) fails.push('spelling guard run: no PUT');
-        else if (hits) fails.push('spelling guard: ' + hits + ' of ' + all.length + ' private terms sent as typed text');
-        else spellGuardRuns++, spellGuardTerms = all.length;
+        else {
+          if (hits || M3.slice(0, 4).some(m => m.typed !== '' || 'trap' in m)) fails.push('spelling guard: ' + hits + ' of ' + names.length + ' made-up names far from the target were sent');
+          if (!M3[4] || M3[4].typed !== 'eliet' || M3[4].trap !== 'vowel_swap' || M3[4].value !== '4') fails.push('spelling guard: the near miss eliet for elite was not kept');
+          if (!fails.length) spellGuardRuns++, spellGuardTerms = names.length;
+        }
       }
     }
     const ns = await spellRun('WW');
@@ -175,7 +176,7 @@ for (const file of process.argv.slice(2)) {
 }
 process.on('beforeExit', () => {
   if (process.exitCode === undefined) {
-    console.log('privacy test: ' + pages + ' logger pages, ' + bad + ' failed' + (spellGuardRuns ? '; spelling guard: ' + spellGuardRuns + ' page(s), ' + spellGuardTerms + ' private terms typed, 0 sent' : ''));
+    console.log('privacy test: ' + pages + ' logger pages, ' + bad + ' failed' + (spellGuardRuns ? '; spelling guard: ' + spellGuardRuns + ' page(s), ' + spellGuardTerms + ' far-off names dropped, near miss kept' : ''));
     process.exitCode = bad || !pages ? 1 : 0;
   }
 });

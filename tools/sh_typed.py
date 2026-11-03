@@ -4,8 +4,10 @@
 Only a page of subject SpellingBee may use the logger's spelling exception (shlog.js: SHLog.allow({spelling:true})
 makes 'typed' the typed letters a-z, max 40, and allows a trap key from SPELL). Any other page fails when:
   (a) its own scripts turn the exception on (a 'spelling' key that is not false),
-  (b) its own scripts put a string in 'typed' (typed must be a boolean expression: true, false, !x, a comparison),
-  (c) its own scripts use a spelling trap key (SPELL) or the SpellTrap classifier,
+  (b) its own scripts put a non-boolean in 'typed': any string, even '' (typed must be true, false, !x, Boolean(x) or a
+      comparison, with no string literal in it). Real non-SpellingBee pages send typed as a boolean (sh.js: !q.options),
+      so this keys on the field's value, not on the field: a rule against any 'typed' field would fail every real page,
+  (c) second check: its own scripts use a spelling trap key (SPELL) or the SpellTrap classifier,
   (d) its logger copy, run with the page's subject and the exception turned on, sends a string 'typed' or a spelling
       trap key (node tools/typed_harness.js), so a changed logger copy cannot leak typed text either.
 asset_problems() checks assets/js/shlog.js keeps the subject gate (CI, no plaintext needed).
@@ -64,7 +66,7 @@ def page_problems(path, rel):
     if _ON_RE.search(s):
         out.append("subject %s turns on the spelling exception (only %s pages may send typed text)" % (subj, SUBJECT))
     for v in _TYPED_RE.findall(s):
-        if not _BOOL_RE.match(v):
+        if re.search(r"[\"'`]", v) or not _BOOL_RE.match(v):
             out.append("subject %s puts a non-boolean in 'typed' (%s): only %s pages may send typed text" % (subj, v.strip()[:40], SUBJECT))
             break
     if _SPELLKEY_RE.search(s):

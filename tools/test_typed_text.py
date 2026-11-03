@@ -33,6 +33,13 @@ case("WW page turns on the exception", "G3/WW/Fake/index.html", page("SHLog.allo
 case("SS page turns it on with !0", "G3/SS/Fake/index.html", page("SHLog.allow({ids:[],spelling:!0});"), True)
 case("WW page puts the typed string in typed", "G3/WW/Fake/index.html",
      page("SHLog.record({kind:'game',score:0,total:1,missed:[{n:1,id:'q1-1',typed:String(val).slice(0,40)}]});"), True)
+case("WW page puts an empty string in typed", "G3/WW/Fake/index.html", page("var m={n:1,id:'q1-1',typed:''};"), True)
+case("WW page puts \"\" in typed", "G3/WW/Fake/index.html", page('var m={n:1,id:"q1-1","typed":""};'), True)
+case("SS page puts a ternary string in typed", "G3/SS/Fake/index.html", page("var m={n:1,typed:a===b?'x':''};"), True)
+case("LA page puts a variable in typed", "G3/LA/Fake/index.html", page("var m={n:1,typed:answerText};"), True)
+case("WW page typed:false (allowed)", "G3/WW/Fake/index.html", page("var m={n:1,typed:false,blank:true};"), False)
+case("WW page typed:n>0 (allowed)", "G3/WW/Fake/index.html", page("var m={n:1,typed:n>0};"), False)
+case("WW page typed:a==='x' (string literal, refused)", "G3/WW/Fake/index.html", page("var m={n:1,typed:kind==='typed'};"), True)
 case("Noetic page puts a quoted string in typed", "G3/Noetic/Fake/index.html", page("var m={n:1,typed:'eliet'};"), True)
 case("WW page sends a spelling trap key", "G3/WW/Fake/index.html", page("var m={n:1,id:'q1-1',trap:'vowel_swap',typed:true};"), True)
 case("WW page uses the SpellTrap classifier", "G3/WW/Fake/index.html", page("var t=SpellTrap.classify(a,b);"), True)
