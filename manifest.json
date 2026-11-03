@@ -187,16 +187,16 @@
   {
     "grade": "G3",
     "subject": "SpellingBee",
-    "title": "Two Bee: 50 study words (spelling bee practice game)",
+    "title": "Two Bee practice",
     "path": "G3/SpellingBee/TwoBee/",
     "test_date": "",
-    "added_by": "Grok Bot",
+    "added_by": "SpellingBee",
     "template": "sh-2",
-    "provenance_sha256": "2bea8e9217fc80296cb18d242d2fc5c307b6eee2a8f935ac2930d8ede521784f",
-    "n_sources": 2,
+    "provenance_sha256": "e91508068efa2f13ee2d03f825e66e40f40213bab58a3f4199b1dabecabce696",
+    "n_sources": 3,
     "n_inferred": 0,
     "n_questions": 50,
-    "n_retests": 0,
-    "built_at": "2026-11-02T20:39:15-08:00"
+    "n_retests": 3,
+    "built_at": "2026-11-02T21:33:38-08:00"
   }
 ]
