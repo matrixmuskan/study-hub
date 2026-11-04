@@ -21,17 +21,29 @@ INFO per test (not a coach failure): attempted: yes/no, from the child's full mo
 with no attempt still lets Basy compare the real result with the prediction.
 Output: counts, times and paths only (never scores, names or file contents).
 Exit: 0, or 1 with --strict when any test is MISSING or LATE (never for attempted: no). 2 when study-hub-scores or the
-mirror cannot be read (no token, no network): the checker says so and does not guess.
+mirror cannot be read (no token, no network), or the scores folder has no prediction records at all (the path is
+likely wrong): the checker says so and does not guess.
 
 Token: STUDY_HUB_SCORES_TOKEN (env or ~/.study-hub.env), never printed. Tests: STUDY_HUB_SCORES_DIR=<folder>.
 """
-import argparse, datetime as dt, json, os, sys
+import argparse, datetime as dt, json, os, re, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sh_f2 as F
 import sh_scores as S
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATUSES = ("PASS", "LATE", "MISSING", "PENDING")
+PRED_RE = re.compile(r"^G[0-9]+/[^/]+/[^/]+/[^/]*-prediction\.json$")
+
+
+def scores_folder():
+    """The scores folder in use, for messages: the local test folder or the GitHub repo."""
+    return S.local_dir() or "study-hub-scores on GitHub (%s)" % S.REPO
+
+
+def n_prediction_files(files):
+    """How many G<g>/<Subject>/<Lesson>/*-prediction.json files the scores folder has in total."""
+    return sum(1 for f in files if PRED_RE.match(f))
 
 
 def mirror_reader(src):
@@ -143,6 +155,15 @@ def main(argv=None):
         S.check_access(write=False)
         if not os.path.isdir(a.src):
             print("F2 CHECK DID NOT RUN: no plaintext mirror at --src (the full mock pages cannot be read)")
+            return 2
+        # Zero prediction files in the whole folder: the path is likely wrong, so do not report MISSING for every test.
+        d = S.local_dir()
+        if d and not os.path.isdir(d):
+            print("F2 CHECK DID NOT RUN: the scores folder %s does not exist (STUDY_HUB_SCORES_DIR is likely wrong)" % d, file=sys.stderr)
+            return 2
+        if n_prediction_files(S.tree("")) == 0:
+            print("F2 CHECK DID NOT RUN: no prediction records (G3/*/*/*-prediction.json) were found in %s. "
+                  "The scores folder path is likely wrong" % scores_folder(), file=sys.stderr)
             return 2
         res = run(items, now, a.test_time, page_html=mirror_reader(a.src))
     except S.ScoresError as ex:
