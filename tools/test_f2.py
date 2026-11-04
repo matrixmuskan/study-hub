@@ -2,7 +2,7 @@
 """CI tests for rule F2 (tools/sh_f2.py, the validate.py static part, tools/check_f2.py on a local fixture folder).
 Made-up pages and score files only. No secrets, no network."""
 import datetime as dt, io, json, os, shutil, subprocess, sys, tempfile
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sh_f2 as F
 
@@ -215,6 +215,31 @@ try:
     with redirect_stdout(io.StringIO()) as o:
         rc_nosrc = C.main(["--manifest", ok_man, "--src", os.path.join(tmp, "nope")])
     check("check_f2 with no mirror exits 2 with 'DID NOT RUN'", rc_nosrc == 2 and "DID NOT RUN" in o.getvalue())
+    # scores folder with no prediction records at all: the path is likely wrong, exit 2 with a clear message
+    def rc_err(folder):
+        os.environ["STUDY_HUB_SCORES_DIR"] = folder
+        try:
+            e = io.StringIO()
+            with redirect_stdout(io.StringIO()), redirect_stderr(e):
+                rc = C.main(["--manifest", mp, "--src", mirror, "--now", "2026-11-14T00:00:00-08:00"])
+            return rc, e.getvalue()
+        finally:
+            os.environ["STUDY_HUB_SCORES_DIR"] = os.path.join(tmp, "scores")
+    empty = os.path.join(tmp, "empty-scores")
+    os.makedirs(os.path.join(empty, "G3", "XX", "Pass2"))
+    open(os.path.join(empty, "G3", "XX", "Pass2", "2026-11-05T100000-mock-aaaa.json"), "w").write("{}")
+    rc, err = rc_err(empty)
+    check("check_f2: a scores folder with no prediction records exits 2 and names the folder",
+          rc == 2 and "no prediction records" in err and empty in err and "likely wrong" in err)
+    one = os.path.join(tmp, "one-scores")
+    os.makedirs(os.path.join(one, "G3", "YY", "Other"))
+    json.dump({"kind": "prediction"}, open(os.path.join(one, "G3", "YY", "Other", "2026-11-01T100000-prediction.json"), "w"))
+    rc, err = rc_err(one)
+    check("check_f2: one unrelated prediction file does not trigger it (tests stay MISSING, not exit 2)",
+          rc == 0 and "no prediction records" not in err)
+    rc, err = rc_err(os.path.join(tmp, "no-such-scores"))
+    check("check_f2: a missing scores folder exits 2 and names it",
+          rc == 2 and "no-such-scores" in err and "does not exist" in err)
     # no token, no network: a clean exit 2 with a message, run in a child with an empty HOME
     env = {k: v for k, v in os.environ.items() if k not in ("STUDY_HUB_SCORES_DIR", "STUDY_HUB_SCORES_TOKEN")}
     env["HOME"] = os.path.join(tmp, "home")
