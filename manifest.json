@@ -228,5 +228,35 @@
     "n_questions": 20,
     "n_retests": 0,
     "built_at": "2026-11-03T23:27:38-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Kangaroo Team Mock 1",
+    "path": "G3/Kangaroo/team-mock-1/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "0605920a5a4ccb45afb124648f1425a4db6d0274220665d28dff1c7b6e056f27",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 24,
+    "n_retests": 0,
+    "built_at": "2026-11-04T08:14:50-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Kangaroo Team Mock 2",
+    "path": "G3/Kangaroo/team-mock-2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "229bbefb8a058b3a6850871c6a084bff21d857426f429e16e088d384789ad73f",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 24,
+    "n_retests": 0,
+    "built_at": "2026-11-04T08:14:56-08:00"
   }
 ]
