@@ -1,8 +1,8 @@
 # How coach bots publish a page (sh-2)
 
-TL;DR: You write content in a JSON or Markdown file. The generator makes the page. The publish script encrypts it and commits it. You push and tell Basy.
+TL;DR: You write content in a JSON or Markdown file. The generator makes the page. The publish script encrypts it and commits it. You push and tell Gilfoy.
 
-This guide is for the coach bots: Sissy (SS), Worldy (WW), Naughty (Noetic), Aussie (Kangaroo), Booky (LA), and new coaches. Basy, the coordinator, uses the same rules to review a push.
+This guide is for the coach bots: Sissy (SS), Worldy (WW), Naughty (Noetic), Aussie (Kangaroo), Booky (LA), and new coaches. Gilfoy reviews every push with the same rules. Gilfoy merges on the box with a squash merge only, never in the GitHub web UI. When Gilfoy is the author, the coach of the subject reviews. Basy is the school coordinator. Report school results to Basy. Each bot's duties are in the accountability file `/workspace/fleet/ACCOUNTABILITY.md` (on the shared box, not in this repo).
 
 ## 1. Rules that you must not break
 
@@ -18,7 +18,7 @@ This guide is for the coach bots: Sissy (SS), Worldy (WW), Naughty (Noetic), Aus
 
 1. Put each page at `G<grade>/<Subject>/<Chapter-or-test>/index.html`.
 2. Use one of these subject codes: `SS`, `WW`, `Noetic`, `Kangaroo`, `MOEMS`, `Math`, `Sci`, `LA`, `Grammar`, `SpellingBee`.
-3. To add a subject code, add it to `tools/sh_config.json`. Give it a name, a two-letter mark, and one accent color. Tell Basy.
+3. To add a subject code, add it to `tools/sh_config.json`. Give it a name, a two-letter mark, and one accent color. Tell Gilfoy.
 4. Write the chapter or test id with letters, digits, dots, dashes, or underscores. Do not use spaces. Examples: `Lesson10`, `Ch3-Maps`, `Final2-Ch3-4`.
 5. Do not put other files in the page folder. The page folder holds only `index.html`. Keep sources, notes, images, videos, captions, and PDFs in your own workspace. The generator puts each image and video inside `index.html` (see section 4).
 
@@ -148,7 +148,7 @@ The generator puts the token in the page from `STUDY_HUB_SCORES_TOKEN`. It never
 9. Publish: `tools/publish.sh "SS: add Chapter 3 Maps"`. The script builds the hub pages, runs the checks (also the learning-loop rules B1 to B6), encrypts the changed pages, runs the validator, and commits.
 10. Read the output. Make sure that it shows `validation passed`. The commit message then has the trailer `Validated: sh-2`. If the validation fails, the script makes no commit.
 11. Push: `git push origin main`.
-12. Send Basy the changed paths and the commit id.
+12. Send Gilfoy the commit link (or the PR link, for branch work in a worktree), the changed paths, and the commit id.
 
 The manifest entry looks like this. The generator writes it for you:
 
@@ -351,7 +351,7 @@ format vs 2 school test(s):                        mock  school
 ```
 
 3. The mock must match within these limits (`F1_TOL` in `tools/sh_provenance.py`): question count within 20% or 3 questions (the larger), share of multiple-choice questions within 15 points, options per question within 0.5, words per question within 40%.
-4. Out of range gives a warning from `sh_page.py` and from `publish.sh` (`WARNING: F1 ...`). It does not stop the build, because a coach can have a reason (for example a short practice mock). Write the reason in the coach SOURCE file. Basy reads the warnings.
+4. Out of range gives a warning from `sh_page.py` and from `publish.sh` (`WARNING: F1 ...`). It does not stop the build, because a coach can have a reason (for example a short practice mock). Write the reason in the coach SOURCE file. Gilfoy reads the warnings.
 
 ### 11.6 Pages from before the rules (attach)
 

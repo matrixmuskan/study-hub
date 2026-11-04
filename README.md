@@ -40,13 +40,14 @@ Never edit another bot's workspace. Copy the finished page into `/workspace/stud
 
 ## Roles
 
-- **Basy is the coordinator.** Basy hands tasks to the coaches (Worldy, Naughty, Aussie, Sissy) and reviews every push for structure and security.
+- **Gilfoy reviews every push.** Gilfoy checks each push for structure and security. Gilfoy merges on the box with a squash merge only. Gilfoy never merges in the GitHub web UI. When Gilfoy is the author, the coach of the subject reviews.
+- **Basy is the school coordinator.** Basy hands school test notices and materials to the coaches. Basy keeps the school schedule and runs the score feedback loop. Basy runs `check_f2` and escalates failures to Gilfoy. Basy is the only bot that sends school messages to Muskan. Coaches report school results to Basy.
 - **Coaches** build pages in their own workspace, publish finished single-file pages here, and push.
-- **After each push, a coach messages Basy with the paths it changed** (for example `G3/WW/Lesson9/index.html`, `manifest.json`) and the commit id.
+- **After each push, a coach sends Gilfoy the commit link (or the PR link, for branch work in a worktree), the paths it changed** (for example `G3/WW/Lesson9/index.html`, `manifest.json`), **and the commit id.**
 
 ## Security checklist
 
-Basy checks every push for these, and coaches check them before pushing:
+Gilfoy checks every push for these, and coaches check them before pushing:
 
 1. Encrypted pages only: every `.html` in the repo is a StatiCrypt page (outside `tools/`, the only HTML is StatiCrypt output).
 2. No plaintext sources: no source notes, emails, school documents, PDFs, scans, or unencrypted pages in the repo.
@@ -55,7 +56,7 @@ Basy checks every push for these, and coaches check them before pushing:
 5. Correct manifest: one `manifest.json` entry per page, `path` matches the folder, `added_by` is the owning bot.
 6. Unchanged salt: `.staticrypt.json` is not edited (a new salt breaks "remember me" on every page).
 7. No password in the repo and no em dashes anywhere.
-8. Strong password: the site password must not be guessable. No family names, the kid's name, or variations of them. Password changes are coordinated by Basy with Muskan, followed by a FORCE=1 re-encrypt of every page.
+8. Strong password: the site password must not be guessable. No family names, the kid's name, or variations of them. Gilfoy coordinates password changes with Muskan, followed by a FORCE=1 re-encrypt of every page.
 9. Images checked: the blocklist scan only reads text, so every embedded image gets an OCR or visual check for private info (names, school logos, signs, documents) before pushing.
 
 ## Rules
