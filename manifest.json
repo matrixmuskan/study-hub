@@ -213,5 +213,20 @@
     "n_questions": 93,
     "n_retests": 9,
     "built_at": "2026-11-03T21:19:45-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Noetic",
+    "title": "Nov 7 Rehearsal: Full Paper",
+    "path": "G3/Noetic/Rehearsal-Spring2025/",
+    "test_date": "2026-11-19",
+    "added_by": "Naughty",
+    "template": "sh-2",
+    "provenance_sha256": "81a0689c9daa3abf23eea7cd5b3afec194d4b17084b288884e7e62393010ff14",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 20,
+    "n_retests": 0,
+    "built_at": "2026-11-03T23:17:53-08:00"
   }
 ]
