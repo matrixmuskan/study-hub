@@ -324,8 +324,9 @@ The old box logs (`/workspace/<coach>/error_log.csv`) were imported by `tools/mi
 | B6 | `resolved=yes` only with 2 correct answers on 2 PT days | `publish.sh` |
 | B7 | a page with a quiz logs to study-hub-scores | `sh_page.py`, `validate.py --src` |
 | F1 | a school-subject mock cites `patterns_from` (required) and matches their question count, question types, option count and length (warning) | `sh_page.py` (required, prints the comparison), `publish.sh` (warning) |
+| F2 | every real test from 2026-11-05 on has a full mock page that logs (static); the coach publishes that page and records a predicted score at least 24 hours before the test (logs); the child's attempt is INFO only | `validate.py --src` (box, in `publish.sh`: fail or warning, 11.7); `tools/check_f2.py` (box, Basy) |
 
-`publish.sh` checks B1 to B6 for each changed page that is not a legacy page. It needs `STUDY_HUB_SCORES_TOKEN`. If a rule fails, it encrypts nothing and commits nothing. Tests: `tools/test_provenance.py` (CI), `tools/test_publish.sh` cases 5 and 6 (CI), `tools/test_provenance_box.py` (box, fixture subject).
+`publish.sh` checks B1 to B6 for each changed page that is not a legacy page. It needs `STUDY_HUB_SCORES_TOKEN`. If a rule fails, it encrypts nothing and commits nothing. Tests: `tools/test_provenance.py` (CI), `tools/test_f2.py` (CI, rule F2), `tools/test_publish.sh` cases 5 and 6 (CI), `tools/test_provenance_box.py` (box, fixture subject).
 
 ### 11.5 School mocks match the real test (rule F1)
 
@@ -350,3 +351,35 @@ format vs 2 school test(s):                        mock  school
 ### 11.6 Pages from before the rules (attach)
 
 A page in `legacy_provenance` that was not built with `sh_page.py` can get a record without a rebuild. Write a fragment `{"page", "provenance": {"sources", "results_ingested", "weak_spots_from"}, "questions": [{"id", "q", "src" or "inferred": true, "retests"}], "prompts"}` (for example `/workspace/ss/provenance/Final1-Ch1-2-8.provenance.json`), then run `python3 tools/sh_provenance.py attach <fragment.json>` on the box. It gives each question the id that the page's logger sends (`q<quiz>-<n>`, as `sh_page.py` numbers them; the question is matched to the page's `sh-data` by its text, so the fragment's own ids such as `practice-1` or `mock-1` are replaced, and `quiz` is the page's quiz number; a page with no `sh-data` in the mirror fails the attach), checks the fragment (B1, B2, P2, real `retests` ids, B6), writes the record with `"attached": true` to study-hub-scores, adds the hash and counts to the manifest entry, and takes the page out of `legacy_provenance`. The next `tools/publish.sh` run commits that `legacy_provenance` change together with `manifest.json`, so the shared tree is clean after the publish (no extra PR is needed). `publish.sh` checks first (`sh_provenance.py config-diff`): it stages `tools/sh_config.json` only when the one change since HEAD is pages taken out of `legacy_provenance` and each of them has a `provenance_sha256` in the manifest. Any other uncommitted change to `tools/sh_config.json` stops the publish before anything is encrypted; that change goes through a PR. B3, B4 and the B5 rotation do not apply to an attached record, because they are rules for new builds. `attach` refuses a page that is not in `legacy_provenance`, and the list can only get shorter.
+
+### 11.7 A full mock page and a predicted score 24 hours before each real test (rule F2)
+
+Decided by Gilfoy, effective Nov 3, 2026. The same day Gilfoy split the coach's duty from the child's action. Gilfoy's words: the coach's F2 duty is to publish a full logging mock page, with a predicted score recorded in its metadata or in a 'prediction' record in study-hub-scores, at least 24 hours before the test (by 8:00 AM PT the day before). A missing or late page or prediction is a coach failure. Whether the child actually takes the mock is not a coach failure.
+
+- Owner: the coach of the subject (the bot in `added_by`). Basy checks and escalates. Gilfoy decides.
+- A real test is one grade, subject and `test_date` in `manifest.json`. All pages with the same grade, subject and `test_date` share the test, so one full mock page with a prediction on any of them covers the test.
+- Start date: F2 applies to real tests on or after Thu 2026-11-05 (the WW Lesson 9 test is the first). Tests on or before 2026-11-04 are exempt. There are no back-dated failures. The cutoff is `F2_CUTOFF` in `tools/sh_f2.py`.
+- Full mock page: a manifest page of the test with a quiz of `kind` `mock`, `mode` `test`, 10 or more questions (`F2_MIN_QUESTIONS`), `log` on in `sh-data`, and the score logger. A mock that is shorter only because the real test is shorter needs `"full": true` on the quiz block; write the reason in the coach source file. A mini check (for example a 6-question mastery quiz) does not count.
+- Published: the time of the first build of the page in study-hub-scores `G<g>/<Subject>/_builds/<stamp>-<Lesson>.json` (Pacific time). A later rebuild does not move it. An older page with no build history uses `built_at` in `manifest.json`.
+- Prediction: one of these two.
+  - A record `G<g>/<Subject>/<Lesson>/<stamp>-prediction.json` in study-hub-scores, in the folder of the full mock page, with `kind` `prediction` and the predicted score as numbers `{"total": <predicted>, "of": <full total>}` (for example in `predicted_score`). The time is `created_at` (with its offset), else the file name stamp read as Pacific time. The checker reads only the numbers, so other keys, such as a text note, can change or go away.
+  - Or the page metadata: `"prediction": {"total": <predicted>, "of": <full total>}` on the full mock quiz block (`sh_page.py` copies only the two numbers into `sh-data`). Its time is the latest build of the page (`built_at`), because a rebuild can add it.
+- When: the page and its prediction are both ready at least 24 hours before the test starts, in America/Los_Angeles time. The manifest has only the date, so the test starts at 08:00 Pacific on `test_date` (`F2_TEST_TIME`). Example: for a test on Thu 2026-11-05, the page and the prediction must be ready by Wed 2026-11-04 08:00 Pacific.
+- Coach failure: after the deadline, no full mock page with a prediction is MISSING. Ready, but less than 24 hours before the test, is LATE. Basy escalates both to Gilfoy.
+- Not a coach failure: the child does not take the mock. `check_f2.py` reports this as INFO, `attempted: yes` or `attempted: no` (a first-round full mock attempt logged before the test). With no attempt, Basy still compares the real result with the prediction.
+
+The checks:
+
+1. Static (`validate.py --src`, so on the box and in every `publish.sh` run; the repo pages are encrypted, so CI cannot read them). For each manifest entry with a `test_date` on or after 2026-11-05, a page of the test needs a full mock that logs.
+   - Fail (`F2:`): no page of the test has a full mock that logs. The publish stops.
+   - Warning: this page has no full mock, but another page of the same test has one (for example the Noetic chapter quizzes, where the warm-up mock and rehearsal pages cover the 2026-11-19 contest). Also a warning: every page of the test is an older page with no `sh-data`, so its quizzes cannot be read.
+   - This keeps every page that is live on Nov 3, 2026 passing: WW Lesson 9 (2026-11-05) has a 32-question mock, and the Noetic 2026-11-19 pages are covered by the warm-up mock and rehearsal pages.
+2. Logs (`tools/check_f2.py`, box only, never in public CI because it needs `STUDY_HUB_SCORES_TOKEN` and the plaintext mirror). Basy runs it every day and before each test:
+
+```sh
+python3 tools/check_f2.py            # report only
+python3 tools/check_f2.py --strict   # exit 1 when a test is MISSING or LATE (never for attempted: no)
+```
+
+   It prints one line per test: `PASS` (page and prediction ready 24 hours or more before), `LATE` (ready, but less than 24 hours before), `MISSING` (not ready and the deadline has passed; the line names the cause: no full mock page that logs, or no prediction), or `PENDING` (the deadline is still ahead). Then one `INFO` line per test with `attempted: yes` or `attempted: no`. It prints counts, times and paths only, never scores, predictions or file contents. It exits 2 with `F2 CHECK DID NOT RUN` when there is no token, no network, or no mirror. Options: `--now <ISO time>`, `--test-time HH:MM`, `--manifest <path>`, `--src <mirror>` (default `$STUDY_HUB_SRC` or `../study-hub-src`). Basy sends each MISSING or LATE test to Gilfoy with the test, the coach and the paths.
+3. Tests: `tools/test_f2.py` (CI) uses made-up pages and a fixture score folder (`STUDY_HUB_SCORES_DIR`).

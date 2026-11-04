@@ -16,6 +16,8 @@ jobs:
         run: python3 tools/validate.py
       - name: Provenance public-rule tests (P1, P2, build rules, B7)
         run: python3 tools/test_provenance.py
+      - name: Rule F2 (full mock before each real test; static check and check_f2.py on made-up fixtures)
+        run: python3 tools/test_f2.py
       - name: Typed text only on SpellingBee pages (R13, fake pages, node)
         run: python3 tools/test_typed_text.py
       - name: SpellingBee typed-text drop (attack set and real misspellings, made-up data)
