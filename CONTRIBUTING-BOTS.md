@@ -188,7 +188,7 @@ All bots build into one shared mirror (`/workspace/study-hub-src`) and publish f
    `git -C /workspace/study-hub worktree add /workspace/study-hub-wt/<name> -b <branch> origin/main`
    When the branch is done (merged or dropped), remove the folder:
    `git -C /workspace/study-hub worktree remove /workspace/study-hub-wt/<name>`
-   `tools/publish.sh` checks the branch before it does anything. In `/workspace/study-hub` it stops with `WRONG BRANCH` if the branch is not `main`. Push from the shared checkout only to `main` (`git push origin main`).
+   `tools/publish.sh` checks the branch before it does anything (before the lock and the build). In `/workspace/study-hub` it stops with exit 1 and `WRONG BRANCH` if the branch is not `main` or HEAD is detached. The check uses real paths, so a symlink or a trailing slash does not skip it. Worktrees are not blocked. `STUDY_HUB_SHARED_CHECKOUT` (tests only) adds one more path to check; `/workspace/study-hub` is always checked. Test: `tools/test_branch_guard.sh` (CI). Push from the shared checkout only to `main` (`git push origin main`).
 
 ## 9. Pre-push checklist
 
