@@ -152,6 +152,8 @@ def render_block(b, base, quizzes, sec_id):
             q["id"] = q.get("id") or "q%d-%d" % (len(quizzes) + 1, n)
         quizzes.append({"kind": kind, "mode": b.get("mode", "practice" if kind == "game" else "test"), "section": sec_id,
                         "questions": qs})
+        if isinstance(b.get("full"), bool):     # rule F2: mark a short mock as the full mock (or a long one as not full)
+            quizzes[-1]["full"] = b["full"]
         head = ("<h2>%s</h2>" % e(b["title"])) if b.get("title") else ""
         sub = ('<p class="sh-sub">%s</p>' % e(b["intro"])) if b.get("intro") else ""
         return '<div class="sh-section">%s%s<div id="quiz-%d" data-sh-quiz="%d"></div></div>' % (head, sub, len(quizzes) - 1, len(quizzes) - 1)

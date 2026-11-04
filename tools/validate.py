@@ -39,6 +39,11 @@ With --src: the staged or mirror plaintext pages also must carry the template ma
       'retry' and 'round' is an int >= 1 ('first' with round 1, 'retry' with round 2 or more), sent together or not at
       all; older score files without them pass. CI: assets/js/shlog.js (run under node) sends them for good input and
       drops bad input. With --src: the same on each staged page's logger copy. With --attempts PATH: every score file.
+  F2  (with --src; tools/sh_f2.py) Every real test (manifest grade, subject and test_date on or after F2_CUTOFF,
+      2026-11-05) has a full mock that logs on one of its pages: a quiz of kind 'mock', mode 'test', 10 or more questions
+      (or "full": true), sh-data 'log' true and the score logger, so a predicted score can be logged 24 hours before.
+      Fail: no page of the test has one. Warning: another page of the test has it, or the test has only older pages
+      with no sh-data. Tests before the cutoff are exempt. The log timing itself is tools/check_f2.py (box only).
   R11 Every page that logs scores has privacy v4: the logger sends no free text (a missed item is its number, a known
       item id, the option letter, a number or listed wrong answer, a trap key, blank and typed; details are a fixed list
       of keys), it commits as Study Hub Bot, the page has an sh-build id, and no sh-redact element.
@@ -52,6 +57,7 @@ import sh_checks as C
 import sh_provenance as P
 import sh_typed as T
 import sh_rounds as RD
+import sh_f2 as F2
 
 REPO = L.REPO
 SKIP_DIRS = {".git", "node_modules"}
@@ -276,6 +282,16 @@ def main():
                             warnings.append(f"{rel}: legacy page, B7 not met: {pr}")
                         else:
                             err("B7", f"plaintext {rel}: {pr}")
+
+    # F2: every real test from the cutoff on has a full mock that logs (static part; the log timing is check_f2.py)
+    if a.src:
+        def staged(path):
+            fp = os.path.join(a.src, path, "index.html")
+            return open(fp, encoding="utf-8").read() if os.path.exists(fp) else None
+        f2e, f2w = F2.static_problems(items, staged)
+        for x in f2e:
+            err("F2", x[len("F2: "):])
+        warnings.extend(f2w)
 
     # B8: provenance ids = logger ids (needs the private score repo, so only with --src on the box)
     if a.src:
