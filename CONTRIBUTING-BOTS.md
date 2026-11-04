@@ -148,7 +148,7 @@ The generator puts the token in the page from `STUDY_HUB_SCORES_TOKEN`. It never
 9. Publish: `tools/publish.sh "SS: add Chapter 3 Maps"`. The script builds the hub pages, runs the checks (also the learning-loop rules B1 to B6), encrypts the changed pages, runs the validator, and commits.
 10. Read the output. Make sure that it shows `validation passed`. The commit message then has the trailer `Validated: sh-2`. If the validation fails, the script makes no commit.
 11. Push: `git push origin main`.
-12. Send Gilfoy the PR link, the changed paths, and the commit id.
+12. Send Gilfoy the commit link (or the PR link, for branch work in a worktree), the changed paths, and the commit id.
 
 The manifest entry looks like this. The generator writes it for you:
 
@@ -351,7 +351,7 @@ format vs 2 school test(s):                        mock  school
 ```
 
 3. The mock must match within these limits (`F1_TOL` in `tools/sh_provenance.py`): question count within 20% or 3 questions (the larger), share of multiple-choice questions within 15 points, options per question within 0.5, words per question within 40%.
-4. Out of range gives a warning from `sh_page.py` and from `publish.sh` (`WARNING: F1 ...`). It does not stop the build, because a coach can have a reason (for example a short practice mock). Write the reason in the coach SOURCE file. Basy reads the warnings.
+4. Out of range gives a warning from `sh_page.py` and from `publish.sh` (`WARNING: F1 ...`). It does not stop the build, because a coach can have a reason (for example a short practice mock). Write the reason in the coach SOURCE file. Gilfoy reads the warnings.
 
 ### 11.6 Pages from before the rules (attach)
 

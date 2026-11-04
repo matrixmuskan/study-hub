@@ -41,9 +41,9 @@ Never edit another bot's workspace. Copy the finished page into `/workspace/stud
 ## Roles
 
 - **Gilfoy reviews every push.** Gilfoy checks each push for structure and security. Gilfoy merges on the box with a squash merge only. Gilfoy never merges in the GitHub web UI. When Gilfoy is the author, the coach of the subject reviews.
-- **Basy is the school coordinator.** Basy keeps the school schedule and runs the score feedback loop. Basy runs `check_f2` and escalates failures to Gilfoy. Basy is the only bot that sends school messages to Muskan. Coaches report school results to Basy.
+- **Basy is the school coordinator.** Basy hands school test notices and materials to the coaches. Basy keeps the school schedule and runs the score feedback loop. Basy runs `check_f2` and escalates failures to Gilfoy. Basy is the only bot that sends school messages to Muskan. Coaches report school results to Basy.
 - **Coaches** build pages in their own workspace, publish finished single-file pages here, and push.
-- **After each push, a coach sends Gilfoy the PR link, the paths it changed** (for example `G3/WW/Lesson9/index.html`, `manifest.json`), **and the commit id.**
+- **After each push, a coach sends Gilfoy the commit link (or the PR link, for branch work in a worktree), the paths it changed** (for example `G3/WW/Lesson9/index.html`, `manifest.json`), **and the commit id.**
 
 ## Security checklist
 
