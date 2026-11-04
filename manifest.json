@@ -53,12 +53,12 @@
     "test_date": "2026-11-05",
     "added_by": "Worldy",
     "template": "sh-2",
-    "provenance_sha256": "4d044a6bb11fd134ae320dfaa781ab70ac9af38177253ad16f19531257bedbe6",
+    "provenance_sha256": "3bf06507b9750052853b8ce22d782674174aac9fd72947f6dd4a7e9a0b80c5a8",
     "n_sources": 13,
     "n_inferred": 0,
     "n_questions": 117,
     "n_retests": 0,
-    "built_at": "2026-11-01T12:41:53-08:00"
+    "built_at": "2026-11-03T21:19:56-08:00"
   },
   {
     "grade": "G3",
@@ -207,11 +207,11 @@
     "test_date": "2026-11-04",
     "added_by": "Worldy",
     "template": "sh-2",
-    "provenance_sha256": "78b48c22743c2ffbc59c5a0d434a9a0240f16d5e09e29f3310abcbcab826ceb3",
+    "provenance_sha256": "687eb8d98e40dfd703e6f341d6ae665660a9a7a92c1aef3939c20180e28b198a",
     "n_sources": 11,
     "n_inferred": 0,
     "n_questions": 93,
-    "n_retests": 0,
-    "built_at": "2026-11-03T20:13:56-08:00"
+    "n_retests": 9,
+    "built_at": "2026-11-03T21:19:45-08:00"
   }
 ]
