@@ -16,6 +16,7 @@ import argparse, base64, json, mimetypes, os, re, subprocess, sys, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sh_lib as L
 import sh_provenance as P
+import sh_f2 as F2
 
 e = L.e
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,60}$")
@@ -154,6 +155,11 @@ def render_block(b, base, quizzes, sec_id):
                         "questions": qs})
         if isinstance(b.get("full"), bool):     # rule F2: mark a short mock as the full mock (or a long one as not full)
             quizzes[-1]["full"] = b["full"]
+        pv = F2.prediction_value(b.get("prediction")) if isinstance(b.get("prediction"), dict) else None
+        if b.get("prediction") is not None and not pv:
+            fail("rule F2: quiz 'prediction' must be {\"total\": <predicted>, \"of\": <full total>}")
+        if pv:                                  # rule F2: the coach's predicted score in the page metadata (numbers only)
+            quizzes[-1]["prediction"] = {"total": pv[0], "of": pv[1]}
         head = ("<h2>%s</h2>" % e(b["title"])) if b.get("title") else ""
         sub = ('<p class="sh-sub">%s</p>' % e(b["intro"])) if b.get("intro") else ""
         return '<div class="sh-section">%s%s<div id="quiz-%d" data-sh-quiz="%d"></div></div>' % (head, sub, len(quizzes) - 1, len(quizzes) - 1)
