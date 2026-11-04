@@ -120,7 +120,11 @@ var SHLog=(function(){
         missed:cleanAll(r.missed,kind),details:facts(r.details),build:buildId(),
         clientTime:isoLocal(d),tz:(function(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone}catch(e){return ''}})(),
         page:pagePath()};
-      var item={path:path,message:cfg.grade+' '+cfg.subject+' '+cfg.lesson+' '+kind+' '+score+'/'+total,content:b64(JSON.stringify(payload,null,1)+'\n'),tries:0};
+      // retry loop (sh.js): attempt_kind 'first' with round 1, or 'retry' with round 2 and on. 'kind' stays the quiz
+      // kind (game, mock, retest), so older readers and the file name do not change. Anything else is not sent.
+      var ak=r.attempt_kind,rd=r.round;
+      if((ak==='first'||ak==='retry')&&typeof rd==='number'&&rd%1===0&&rd>=1&&rd<=999&&(ak==='first')===(rd===1)){payload.attempt_kind=ak;payload.round=rd}
+      var item={path:path,message:cfg.grade+' '+cfg.subject+' '+cfg.lesson+' '+kind+' '+score+'/'+total+(payload.round>1?' round '+payload.round:''),content:b64(JSON.stringify(payload,null,1)+'\n'),tries:0};
       var q=load();q.push(item);store(q);
       setTimeout(flush,0);
       return {path:path,payload:payload};

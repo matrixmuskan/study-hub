@@ -20,6 +20,10 @@ jobs:
         run: python3 tools/test_typed_text.py
       - name: SpellingBee typed-text drop (attack set and real misspellings, made-up data)
         run: node tools/test_spellguard.js
+      - name: Retry loop (wrong-only rounds, locked questions, round logging, R14), headless Chrome, made-up fixture
+        run: |
+          pip install -q playwright
+          python3 tools/test_retry_loop.py
       - name: Every 'Validated' trailer is true (validate.py passes at that commit)
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then

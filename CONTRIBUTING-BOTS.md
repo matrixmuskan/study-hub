@@ -127,6 +127,8 @@ For a comic, a `.jpg` or `.webp` at about 1200 px wide is usually much smaller t
    - `traps`: the known wrong answers: `{"B": "opposite"}` for options, `{"90": "Only half of them are even."}` for typed answers. A typed answer that is in `traps` is sent as the value; any other typed word is not sent (a number always is).
 7. Do not put names or private information in questions.
 
+Retry loop (shared runtime, every quiz): after a quiz is marked, "Retry the wrong ones" shows only the questions missed in that round. The questions already right stay on the page, grayed out and locked (disabled, `inert`, `aria-disabled`, out of the tab order). The loop goes on until every question is right, then the page says "All correct in N rounds". "Start over" is a full reset to round 1. Nothing is kept on the device, so a reload mid-loop starts over. Each round is its own logged attempt: `kind` stays the quiz kind (`mock`, `game`, `retest`), and the file also has `attempt_kind` (`first` for round 1, `retry` after) and `round` (1, 2, 3, ...). The score of a retry round counts only that round's questions. Older score files have neither field. `validate.py` rule R14 (`tools/sh_rounds.py`) checks these fields; `tools/test_retry_loop.py` is the headless test (CI).
+
 When the child finishes a quiz, the page calls `SHLog.record`. The logger writes one file to the private repo `matrixmuskan/study-hub-scores`:
 
 `G3/<Subject>/<Lesson>/<YYYY-MM-DD>T<HHMMSS>-<kind>-<rand4>.json`
@@ -216,6 +218,8 @@ Do these checks before each push:
 `validate.py --src <dir>` runs only on staged output (a folder made by `tools/sh_stage.py`, as `publish.sh` does). It refuses the raw mirror with a clear message, because older pages in the mirror get their skin and logger patch only at stage time. To check by hand: `python3 tools/sh_stage.py <mirror> <tmpdir> && python3 tools/validate.py --src <tmpdir>`, then delete `<tmpdir>`.
 
 To test the logger privacy in pages: `node tools/test_redact.js <decrypted or staged pages>`. To see the real pages log the trap and the value: `python3 tools/test_logger_pages.py` on the box (it plays a Noetic, a WW and an SS page headless, with nothing sent). It records an attempt full of free text and private words (from `STUDY_HUB_BLOCKLIST` in the env) and checks that only ids, letters, numbers and booleans leave the page, as Study Hub Bot. It prints counts only.
+
+R14 (`tools/sh_rounds.py`): the retry-loop fields. `attempt_kind` is `first` or `retry`, `round` is an int of 1 or more (`first` with round 1, `retry` with round 2 or more), and they come together or not at all. Older score files without them pass. In CI the logger (`assets/js/shlog.js`, run under node) must send them for good input and drop bad input; with `--src` the same runs on each staged page's logger copy; `validate.py --attempts <files or folders>` checks score files.
 
 Provenance (section 11):
 
