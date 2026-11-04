@@ -184,6 +184,11 @@ All bots build into one shared mirror (`/workspace/study-hub-src`) and publish f
 3. `sh_page.py` (except `--out` previews), `sh_provenance.py attach` and `publish.sh` take the same lock (an exclusive `flock` on `<mirror>/.publish.lock`) when they run on their own. A second bot waits up to 15 minutes (`SH_LOCK_WAIT`), then stops with `LOCKED:` and the holder's name, command and start time. Wait and run your session again. Never delete the lock file. Inside a session, `SH_LOCK_HELD` must be this mirror's lock file and the lock must be held by the session that runs your command (`SH_LOCK_PID` is an ancestor process that really has the lock file open; the text in the lock file is only for people); a copied or made-up `SH_LOCK_HELD` is refused with `LOCK NOT HELD`, and a clone that does not own the mirror gets `WRONG CLONE` inside a session too. The lock stops accidents between cooperating bots; it is not a security boundary. If the clone named in `<mirror>/_state/repo` no longer exists, the next session reclaims the mirror and logs it in `<mirror>/_state/lock.log`.
 4. If the push is rejected, stay in the session: run `git fetch origin` and `git rebase origin/main` (never `git pull --rebase` from an old clone after a history rewrite), then push again.
 5. Branch work (tools, docs) goes in a worktree (`git worktree add /workspace/study-hub-wt/<name> -b <branch> origin/main`). A worktree does not use the shared mirror. Merges on main happen in `/workspace/study-hub` only while it is clean, inside a locked session.
+6. R15 (decided by Gilfoy as R14 on 2026-11-03; R14 is the validator id for the retry-loop fields): the shared checkout `/workspace/study-hub` always stays on `main`. Never run `git switch` or `git checkout <branch>` in it. All branch work goes in its own worktree folder:
+   `git -C /workspace/study-hub worktree add /workspace/study-hub-wt/<name> -b <branch> origin/main`
+   When the branch is done (merged or dropped), remove the folder:
+   `git -C /workspace/study-hub worktree remove /workspace/study-hub-wt/<name>`
+   `tools/publish.sh` checks the branch before it does anything. In `/workspace/study-hub` it stops with `WRONG BRANCH` if the branch is not `main`. Push from the shared checkout only to `main` (`git push origin main`).
 
 ## 9. Pre-push checklist
 

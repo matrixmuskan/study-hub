@@ -8,6 +8,17 @@ set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="${STUDY_HUB_SRC:-$(dirname "$REPO")/study-hub-src}"
 export STUDY_HUB_SRC="$SRC"
+# R15 (Gilfoy's R14, 2026-11-03): the shared checkout always stays on main, so it never commits or pushes another branch.
+# Worktrees (any other folder) are not affected.
+SHARED_CHECKOUT="${STUDY_HUB_SHARED_CHECKOUT:-/workspace/study-hub}"
+if [ "$(cd "$REPO" && pwd -P)" = "$(cd "$SHARED_CHECKOUT" 2>/dev/null && pwd -P)" ]; then
+  BR="$(git -C "$REPO" branch --show-current)"
+  if [ "$BR" != "main" ]; then
+    echo "WRONG BRANCH: $REPO is the shared checkout and is on '${BR:-detached HEAD}', not main (rule R15). Nothing was built, committed or pushed." >&2
+    echo "Switch it back to main, and do branch work in a worktree: git -C $REPO worktree add /workspace/study-hub-wt/<name> -b <branch> origin/main" >&2
+    exit 1
+  fi
+fi
 # One session per mirror: publish runs under tools/sh_lock.sh (the same lock as sh_page.py and attach).
 if [ -n "${SH_LOCK_HELD:-}" ]; then   # inside a session: check it is real (right lock, held by this process tree)
   "$REPO/tools/sh_lock.sh" true || exit 77
