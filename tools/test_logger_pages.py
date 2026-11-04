@@ -13,7 +13,29 @@ import base64, json, os, re, subprocess, sys, tempfile, shutil
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sh_lib as L
 
-SRC = os.environ.get("STUDY_HUB_SRC") or os.path.join(os.path.dirname(L.REPO), "study-hub-src")
+PAGES = ("G3/Noetic/Ch1-Quiz", "G3/WW/Lesson9", "G3/SS/Final1-Ch1-2-8")
+
+
+def find_src():
+    """The plaintext mirror: $STUDY_HUB_SRC, else ../study-hub-src next to this checkout, else ../study-hub-src next to
+    the main checkout of this repo (a worktree, for example /workspace/study-hub-wt/<name>, has no mirror next to it).
+    This test only reads the mirror (it stages a copy into a temp folder)."""
+    if os.environ.get("STUDY_HUB_SRC"):
+        return os.environ["STUDY_HUB_SRC"]
+    cands = [os.path.join(os.path.dirname(L.REPO), "study-hub-src")]
+    try:
+        common = subprocess.run(["git", "-C", L.REPO, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                                capture_output=True, text=True, check=True).stdout.strip()
+        cands.append(os.path.join(os.path.dirname(os.path.dirname(common)), "study-hub-src"))
+    except (OSError, subprocess.CalledProcessError):
+        pass
+    for c in cands:
+        if os.path.isdir(c):
+            return c
+    return cands[0]
+
+
+SRC = find_src()
 STUB = """(() => { window.__puts = []; const f = window.fetch;
   window.fetch = (url, o) => { if (o && o.method === 'PUT') { window.__puts.push(JSON.parse(o.body)); return Promise.resolve({status: 201}); }
     return Promise.resolve({status: 404}); }; })();"""
@@ -37,6 +59,10 @@ def main():
     from playwright.sync_api import sync_playwright
     if not terms():
         sys.exit("STUDY_HUB_BLOCKLIST is empty (source ~/.study-hub.env)")
+    missing = [p for p in PAGES if not os.path.isfile(os.path.join(SRC, p, "index.html"))]
+    if missing:
+        sys.exit("test_logger_pages: the plaintext mirror %s has no %s. Set STUDY_HUB_SRC to the mirror (box only)."
+                 % (SRC, ", ".join(missing)))
     st = tempfile.mkdtemp(prefix="sh-logtest.")
     os.chmod(st, 0o700)
     bad = 0
