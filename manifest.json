@@ -198,5 +198,20 @@
     "n_questions": 50,
     "n_retests": 3,
     "built_at": "2026-11-03T12:09:52-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "LA",
+    "title": "Grammar: Verbs unit test prep",
+    "path": "G3/LA/Verbs-Unit/",
+    "test_date": "2026-11-04",
+    "added_by": "Worldy",
+    "template": "sh-2",
+    "provenance_sha256": "78b48c22743c2ffbc59c5a0d434a9a0240f16d5e09e29f3310abcbcab826ceb3",
+    "n_sources": 11,
+    "n_inferred": 0,
+    "n_questions": 93,
+    "n_retests": 0,
+    "built_at": "2026-11-03T20:13:56-08:00"
   }
 ]
