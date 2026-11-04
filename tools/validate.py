@@ -35,6 +35,10 @@ With --src: the staged or mirror plaintext pages also must carry the template ma
       spelling exception, puts any non-boolean (any string, even '') in 'typed', uses a spelling trap key, or its logger copy (run under node with
       the page's subject) sends a string 'typed' or a spelling trap key. In CI: the SpellingBee logger keeps the subject
       gate and every other page's logger is assets/js/shlog.js unchanged.
+  R14 (tools/sh_rounds.py) Retry-loop attempt fields: 'kind' stays the quiz kind; 'attempt_kind' is 'first' or
+      'retry' and 'round' is an int >= 1 ('first' with round 1, 'retry' with round 2 or more), sent together or not at
+      all; older score files without them pass. CI: assets/js/shlog.js (run under node) sends them for good input and
+      drops bad input. With --src: the same on each staged page's logger copy. With --attempts PATH: every score file.
   R11 Every page that logs scores has privacy v4: the logger sends no free text (a missed item is its number, a known
       item id, the option letter, a number or listed wrong answer, a trap key, blank and typed; details are a fixed list
       of keys), it commits as Study Hub Bot, the page has an sh-build id, and no sh-redact element.
@@ -47,6 +51,7 @@ import sh_lib as L
 import sh_checks as C
 import sh_provenance as P
 import sh_typed as T
+import sh_rounds as RD
 
 REPO = L.REPO
 SKIP_DIRS = {".git", "node_modules"}
@@ -96,6 +101,7 @@ def b7_problems(t):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", help="staged or mirror folder with plaintext pages (local only, never in CI)")
+    ap.add_argument("--attempts", nargs="*", default=[], help="score files or folders (study-hub-scores) to check for rule R14")
     a = ap.parse_args()
     subjects = set(L.CFG["subjects"])
     pw = os.environ.get("STATICRYPT_PASSWORD", "")
@@ -208,6 +214,17 @@ def main():
     # R13: the spelling exception keeps its subject gate (CI)
     for pr in T.asset_problems():
         err("R13", pr)
+    # R14: the logger sends the retry-loop fields only with good values (CI)
+    for pr in RD.logger_problems():
+        err("R14", "assets/js/shlog.js: " + pr)
+    for f in RD.files(a.attempts):
+        try:
+            pl = json.load(open(f, encoding="utf-8"))
+        except ValueError as ex:
+            err("R14", "%s: not JSON (%s)" % (f, ex))
+            continue
+        for pr in RD.payload_problems(pl):
+            err("R14", "%s: %s" % (f, pr))
 
     # Design standard for shared files (no password needed, runs in CI)
     for f, pr in C.lint_paths([os.path.join(REPO, "assets"), os.path.join(REPO, "tools", "password_template.html")], strict=True) + C.lint_config():
@@ -248,6 +265,9 @@ def main():
                     err("R11", f"plaintext {rel}: score logger privacy: {pr}")
                 for pr in T.page_problems(p, rel):
                     err("R13", f"plaintext {rel}: {pr}")
+                if L.CONTENT_RE.match(rel) and "var SHLog=" in t:
+                    for pr in RD.logger_problems(p, T.subject_of(rel) or "WW"):
+                        err("R14", f"plaintext {rel}: {pr}")
                 for pr in C.design_problems(t, is_html=True):
                     err("R9", f"plaintext {rel}: {pr}")
                 if L.CONTENT_RE.match(rel):

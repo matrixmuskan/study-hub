@@ -65,23 +65,35 @@ var SH=(function(){
   // trap key from page text: 'Other-sense lure' -> 'other-sense-lure' (page content, never the child's input)
   function tkey(s){s=String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,32).replace(/-+$/,'');return /^[a-z0-9]/.test(s)?s:''}
   function norm(s){return String(s==null?'':s).trim().toLowerCase().replace(/\s+/g,' ').replace(/[.,!]$/,'')}
+  /* Retry loop (wrong-only): after "Mark my test" (or the last answer in practice mode), Retry shows only the questions
+     missed in that round. The questions already right stay on the page, grayed out and locked (disabled, inert,
+     aria-disabled, tabindex -1, so keyboard focus skips them). Each round is its own logged attempt: attempt_kind
+     'first' (round 1) or 'retry' (round 2 and on), round N, and the score of that round's questions only. When every
+     question is right the page says "All correct in N rounds". "Start over" is a full reset to round 1. Nothing is
+     kept on the device: a reload mid-loop starts over. */
+  function plural(n,w){return n+' '+w+(n===1?'':'s')}
   function quiz(root,data,page){
     try{
+      // a rebuild (Start over) drops the listeners of the earlier build, so old state never acts on the new questions
+      if(root.__shOff){try{root.__shOff()}catch(e){}root.__shOff=null}
       var qi=+(root.getAttribute&&root.getAttribute('data-sh-quiz'))||0;
       var qs=data.questions||[],mode=data.mode||(data.kind==='game'?'practice':'test'),state=qs.map(function(){return {pick:null,done:false}});
+      var round=1,active=qs.map(function(q,i){return i}),locked={};
       root.classList.add('sh-quiz');
-      function optText(q,i){return q.options[i]}
       function isRight(q,st){if(q.options)return st.pick===q.answer;var a=[].concat(q.answer_text);return a.some(function(x){return norm(x)===norm(st.pick)})}
       function rightText(q){return q.options?LET[q.answer]+'. '+q.options[q.answer]:[].concat(q.answer_text)[0]}
       var html=qs.map(function(q,i){
         var body=q.options?'<div class="sh-opts" role="group">'+q.options.map(function(o,k){return '<button type="button" class="sh-opt" data-q="'+i+'" data-k="'+k+'"><span class="sh-opt__k">'+LET[k]+'</span><span>'+esc(o)+'</span></button>'}).join('')+'</div>'
           :'<input class="sh-input" data-q="'+i+'" autocomplete="off" inputmode="'+(q.numeric?'numeric':'text')+'" aria-label="Your answer">'+(mode==='practice'?' <button type="button" class="sh-btn" data-check="'+i+'">Check</button>':'');
-        return '<div class="sh-q" id="'+esc(root.id)+'-q'+i+'"><div class="sh-q__n">Question '+(i+1)+' of '+qs.length+'</div><p class="sh-q__text">'+esc(q.q)+'</p>'+body+'<div class="sh-fb" hidden></div></div>';
+        return '<div class="sh-q" id="'+esc(root.id)+'-q'+i+'" data-qi="'+i+'"><div class="sh-q__n">Question '+(i+1)+' of '+qs.length+'</div><p class="sh-q__text">'+esc(q.q)+'</p>'+body+'<div class="sh-fb" hidden></div></div>';
       }).join('');
+      html='<div class="sh-round" data-round role="status" hidden></div>'+html;
       html+=mode==='test'?'<div class="sh-actions"><button type="button" class="sh-btn" data-finish>Mark my test</button></div>':'';
-      html+='<div class="sh-card sh-score" hidden></div>';
+      html+='<div class="sh-card sh-score" hidden aria-live="polite"></div>';
       root.innerHTML=html;
-      var fbOf=function(i){return $('#'+root.id+'-q'+i+' .sh-fb',root)};
+      var qOf=function(i){return $('#'+root.id+'-q'+i,root)};
+      var fbOf=function(i){return $('.sh-fb',qOf(i))};
+      function controls(i){return $$('button,input,select,textarea,a[href],[tabindex]',qOf(i))}
       function feedback(i){var q=qs[i],st=state[i],ok=isRight(q,st),fb=fbOf(i);
         fb.hidden=false;fb.className='sh-fb '+(ok?'is-right':'is-wrong');
         fb.innerHTML=(ok?'<b>Correct.</b> ':'<b>Not this time.</b> The answer is '+esc(rightText(q))+'. ')+(q.explain?esc(q.explain):'');
@@ -89,27 +101,59 @@ var SH=(function(){
           if(k===q.answer)b.classList.add('is-right');else if(k===st.pick)b.classList.add('is-wrong')});
         else{var inp=$('.sh-input[data-q="'+i+'"]',root);if(inp)inp.disabled=true;var cb=$('[data-check="'+i+'"]',root);if(cb)cb.disabled=true}
         st.done=true;
-        if(mode==='practice'&&state.every(function(s){return s.done}))finish();
+        if(mode==='practice'&&active.every(function(k){return state[k].done}))finish();
       }
-      root.addEventListener('click',function(e){
+      // a question that is right: grayed out, locked, out of the tab order and hidden from assistive tech as inactive
+      function lock(i){var el=qOf(i);if(!el||locked[i])return;locked[i]=1;
+        el.classList.add('is-locked');el.setAttribute('aria-disabled','true');el.setAttribute('inert','');try{el.inert=true}catch(e){}
+        controls(i).forEach(function(c){c.disabled=true;c.tabIndex=-1;c.setAttribute('aria-disabled','true')})}
+      // a missed question, fresh for the next round: no pick, no answer shown, enabled
+      function reopen(i){var el=qOf(i);state[i]={pick:null,done:false};
+        el.classList.remove('is-locked');el.classList.add('is-retry');
+        $$('.sh-opt',el).forEach(function(b){b.disabled=false;b.classList.remove('is-picked','is-right','is-wrong')});
+        var inp=$('.sh-input',el);if(inp){inp.disabled=false;inp.value=''}
+        var cb=$('[data-check]',el);if(cb)cb.disabled=false;
+        var fb=fbOf(i);fb.hidden=true;fb.className='sh-fb';fb.innerHTML='';
+        var n=$('.sh-q__n',el);if(n)n.textContent='Question '+(i+1)+' of '+qs.length+' (try again)'}
+      function onClick(e){
         var b=e.target.closest&&e.target.closest('.sh-opt');
-        if(b&&!b.disabled){var i=+b.getAttribute('data-q');state[i].pick=+b.getAttribute('data-k');
+        if(b&&!b.disabled){var i=+b.getAttribute('data-q');if(locked[i])return;state[i].pick=+b.getAttribute('data-k');
           $$('.sh-opt[data-q="'+i+'"]',root).forEach(function(x){x.classList.toggle('is-picked',x===b)});
           if(mode==='practice')feedback(i);return}
         var c=e.target.closest&&e.target.closest('[data-check]');
-        if(c){var j=+c.getAttribute('data-check'),inp=$('.sh-input[data-q="'+j+'"]',root);state[j].pick=inp.value;if(String(inp.value).trim())feedback(j);return}
-        if(e.target.closest&&e.target.closest('[data-finish]')){
-          $$('.sh-input',root).forEach(function(inp){state[+inp.getAttribute('data-q')].pick=inp.value});
-          qs.forEach(function(q,i){if(!state[i].done)feedback(i)});finish()}
-      });
-      root.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.classList.contains('sh-input')&&mode==='practice'){var c=$('[data-check="'+e.target.getAttribute('data-q')+'"]',root);if(c)c.click()}});
+        if(c&&!c.disabled){var j=+c.getAttribute('data-check'),inp=$('.sh-input[data-q="'+j+'"]',root);state[j].pick=inp.value;if(String(inp.value).trim())feedback(j);return}
+        if(e.target.closest&&e.target.closest('[data-retry]')){retry();return}
+        if(e.target.closest&&e.target.closest('[data-again]')){quiz(root,data,page);try{root.scrollIntoView({behavior:reduced()?'auto':'smooth'})}catch(_){}return}
+        var f=e.target.closest&&e.target.closest('[data-finish]');
+        if(f&&!f.disabled){
+          active.forEach(function(k){var inp=$('.sh-input[data-q="'+k+'"]',root);if(inp)state[k].pick=inp.value});
+          active.forEach(function(k){if(!state[k].done)feedback(k)});finish()}
+      }
+      function onKey(e){if(e.key==='Enter'&&e.target.classList.contains('sh-input')&&mode==='practice'){var c=$('[data-check="'+e.target.getAttribute('data-q')+'"]',root);if(c)c.click()}}
+      root.addEventListener('click',onClick);root.addEventListener('keydown',onKey);
+      root.__shOff=function(){root.removeEventListener('click',onClick);root.removeEventListener('keydown',onKey)};
       var finished=false;
+      function retry(){
+        if(!finished)return;
+        var wrong=active.filter(function(k){return !isRight(qs[k],state[k])});
+        if(!wrong.length)return;
+        qs.forEach(function(q,i){if(wrong.indexOf(i)<0)lock(i)});
+        round++;active=wrong;finished=false;
+        wrong.forEach(reopen);
+        var sc=$('.sh-score',root);sc.hidden=true;sc.innerHTML='';
+        var rb=$('[data-round]',root);rb.hidden=false;
+        rb.textContent='Round '+round+': '+plural(wrong.length,'question')+' to fix. The ones you got right are grayed out.';
+        var f=$('[data-finish]',root);if(f){f.disabled=false;f.textContent='Mark round '+round}
+        var first=qOf(wrong[0]),ctl=first&&$('.sh-opt,.sh-input',first);
+        try{if(first)first.scrollIntoView({block:'center',behavior:reduced()?'auto':'smooth'});if(ctl)ctl.focus({preventScroll:true})}catch(_){}
+      }
       function finish(){
         if(finished)return;finished=true;
         var f=$('[data-finish]',root);if(f)f.disabled=true;
-        $$('.sh-input',root).forEach(function(inp){var k=+inp.getAttribute('data-q');if(state[k]&&(state[k].pick==null||state[k].pick===''))state[k].pick=inp.value});
+        active.forEach(function(k){var inp=$('.sh-input[data-q="'+k+'"]',root);if(inp&&(state[k].pick==null||state[k].pick===''))state[k].pick=inp.value});
         var score=0,missed=[];
-        qs.forEach(function(q,i){var st=state[i];if(isRight(q,st))score++;else{
+        // only this round's questions count: a retry round scores its own questions (for example 1 / 2)
+        active.forEach(function(i){var q=qs[i],st=state[i];if(isRight(q,st))score++;else{
           var blank=st.pick==null||String(st.pick).trim()==='',L=q.options&&!blank?LET[st.pick]:null,tm=q.traps||{};
           // a known wrong answer: the page lists it in traps (option letter or typed answer)
           var hit=blank?null:(q.options?(L in tm?L:null):(Object.keys(tm).filter(function(k){return norm(k)===norm(st.pick)})[0]||null));
@@ -119,13 +163,18 @@ var SH=(function(){
           var v=q.options||blank?null:(/^-?\d{1,9}(?:[.,]\d{1,4})?(?:\/\d{1,6})?$/.test(raw)?raw:(hit!=null?norm(hit):null));
           missed.push({n:i+1,id:q.id||('q'+(qi+1)+'-'+(i+1)),picked:L,value:v,trap:tk,
             correct:q.options?LET[q.answer]:null,blank:blank,typed:!q.options})}});
-        var sc=$('.sh-score',root);sc.hidden=false;
-        var pct=qs.length?Math.round(100*score/qs.length):0;
-        sc.innerHTML='<div class="sh-score__big">'+score+' / '+qs.length+'</div><div class="sh-score__text">'+(pct>=90?'Excellent work.':pct>=70?'Good work. Look again at the red ones.':'Keep going. Read the red ones, then try again.')+'</div><div class="sh-actions" style="justify-content:center"><button type="button" class="sh-btn sh-btn--ghost" data-again>Try again</button></div>';
-        $('[data-again]',sc).addEventListener('click',function(){quiz(root,data,page);root.scrollIntoView({behavior:reduced()?'auto':'smooth'})});
-        try{if(page&&page.log&&window.SHLog)SHLog.record({kind:data.kind||'game',score:score,total:qs.length,missed:missed,
-          details:{section:data.section||'',answered:state.filter(function(s){return s.pick!=null&&String(s.pick).trim()!==''}).length}})}catch(e){}
-        try{root.dispatchEvent(new CustomEvent('sh:finish',{bubbles:true,detail:{score:score,total:qs.length,missed:missed}}))}catch(e){}
+        var total=active.length,sc=$('.sh-score',root);sc.hidden=false;
+        if(missed.length===0){var rb0=$('[data-round]',root);if(rb0)rb0.hidden=true}
+        var pct=total?Math.round(100*score/total):0,done=missed.length===0;
+        var msg=done?(round===1?'Excellent work. All correct in 1 round.':'All correct in '+plural(round,'round')+'.')
+          :(round===1?(pct>=90?'Excellent work.':pct>=70?'Good work. Look again at the red ones.':'Keep going. Read the red ones, then try again.'):'Good. Read the red ones, then retry them.');
+        var btns=(done?'':'<button type="button" class="sh-btn" data-retry>Retry the '+plural(missed.length,'wrong one').replace(/^\d+ /,'')+' ('+missed.length+')</button>')
+          +'<button type="button" class="sh-btn sh-btn--ghost" data-again>Start over</button>';
+        sc.innerHTML=(round>1?'<div class="sh-score__round">Round '+round+'</div>':'')+'<div class="sh-score__big">'+score+' / '+total+'</div><div class="sh-score__text" data-result>'+esc(msg)+'</div><div class="sh-actions" style="justify-content:center">'+btns+'</div>';
+        try{if(page&&page.log&&window.SHLog)SHLog.record({kind:data.kind||'game',score:score,total:total,missed:missed,
+          attempt_kind:round===1?'first':'retry',round:round,
+          details:{section:data.section||'',answered:active.filter(function(k){var s=state[k];return s.pick!=null&&String(s.pick).trim()!==''}).length}})}catch(e){}
+        try{root.dispatchEvent(new CustomEvent('sh:finish',{bubbles:true,detail:{score:score,total:total,missed:missed,round:round,allCorrect:done}}))}catch(e){}
       }
     }catch(e){try{root.textContent='This quiz could not load.'}catch(_){}}
   }

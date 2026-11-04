@@ -1,0 +1,14 @@
+{"grade": "G3", "subject": "WW", "id": "RetryFixture", "log": true, "token": "test-token",
+ "quizzes": [
+  {"kind": "mock", "mode": "test", "section": "mock", "questions": [
+   {"id": "q1-1", "q": "Which word means very big?", "options": ["tiny", "huge", "slow", "late"], "answer": 1, "trap": "near-miss"},
+   {"id": "q1-2", "q": "Which word means the opposite of cold?", "options": ["icy", "hot", "wet", "dry"], "answer": 1, "trap": "opposite", "traps": {"A": "opposite"}},
+   {"id": "q1-3", "q": "Which word means quick?", "options": ["fast", "loud", "soft", "dull"], "answer": 0},
+   {"id": "q1-4", "q": "Which word means a small stream?", "options": ["ocean", "lake", "brook", "hill"], "answer": 2, "trap": "related-idea"},
+   {"id": "q1-5", "q": "How many legs do 3 cats have in all?", "answer_text": "12", "numeric": true, "trap": "careless", "traps": {"9": "off-by-one"}}
+  ]},
+  {"kind": "game", "mode": "practice", "section": "practice", "questions": [
+   {"id": "q2-1", "q": "Pick the color of grass.", "options": ["green", "red"], "answer": 0, "trap": "distractor"},
+   {"id": "q2-2", "q": "Pick the number after 4.", "options": ["3", "5"], "answer": 1, "trap": "off-by-one"}
+  ]}
+ ]}

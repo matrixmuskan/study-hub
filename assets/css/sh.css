@@ -126,6 +126,11 @@ body.sh{margin:0;font-family:var(--sh-font);font-size:19px;line-height:1.55;colo
 .sh-score{text-align:center;padding:36px 28px}
 .sh-score__big{font-size:clamp(48px,8vw,80px);font-weight:700;letter-spacing:-.04em;line-height:1;color:var(--sh-accent)}
 .sh-score__text{color:var(--sh-ink-2);margin-top:10px;font-size:19px}
+.sh-score__round{color:var(--sh-ink-3);font-size:15px;font-weight:600;margin-bottom:8px}
+/* Retry loop: questions already right are grayed out and locked; the round banner says what is left */
+.sh-q.is-locked{opacity:.45;filter:grayscale(1);pointer-events:none;user-select:none}
+.sh-q.is-locked .sh-opt,.sh-q.is-locked .sh-input{cursor:default}
+.sh-round{background:var(--sh-fill);border-radius:var(--sh-radius-sm);padding:14px 18px;font-size:17px;font-weight:600;color:var(--sh-ink-2)}
 .sh-progress{height:6px;border-radius:999px;background:var(--sh-fill);overflow:hidden;margin:4px 0 6px}
 .sh-progress i{display:block;height:100%;width:0;background:var(--sh-accent);border-radius:inherit;transition:width .5s var(--sh-ease)}
 
