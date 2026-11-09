@@ -730,6 +730,65 @@ def attach_record(frag, entry, S, built_at, check_files=True, drop_closed=True, 
     return raw, out
 
 
+# Token-only rebuild (Gilfoy, 2026-11-09). Renewing the scores token changes every logger page, so publish.sh sees a
+# changed page and runs the learning-loop check (B1-B6) as if it were a new build. A page whose test already happened
+# can then never get the new token. The exemption below is narrow: the staged plaintext must differ from the
+# committed (decrypted) page ONLY at scores-token slots, and be byte-identical everywhere else. Any other change,
+# alone or together with a token change, still runs the full check. Anything that cannot be proven (page not in
+# HEAD, not StatiCrypt output, wrong password, no slot) fails closed: the normal check runs. Token values are never
+# printed.
+TOKEN_SLOT_RE = re.compile(r"(?<![A-Za-z0-9_])(?:github_pat_[A-Za-z0-9]{22}_[A-Za-z0-9]{59}|__SH_SCORES_TOKEN__)(?![A-Za-z0-9_])")
+
+
+def token_only_change(new, old):
+    """True only when new != old and the two texts are byte-identical outside the scores-token slots (a fine-grained
+    token or the placeholder, with word boundaries), with the same number of slots in the same places."""
+    if new == old:
+        return False
+    a, b = TOKEN_SLOT_RE.split(new), TOKEN_SLOT_RE.split(old)
+    return len(a) > 1 and a == b
+
+
+def committed_plaintext(rel, repo=None, pw=None, _cache={}):
+    """The plaintext of the page committed at HEAD (decrypted in memory), or (None, reason)."""
+    import subprocess
+    import sh_decrypt as D
+    repo = repo or L.REPO
+    r = subprocess.run(["git", "-C", repo, "show", "HEAD:" + rel], capture_output=True)
+    if r.returncode != 0:
+        return None, "not committed at HEAD"
+    text = r.stdout.decode("utf-8", "replace")
+    m = D.CFG_RE.search(text)
+    if not m:
+        return None, "committed page is not StatiCrypt output"
+    pw = pw if pw is not None else D.password()
+    if not pw:
+        return None, "no STATICRYPT_PASSWORD"
+    salt = json.loads(m.group(1)).get("staticryptSaltUniqueVariableName", "")
+    key = (hashlib.sha256(pw.encode()).hexdigest(), salt)
+    try:
+        if key not in _cache:
+            _cache[key] = D.hash_password(pw, salt)
+        return D.decrypt_html(text, _cache[key]), ""
+    except Exception as ex:
+        return None, "committed page does not decrypt (%s)" % type(ex).__name__
+
+
+def token_only_rebuild(path, stage, repo=None, pw=None):
+    """(True, msg) when the staged page <stage>/<path>index.html differs from the committed page only at token slots."""
+    rel = path + "index.html"
+    sp = os.path.join(stage, rel)
+    if not os.path.isfile(sp):
+        return False, "no staged page"
+    old, why = committed_plaintext(rel, repo, pw)
+    if old is None:
+        return False, why
+    new = open(sp, encoding="utf-8").read()
+    if token_only_change(new, old):
+        return True, "only the scores token changed since the committed page"
+    return False, "unchanged" if new == old else "content changed"
+
+
 def main():
     import argparse
     import sh_scores as S
@@ -738,6 +797,8 @@ def main():
     ap.add_argument("subject", nargs="?", help="for plan: G3/<Subject>; for attach: the fragment .json")
     ap.add_argument("--pages", nargs="*", help="manifest paths (default: every page not in legacy_provenance)")
     ap.add_argument("--no-files", action="store_true", help="skip the file: sha256 check")
+    ap.add_argument("--stage", help="for check: staged plaintext root (publish.sh); a page that differs from its committed "
+                    "page only at the scores token skips B1-B6 (token-only rebuild)")
     a = ap.parse_args()
     if a.cmd == "config-diff":
         r, msg = config_diff()
@@ -787,6 +848,11 @@ def main():
             print("PROVENANCE CHECK FAILED: %s" % ex)
             sys.exit(1)
     for it in todo:
+        if a.stage:
+            ok, why = token_only_rebuild(it["path"], a.stage)
+            if ok:
+                print("TOKEN-ONLY: %s: %s; learning-loop check (B1-B6) skipped" % (it["path"], why))
+                continue
         errs += box_problems(it, S, check_files=not a.no_files)
         raw = S.get(scores_path(it["path"]))
         if raw:

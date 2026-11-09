@@ -6,6 +6,8 @@
 #   3. a page with a broken link must be refused (no commit);
 #   5. a page with no provenance is refused by sh_page.py, and P1 fails in validate.py;
 #   6. a page that ignores a school receipt (B4) is refused by publish.sh;
+#   6b-6d. token-only rebuild: a page whose plaintext changed ONLY at the scores token publishes although a B4
+#      rule now fails for it (TOKEN-ONLY); a token change plus a content change, or a content change alone, is refused;
 #   4. an sh-2 page with the score logger must publish with privacy v4: its own logger sends no free text (only item
 #      ids, option letters and booleans), commits as Study Hub Bot (node, tools/test_redact.js), and the page holds no
 #      private-word list in any form (plain, hashed, base64 or hex).
@@ -178,6 +180,29 @@ PY2
 node tools/test_redact.js "$T/logger-plain.html" > "$T/out4b.txt" || { cat "$T/out4b.txt"; die "logger page sends free text, a private word, or not as Study Hub Bot"; }
 ok "logger page: $(tail -1 "$T/out4b.txt")"
 
+# 6a. Token-only rebuild setup: give the committed sample page a token-shaped value (made up at run time, never real).
+SAMPLE="$STUDY_HUB_SRC/G3/SS/CI-Sample/index.html"
+settok() {  # settok <from> <to> [content change]: swap the token slot in the sample page (exactly one), optionally edit text
+  python3 - "$SAMPLE" "$@" <<'PY2'
+import random, string, sys
+f, frm, to = sys.argv[1], sys.argv[2], sys.argv[3]
+fake = lambda: "github" + "_pat_" + "".join(random.choice(string.ascii_letters + string.digits) for _ in range(22)) + "_" + \
+    "".join(random.choice(string.ascii_letters + string.digits) for _ in range(59))
+import re
+h = open(f).read()
+if frm == "SLOT":
+    m = re.findall(r"github_pat_[A-Za-z0-9]{22}_[A-Za-z0-9]{59}", h); assert len(m) == 1, len(m); frm = m[0]
+assert h.count(frm) == 1, "expected one token slot"
+h = h.replace(frm, fake() if to == "FAKE" else to)
+if len(sys.argv) > 4:
+    assert h.count("A sample page for the publish test.") == 1; h = h.replace("A sample page for the publish test.", sys.argv[4])
+open(f, "w").write(h)
+PY2
+}
+settok "ci-dummy-scores-token" FAKE
+tools/publish.sh "CI: token-shaped sample" > "$T/out6a.txt" 2>&1 || { cat "$T/out6a.txt"; die "publish.sh failed on the token-shaped sample"; }
+! grep -q "TOKEN-ONLY" "$T/out6a.txt" || die "a dummy value -> token change was treated as token-only"
+
 # 6. a learning-loop rule (B4) blocks publish: a school receipt for SS that the new page did not ingest
 mkdir -p "$STUDY_HUB_SCORES_DIR/G3/_receipts"
 echo '{"id": "gmail:1a00000000c1c1c1", "subject": "SS", "kind": "form_receipt", "title": "CI school test", "date": "2026-10-01", "datetime": "2026-10-01T09:00:00-07:00", "items": []}' \
@@ -194,6 +219,41 @@ if tools/publish.sh "CI: loop page" > "$T/out6.txt" 2>&1; then cat "$T/out6.txt"
 grep -q "B4: G3/SS/CI-Loop/" "$T/out6.txt" && grep -q "CHECK FAILED" "$T/out6.txt" || { cat "$T/out6.txt"; die "no clear B4 failure"; }
 git checkout -q manifest.json
 ok "page that ignores a school receipt refused by publish.sh (B4)"
+rm -rf "$STUDY_HUB_SRC/G3/SS/CI-Loop"   # temp mirror of this test only
+cp "$SAMPLE" "$T/sample-ok.html"
+# 6c. new token AND a content change: still refused by B4 (the exemption does not apply)
+settok SLOT FAKE "A changed page for the publish test."
+before=$(git rev-parse HEAD)
+if tools/publish.sh "CI: token plus content" > "$T/out6c.txt" 2>&1; then cat "$T/out6c.txt"; die "publish.sh accepted a token plus content change that fails B4"; fi
+[ "$(git rev-parse HEAD)" = "$before" ] || die "publish.sh committed the token plus content change"
+grep -q "B4: G3/SS/CI-Sample/" "$T/out6c.txt" && ! grep -q "TOKEN-ONLY" "$T/out6c.txt" || { cat "$T/out6c.txt"; die "token plus content: no B4 failure, or wrongly token-only"; }
+cp "$T/sample-ok.html" "$SAMPLE"; git checkout -q manifest.json
+ok "token plus a content change is refused by B4 (no token-only exemption)"
+# 6d. a content change only: still refused by B4
+python3 - "$SAMPLE" <<'PY2'
+import sys; f = sys.argv[1]; h = open(f).read(); assert h.count("A sample page for the publish test.") == 1
+open(f, "w").write(h.replace("A sample page for the publish test.", "A changed page for the publish test."))
+PY2
+if tools/publish.sh "CI: content only" > "$T/out6d.txt" 2>&1; then cat "$T/out6d.txt"; die "publish.sh accepted a content change that fails B4"; fi
+[ "$(git rev-parse HEAD)" = "$before" ] || die "publish.sh committed the content-only change"
+grep -q "B4: G3/SS/CI-Sample/" "$T/out6d.txt" && ! grep -q "TOKEN-ONLY" "$T/out6d.txt" || { cat "$T/out6d.txt"; die "content only: no B4 failure, or wrongly token-only"; }
+cp "$T/sample-ok.html" "$SAMPLE"; git checkout -q manifest.json
+ok "a content-only change is refused by B4"
+# 6b. the token only (a renewal): publishes although B4 now fails for the page, and the new page decrypts to the new token
+settok SLOT FAKE
+python3 -c "import re,sys;print(re.findall(r'github_pat_[A-Za-z0-9]{22}_[A-Za-z0-9]{59}',open(sys.argv[1]).read())[0])" "$SAMPLE" > "$T/newtok"
+tools/publish.sh "CI: token renewal" > "$T/out6b.txt" 2>&1 || { cat "$T/out6b.txt"; die "publish.sh refused a token-only rebuild"; }
+grep -q "TOKEN-ONLY: G3/SS/CI-Sample/" "$T/out6b.txt" || { cat "$T/out6b.txt"; die "no TOKEN-ONLY line for the token-only rebuild"; }
+[ "$(git rev-parse HEAD)" != "$before" ] && git show --name-only --format= HEAD | grep -qx "G3/SS/CI-Sample/index.html" || die "token-only rebuild not committed"
+python3 - "$WT" "$T/newtok" <<'PY2' || die "the token-only page does not decrypt to the new token"
+import os, sys, json
+sys.path.insert(0, os.path.join(sys.argv[1], "tools")); import sh_decrypt as D
+t = open(os.path.join(sys.argv[1], "G3/SS/CI-Sample/index.html")).read()
+salt = json.loads(D.CFG_RE.search(t).group(1))["staticryptSaltUniqueVariableName"]
+plain = D.decrypt_html(t, D.hash_password(os.environ["STATICRYPT_PASSWORD"], salt))
+assert plain.count(open(sys.argv[2]).read().strip()) == 1 and "A sample page for the publish test." in plain
+PY2
+ok "token-only rebuild publishes (TOKEN-ONLY) although B4 fails for the page, and decrypts to the new token"
 # 7. One session per mirror: while one bot holds the lock, sh_page.py and publish.sh of another bot wait, then stop
 tools/sh_lock.sh sleep 8 & LP=$!
 sleep 1

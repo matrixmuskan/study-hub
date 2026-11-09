@@ -80,10 +80,12 @@ python3 "$REPO/tools/sh_checks.py" links "$STAGE" || fail "broken links or media
 python3 "$REPO/tools/sh_checks.py" design "$STAGE" || fail "design standard (see above)"
 # Provenance and learning loop (B1-B6) for every changed page that is not in legacy_provenance. Reads
 # study-hub-scores with STUDY_HUB_SCORES_TOKEN (or STUDY_HUB_SCORES_DIR in tests). P1, P2, B7 run in validate.py below.
+# --stage: a page whose staged plaintext differs from its committed page ONLY at the scores token (token renewal)
+# skips B1-B6 and prints TOKEN-ONLY; any other difference still runs the full check.
 PROV_PAGES=()
 for p in "${CHANGED[@]}"; do [[ "$p" =~ ^G[0-9]+/[^/]+/[^/]+/index\.html$ ]] && PROV_PAGES+=("${p%index.html}"); done
 if [ "${#PROV_PAGES[@]}" -gt 0 ]; then
-  python3 "$REPO/tools/sh_provenance.py" check --pages "${PROV_PAGES[@]}" || fail "provenance or learning-loop rules (see above)"
+  python3 "$REPO/tools/sh_provenance.py" check --stage "$STAGE" --pages "${PROV_PAGES[@]}" || fail "provenance or learning-loop rules (see above)"
 fi
 if [ "${#CHANGED[@]}" -gt 0 ]; then
   # Browser: Playwright's Chromium first, then a system Chrome (sh_browsercheck.py finds it). No browser = no commit

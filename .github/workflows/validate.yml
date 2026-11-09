@@ -54,5 +54,7 @@ jobs:
           pip install -q cryptography
       - name: Shared checkout stays on main (R15, publish.sh branch guard, throwaway clone)
         run: tools/test_branch_guard.sh
+      - name: Token-only rebuild exemption (made-up pages and tokens, throwaway git repo)
+        run: python3 tools/test_token_only.py
       - name: publish.sh end-to-end test
         run: tools/test_publish.sh
