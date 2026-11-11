@@ -297,12 +297,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "a51399e81c97dead0fbc74b8bf4c0973d60d291ac94fd7afba36a1cca433f61f",
+    "provenance_sha256": "7803297933594eec6edaa1e608231df454d1943e7eeeda7b6bbeb679a543b463",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 3,
     "n_retests": 0,
-    "built_at": "2026-11-11T15:48:03-08:00"
+    "built_at": "2026-11-11T15:55:36-08:00"
   },
   {
     "grade": "G3",
@@ -348,5 +348,20 @@
     "n_questions": 53,
     "n_retests": 0,
     "built_at": "2026-11-11T15:52:47-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 7: Time, calendar and measurement",
+    "path": "G3/Kangaroo/Ch7-Time-Measurement/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "f066a146fee8dc428c81fa85b42fe1d3286e8d90a79f8dceaf7f798dd875b48e",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 53,
+    "n_retests": 0,
+    "built_at": "2026-11-11T15:55:25-08:00"
   }
 ]
