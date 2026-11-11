@@ -297,11 +297,26 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "c8538f1a3e9d40b8afdfccbb9697098dc4d1313941fb8472b78046276b8342bf",
+    "provenance_sha256": "a51399e81c97dead0fbc74b8bf4c0973d60d291ac94fd7afba36a1cca433f61f",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 3,
     "n_retests": 0,
-    "built_at": "2026-11-11T13:04:46-08:00"
+    "built_at": "2026-11-11T15:48:03-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 2: Number sense and calculation chains",
+    "path": "G3/Kangaroo/Ch2-Number-Sense/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "e61dc5d1d6dfadc0afaf77a4e9ebfe994c09225cd3543519d6255aa9b3724429",
+    "n_sources": 1,
+    "n_inferred": 1,
+    "n_questions": 53,
+    "n_retests": 0,
+    "built_at": "2026-11-11T15:47:58-08:00"
   }
 ]
