@@ -267,11 +267,11 @@
     "test_date": "2026-11-12",
     "added_by": "Worldy",
     "template": "sh-2",
-    "provenance_sha256": "d1e88c18ba979b2c59eea051c6a1175282be6841800783e99338ae78d87f577d",
+    "provenance_sha256": "034978a2618703afc6571b4fb60138882f2218ee74c10bb7d7d79df061748b6c",
     "n_sources": 12,
     "n_inferred": 0,
     "n_questions": 36,
     "n_retests": 0,
-    "built_at": "2026-11-10T16:54:33-08:00"
+    "built_at": "2026-11-10T17:11:42-08:00"
   }
 ]
