@@ -318,5 +318,20 @@
     "n_questions": 53,
     "n_retests": 0,
     "built_at": "2026-11-11T15:47:58-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 3: Counting smart",
+    "path": "G3/Kangaroo/Ch3-Counting-Smart/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "d026a6b74593bb4afb78f653aa69870cc09e83d5743028cf088fad59525fef3a",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 53,
+    "n_retests": 0,
+    "built_at": "2026-11-11T15:50:39-08:00"
   }
 ]
