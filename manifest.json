@@ -273,5 +273,20 @@
     "n_questions": 36,
     "n_retests": 0,
     "built_at": "2026-11-10T17:11:42-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 1: Mirrors, flips and symmetry",
+    "path": "G3/Kangaroo/Ch1-Mirrors-v2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "fad65ed2e15d1ccbbec898b4e7876d21d87980aa4aa695f7783aacecf55ad905",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 53,
+    "n_retests": 0,
+    "built_at": "2026-11-11T13:02:29-08:00"
   }
 ]
