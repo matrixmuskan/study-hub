@@ -333,5 +333,20 @@
     "n_questions": 53,
     "n_retests": 0,
     "built_at": "2026-11-11T15:50:39-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Kangaroo Chapter 4: Turns, layers and patterns",
+    "path": "G3/Kangaroo/Ch4-Turns/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "9677b474a45520ead6a33d2daeb58d3d97879bb99797f0e866fd7c0e2fd45320",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 53,
+    "n_retests": 0,
+    "built_at": "2026-11-11T15:52:47-08:00"
   }
 ]
