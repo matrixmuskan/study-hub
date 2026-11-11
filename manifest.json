@@ -258,5 +258,20 @@
     "n_questions": 24,
     "n_retests": 0,
     "built_at": "2026-11-04T08:55:32-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "WW",
+    "title": "Lesson 10 (likely, not yet confirmed): Word Quest",
+    "path": "G3/WW/Lesson10/",
+    "test_date": "2026-11-12",
+    "added_by": "Worldy",
+    "template": "sh-2",
+    "provenance_sha256": "d1e88c18ba979b2c59eea051c6a1175282be6841800783e99338ae78d87f577d",
+    "n_sources": 12,
+    "n_inferred": 0,
+    "n_questions": 36,
+    "n_retests": 0,
+    "built_at": "2026-11-10T16:54:33-08:00"
   }
 ]
