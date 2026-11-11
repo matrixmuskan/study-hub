@@ -288,5 +288,20 @@
     "n_questions": 53,
     "n_retests": 0,
     "built_at": "2026-11-11T13:02:29-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Math Kangaroo: the full syllabus",
+    "path": "G3/Kangaroo/Syllabus/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "c8538f1a3e9d40b8afdfccbb9697098dc4d1313941fb8472b78046276b8342bf",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 3,
+    "n_retests": 0,
+    "built_at": "2026-11-11T13:04:46-08:00"
   }
 ]
