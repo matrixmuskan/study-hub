@@ -326,12 +326,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "df0c49445a89ccbc46c749a75a46ded90fa6c118e3470512ad190551bd19a24e",
+    "provenance_sha256": "fa9a741aa9d8e01db72f5fa08afd51df4c48bc04511469850698b0268c7bc8dd",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 6,
     "n_retests": 0,
-    "built_at": "2026-11-11T23:48:08-08:00"
+    "built_at": "2026-11-12T00:18:30-08:00"
   },
   {
     "grade": "G3",
@@ -341,12 +341,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "2fdbaf13ecd3374d72b38c97d58b3705f01c3541b04629da76694b8bcc5839e9",
+    "provenance_sha256": "ebc423847c4b2c3ac5801c5ed1dd93a6a52ae96ec434e3e70de25320e2985184",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 6,
     "n_retests": 0,
-    "built_at": "2026-11-11T23:14:26-08:00"
+    "built_at": "2026-11-12T00:18:33-08:00"
   },
   {
     "grade": "G3",
@@ -431,12 +431,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "9f4d12cec7e90ef83c456ff3a1f8f471c3d93a92a10dbd816853a01f0640e610",
+    "provenance_sha256": "fae6efeed0e05459dbe3b0df1067ab10fd5ee938dca65986da0470e06383a9fa",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 6,
     "n_retests": 0,
-    "built_at": "2026-11-11T23:48:11-08:00"
+    "built_at": "2026-11-12T00:18:24-08:00"
   },
   {
     "grade": "G3",
@@ -446,12 +446,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "4fe5c06166dbe04fb7e103f777d5a0a16735ff8c22e692ce8ffa102b84d5bd33",
+    "provenance_sha256": "39453f82aa446ba2977913b25da95b144894c332a28fee0bebd66f3fc8f950df",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 6,
     "n_retests": 0,
-    "built_at": "2026-11-11T23:48:05-08:00"
+    "built_at": "2026-11-12T00:18:27-08:00"
   },
   {
     "grade": "G3",
@@ -521,12 +521,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "5b4398e90a91b0e168d466d2d70a74c4a384a0fc6eacd274d3f8ec99d2597bc1",
+    "provenance_sha256": "e415518f2b032caa182c82e870fa30f9781695576a9b824c79c3cce4b7116651",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 47,
     "n_retests": 0,
-    "built_at": "2026-11-11T23:48:07-08:00"
+    "built_at": "2026-11-12T00:18:29-08:00"
   },
   {
     "grade": "G3",
@@ -536,12 +536,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "26e06a9fcddfb574991f0d381b355a11dd57fc4859c837bf6b922286e25e3b09",
+    "provenance_sha256": "9d01c4941ce7d20f649ee83dd568083eb25f2ea58db43597090ebd64d55673f7",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 33,
     "n_retests": 0,
-    "built_at": "2026-11-11T23:48:09-08:00"
+    "built_at": "2026-11-12T00:18:23-08:00"
   },
   {
     "grade": "G3",
@@ -551,12 +551,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "7a0b63d3f661c536de5fa0b149cdfd1f641e7bf3b8d8ca793bdf93e360e461c2",
+    "provenance_sha256": "881262aeddb52f2e46ff6f4aef0ae0975989baf7828a952de3b284653d4b1552",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 47,
     "n_retests": 0,
-    "built_at": "2026-11-11T23:48:04-08:00"
+    "built_at": "2026-11-12T00:18:26-08:00"
   },
   {
     "grade": "G3",
@@ -566,11 +566,11 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "ff42108e17da0c279819dcdeb21a95c3240756a096012336ece2faf1e21253d3",
+    "provenance_sha256": "0bfc843dfc449ab6cb61b286378624b65439ae7b275a886c517bd12470993988",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 47,
     "n_retests": 0,
-    "built_at": "2026-11-11T23:48:12-08:00"
+    "built_at": "2026-11-12T00:18:32-08:00"
   }
 ]
