@@ -3,8 +3,13 @@
 # sh-2 design (tools/sh_stage.py), encrypt changed pages into this repo with StatiCrypt, validate, commit.
 # Does NOT push.
 # Needs: STATICRYPT_PASSWORD in the environment (or in ~/.study-hub.env, which this sources).
-# Mirror: $STUDY_HUB_SRC or ../study-hub-src next to the repo. FORCE=1 re-encrypts every page.
+# Mirror: $STUDY_HUB_SRC or ../study-hub-src next to the repo.
+# CHANGED is decided per page from the page's own mirror plaintext (tools/sh_changed.py), not from a whole-site
+# re-render: only changed pages (and changed hub pages) are encrypted and checked; every other page keeps its committed
+# encrypted file. A tools/template change that must reach every page is a separate, explicit run:
+#   FORCE=1 tools/publish.sh "<message>"   or   tools/publish.sh --rerender-all "<message>"
 set -euo pipefail
+if [ "${1:-}" = "--rerender-all" ]; then shift; export FORCE=1; fi
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="${STUDY_HUB_SRC:-$(dirname "$REPO")/study-hub-src}"
 export STUDY_HUB_SRC="$SRC"
@@ -45,14 +50,6 @@ CFG_STATE=$(python3 "$REPO/tools/sh_provenance.py" config-diff) || { echo "$CFG_
 echo "$CFG_STATE"
 python3 "$REPO/tools/build_index.py"
 
-# House rules check on plaintext before encrypting
-if grep -rlI $'\u2014' "$SRC" --include='*.html' >/dev/null 2>&1; then echo "Em dash found in $SRC, fix it first"; exit 1; fi
-# Private words (school, teacher names, etc.) come from STUDY_HUB_BLOCKLIST in ~/.study-hub.env
-# (a regex like 'word1|word2'), so they are never written into this public repo.
-if [ -n "${STUDY_HUB_BLOCKLIST:-}" ]; then
-  hits=$(grep -rlwE "$STUDY_HUB_BLOCKLIST" "$SRC" --include='*.html' || true)
-  if [ -n "$hits" ]; then echo "Private words found, scrub first:"; echo "$hits"; exit 1; fi
-fi
 
 # Stage: plaintext with live tokens, so private (0700) and always deleted
 umask 077
@@ -60,33 +57,44 @@ STAGE="$(mktemp -d "${TMPDIR:-/tmp}/sh-stage.XXXXXX")"
 trap 'rm -rf "$STAGE" "${SCORES_SNAP:-}"' EXIT
 python3 "$REPO/tools/sh_stage.py" "$SRC" "$STAGE" >/dev/null
 
-mapfile -t PAGES < <(cd "$STAGE" && find . -name '*.html' -type f | sed 's|^\./||' | sort)
 cd "$REPO"   # staticrypt resolves -c and -d relative to the working directory
-# Only re-encrypt pages whose staged plaintext changed (StatiCrypt output is random each run,
-# so re-encrypting unchanged big pages would bloat git history). Hashes live in the mirror and are
-# written only after a successful commit, so they always match what is committed.
-HASHES="$SRC/_state/staged_sha256.txt"; mkdir -p "$SRC/_state"; touch "$HASHES"
-NEWHASHES="$STAGE/.hashes"; cp "$HASHES" "$NEWHASHES"
-TPL_HASH=$(sha256sum "$REPO/tools/password_template.html" | cut -c1-12)
-CHANGED=()
-for p in "${PAGES[@]}"; do
-  h=$( (sha256sum "$STAGE/$p" | cut -d' ' -f1; echo "$TPL_HASH") | sha256sum | cut -d' ' -f1)
-  if [ -f "$p" ] && grep -qx "$h  $p" "$HASHES" && [ "${FORCE:-0}" != 1 ]; then echo "unchanged $p"; continue; fi
+# Which pages to encrypt and check: per page, from its own mirror plaintext (tools/sh_changed.py explains the key).
+# StatiCrypt output is random each run, so an unchanged page is never re-encrypted (no git bloat, no checks).
+# The keys live in the mirror and are written only after a successful commit, so they always match what is committed.
+KEYS="$SRC/_state/page_keys.txt"; mkdir -p "$SRC/_state"
+python3 "$REPO/tools/sh_changed.py" plan "$SRC" "$REPO" "$STAGE/.plan" "$STAGE/.keys" $([ "${FORCE:-0}" = 1 ] && echo --force)
+CHANGED=(); PROV_PAGES=()
+while IFS=$'\t' read -r cls p _; do
+  [ "$cls" = unchanged ] && continue
   CHANGED+=("$p")
-  grep -v "  $p\$" "$NEWHASHES" > "$NEWHASHES.tmp" || true; echo "$h  $p" >> "$NEWHASHES.tmp"; mv "$NEWHASHES.tmp" "$NEWHASHES"
-done
+  # Provenance (B1-B6) only for content pages whose own content changed; never hubs, never a token-only renewal.
+  [ "$cls" != token ] && [[ "$p" =~ ^G[0-9]+/[^/]+/[^/]+/index\.html$ ]] && PROV_PAGES+=("${p%index.html}")
+done < "$STAGE/.plan"
+
+# House rules check on the changed pages' plaintext before encrypting
+if [ "${#CHANGED[@]}" -gt 0 ]; then
+  if grep -lI $'\u2014' "${CHANGED[@]/#/$SRC/}" >/dev/null 2>&1; then echo "Em dash found in a changed page in $SRC, fix it first"; exit 1; fi
+  # Private words (school, teacher names, etc.) come from STUDY_HUB_BLOCKLIST in ~/.study-hub.env
+  # (a regex like 'word1|word2'), so they are never written into this public repo.
+  if [ -n "${STUDY_HUB_BLOCKLIST:-}" ]; then
+    hits=$(grep -lwE "$STUDY_HUB_BLOCKLIST" "${CHANGED[@]/#/$SRC/}" || true)
+    if [ -n "$hits" ]; then echo "Private words found, scrub first:"; echo "$hits"; exit 1; fi
+  fi
+fi
 
 # Checks on the plaintext BEFORE anything is encrypted: links, anchors, media, video codecs, design standard.
 fail() { echo "CHECK FAILED: $1. Nothing was encrypted or committed."; exit 1; }
-python3 "$REPO/tools/sh_checks.py" links "$STAGE" || fail "broken links or media (see above)"
-python3 "$REPO/tools/sh_checks.py" design "$STAGE" || fail "design standard (see above)"
+# Only the changed pages can fail these; unchanged pages are checked when their owner publishes them (or with FORCE=1).
+if [ "${#CHANGED[@]}" -gt 0 ]; then
+  python3 "$REPO/tools/sh_checks.py" links "$STAGE" "${CHANGED[@]}" || fail "broken links or media (see above)"
+  python3 "$REPO/tools/sh_checks.py" design "${CHANGED[@]/#/$STAGE/}" || fail "design standard (see above)"
+fi
 # Provenance and learning loop (B1-B6) for every changed page that is not in legacy_provenance. Reads
 # study-hub-scores with STUDY_HUB_SCORES_TOKEN (or STUDY_HUB_SCORES_DIR in tests). P1, P2, B7 run in validate.py below.
 # --stage: a page whose staged plaintext differs from its committed page ONLY at the scores token (token renewal)
 # skips B1-B6 and prints TOKEN-ONLY; any other difference still runs the full check.
-PROV_PAGES=()
-for p in "${CHANGED[@]}"; do [[ "$p" =~ ^G[0-9]+/[^/]+/[^/]+/index\.html$ ]] && PROV_PAGES+=("${p%index.html}"); done
 if [ "${#PROV_PAGES[@]}" -gt 0 ]; then
+  echo "provenance (B1-B6): ${#PROV_PAGES[@]} changed page(s): ${PROV_PAGES[*]}"
   # One shallow clone (about 2 s) instead of one GitHub API call per score file (15+ min through the proxy).
   if [ -z "${STUDY_HUB_SCORES_DIR:-}" ] && [ -n "${STUDY_HUB_SCORES_TOKEN:-}" ]; then
     SCORES_SNAP=$(mktemp -d /tmp/sh-scores.XXXXXX); chmod 700 "$SCORES_SNAP"
@@ -100,6 +108,7 @@ if [ "${#CHANGED[@]}" -gt 0 ]; then
   # Browser: Playwright's Chromium first, then a system Chrome (sh_browsercheck.py finds it). No browser = no commit
   # on the box; in CI (CI=true) the browser check is skipped with a warning.
   if python3 "$REPO/tools/sh_browsercheck.py" --probe; then
+    echo "browser check: ${#CHANGED[@]} changed page(s)"
     python3 "$REPO/tools/sh_browsercheck.py" --root "$STAGE" --pages "${CHANGED[@]}" || fail "browser check: links, images, or videos do not work in Chrome"
   else
     echo "WARNING: no browser could start (see NO BROWSER above), so the browser check did not run."
@@ -135,7 +144,7 @@ done
 # Safety: validate the repo (encryption, manifest, folders, template, secrets, links, design). A failure stops
 # here, puts the old ciphertext back, and commits nothing; the trailer is added only when validation passed.
 VALIDATED=""
-if python3 "$REPO/tools/validate.py" --src "$STAGE"; then
+if python3 "$REPO/tools/validate.py" --src "$STAGE" --changed "${CHANGED[@]}"; then
   VALIDATED=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["template_version"])' "$REPO/tools/sh_config.json")
 else
   restore; fail "validation"
@@ -153,7 +162,7 @@ else
   git commit -q "${msg[@]}" || { restore; fail "git commit"; }
   git log --oneline -1
 fi
-cp "$NEWHASHES" "$HASHES"
+cp "$STAGE/.keys" "$KEYS"
 # Plaintext hashes of every mirror page (content and hub pages), so the next run can see what changed in the mirror.
 (cd "$SRC" && find . -name '*.html' -type f -not -path './_*' | sed 's|^\./||' | sort | xargs -r sha256sum) > "$SRC/_state/plaintext_sha256.txt"
 echo "Done. Push with: git push origin main (inside the same tools/sh_lock.sh session; never git pull --rebase onto a rewritten main)"

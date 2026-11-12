@@ -111,6 +111,9 @@ def b7_problems(t):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", help="staged or mirror folder with plaintext pages (local only, never in CI)")
+    ap.add_argument("--changed", nargs="*", default=None,
+                    help="publish.sh: the staged pages this publish encrypts. Plaintext rules (R4-R16, B7, B8, F2) can fail "
+                         "only for these; unchanged pages are not re-checked (one WARNING line)")
     ap.add_argument("--attempts", nargs="*", default=[], help="score files or folders (study-hub-scores) to check for rule R14")
     a = ap.parse_args()
     subjects = set(L.CFG["subjects"])
@@ -240,13 +243,26 @@ def main():
     for f, pr in C.lint_paths([os.path.join(REPO, "assets"), os.path.join(REPO, "tools", "password_template.html")], strict=True) + C.lint_config():
         err("R9", "%s: %s" % (os.path.relpath(f, REPO) if os.path.isabs(f) else f, pr))
 
-    # Plaintext (local only)
+    # Plaintext (local only). With --changed (publish.sh), only the pages this publish encrypts are checked: an unchanged
+    # page keeps its committed encrypted file, so another bot's stale page never blocks this publish.
+    changed = set(a.changed) if a.changed is not None else None
+    mine = (lambda rel: True) if changed is None else (lambda rel: rel in changed)
+    if a.src and changed is not None:
+        n_all = 0
+        for r, ds, fs in os.walk(a.src):
+            ds[:] = [d for d in ds if not d.startswith(("_", "."))]
+            n_all += sum(f.endswith(".html") for f in fs)
+        if n_all - len(changed) > 0:
+            warnings.append("plaintext rules not re-checked on %d unchanged pages (they keep their committed encrypted file; "
+                            "FORCE=1 tools/publish.sh checks every page)" % (n_all - len(changed)))
     if a.src:
-        for rel, link, kind, cause in C.check_links(a.src, also=(REPO,)):
+        for rel, link, kind, cause in C.check_links(a.src, sorted(changed) if changed is not None else None, also=(REPO,)) if changed != set() else []:
             err("R10", "plaintext %s: %s %s: %s" % (rel, kind, link[:80], cause))
         for it in items:
             path = it.get("path", "")
             hub = os.path.join(a.src, "/".join(path.split("/")[:2]), "index.html")
+            if changed is not None and (path + "index.html") not in changed and os.path.relpath(hub, a.src) not in changed:
+                continue
             if os.path.exists(hub):
                 leaf = path.rstrip("/").split("/")[-1] + "/"
                 if ('href="../../%s"' % path) not in open(hub, encoding="utf-8").read() and ('href="%s"' % leaf) not in open(hub, encoding="utf-8").read():
@@ -260,6 +276,8 @@ def main():
                     continue
                 p = os.path.join(root, f)
                 rel = os.path.relpath(p, a.src).replace(os.sep, "/")
+                if not mine(rel):
+                    continue
                 t = open(p, encoding="utf-8").read()
                 if not L.MARKER_RE.search(t):
                     err("R4", f"plaintext {rel}: no study-hub-template marker. Build it with tools/sh_page.py")
@@ -298,6 +316,9 @@ def main():
             return open(fp, encoding="utf-8").read() if os.path.exists(fp) else None
         f2e, f2w = F2.static_problems(items, staged)
         for x in f2e:
+            if changed is not None and not any(c[: -len("index.html")] in x for c in changed if L.CONTENT_RE.match(c)):
+                warnings.append("unchanged pages (not blocking): " + x)
+                continue
             err("F2", x[len("F2: "):])
         warnings.extend(f2w)
 
@@ -312,7 +333,7 @@ def main():
             warnings.append("B8 did not run: no access to study-hub-scores (%s)" % ex)
         for it in items if scores_ok else []:
             path = it["path"]
-            if P.is_legacy(path):
+            if P.is_legacy(path) or not mine(path + "index.html"):
                 continue
             raw = S.get(P.scores_path(path))
             if not raw:

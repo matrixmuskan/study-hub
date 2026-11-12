@@ -28,6 +28,8 @@ jobs:
           python3 tools/test_retry_loop.py
       - name: Question pictures on their question (img field, retry, R16, browsercheck), headless Chrome, made-up fixture
         run: python3 tools/test_quiz_img.py
+      - name: Hub pages list chapters in natural order (Chapter 2 before Chapter 10)
+        run: python3 tools/test_build_index.py
       - name: Every 'Validated' trailer is true (validate.py passes at that commit)
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then

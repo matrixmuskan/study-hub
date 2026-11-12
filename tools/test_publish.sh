@@ -8,6 +8,8 @@
 #   6. a page that ignores a school receipt (B4) is refused by publish.sh;
 #   6b-6d. token-only rebuild: a page whose plaintext changed ONLY at the scores token publishes although a B4
 #      rule now fails for it (TOKEN-ONLY); a token change plus a content change, or a content change alone, is refused;
+#   4b-4e. changed-only publish: a one-page change encrypts and checks only that page although a shared asset changed
+#      and another page's provenance is stale; FORCE=1 / --rerender-all re-renders and checks every page;
 #   4. an sh-2 page with the score logger must publish with privacy v4: its own logger sends no free text (only item
 #      ids, option letters and booleans), commits as Study Hub Bot (node, tools/test_redact.js), and the page holds no
 #      private-word list in any form (plain, hashed, base64 or hex).
@@ -184,6 +186,45 @@ assert not L.REDACT_ELEM_RE.findall(new) and "/*sh-privacy v4*/" in new and "red
 PY2
 node tools/test_redact.js "$T/logger-plain.html" > "$T/out4b.txt" || { cat "$T/out4b.txt"; die "logger page sends free text, a private word, or not as Study Hub Bot"; }
 ok "logger page: $(tail -1 "$T/out4b.txt")"
+
+# 4b. Changed-only publish (Gilfoy, Nov 11: "a publish shouldn't take an hour"). CHANGED is decided per page from
+# its own mirror plaintext: a shared renderer/asset change does not make every page changed, only the edited page is
+# encrypted and checked, and another page's stale provenance (B1 here, like WW/Lesson10) does not block it.
+LREC="$STUDY_HUB_SCORES_DIR/G3/SS/CI-Logger/_provenance.json"; cp "$LREC" "$T/logger-rec.json"
+printf '\n' >> "$LREC"                                  # CI-Logger's record no longer matches its manifest hash (B1)
+printf '\n/* ci renderer bump */\n' >> assets/css/sh.css  # a shared asset change: every staged page differs now
+SAMPLE="$STUDY_HUB_SRC/G3/SS/CI-Sample/index.html"
+python3 - "$SAMPLE" <<'PY2'
+import sys; f = sys.argv[1]; h = open(f).read(); a = "A sample page for the publish test."
+assert h.count(a) == 1; open(f, "w").write(h.replace(a, a + " CI one-page edit."))
+PY2
+before=$(git rev-parse HEAD)
+tools/publish.sh "CI: one-page change" > "$T/out4b.txt" 2>&1 || { cat "$T/out4b.txt"; die "a one-page change was blocked (by another page's stale provenance?)"; }
+grep -q "^changed 1 of 5 pages" "$T/out4b.txt" && grep -q "^CHANGED (content) G3/SS/CI-Sample/index.html" "$T/out4b.txt" || { cat "$T/out4b.txt"; die "the one-page change did not mark exactly that page CHANGED"; }
+[ "$(grep -c '^encrypted ' "$T/out4b.txt")" = 1 ] && grep -qx "encrypted G3/SS/CI-Sample/index.html" "$T/out4b.txt" || { cat "$T/out4b.txt"; die "pages other than the changed one were re-encrypted"; }
+grep -qx "provenance (B1-B6): 1 changed page(s): G3/SS/CI-Sample/" "$T/out4b.txt" && grep -qx "browser check: 1 changed page(s)" "$T/out4b.txt" || { cat "$T/out4b.txt"; die "provenance or the browser check did not run on exactly the changed page"; }
+[ "$(git show --name-only --format= HEAD)" = "G3/SS/CI-Sample/index.html" ] && [ "$(git rev-parse HEAD~1)" = "$before" ] || die "the commit holds more than the changed page"
+ok "one-page change: only that page is encrypted, provenance- and browser-checked, and committed; a stale B1 on another page and a shared asset change do not matter"
+# FORCE re-renders (and checks) every page: the stale record now blocks, and nothing is committed
+before=$(git rev-parse HEAD)
+if FORCE=1 tools/publish.sh "CI: force with a stale page" > "$T/out4c.txt" 2>&1; then cat "$T/out4c.txt"; die "FORCE=1 published although CI-Logger's provenance is stale"; fi
+grep -q "CHECK FAILED: provenance" "$T/out4c.txt" && grep -q "CI-Logger" "$T/out4c.txt" && [ "$(git rev-parse HEAD)" = "$before" ] || { cat "$T/out4c.txt"; die "FORCE=1 did not check every page"; }
+git diff --quiet -- G3 index.html || die "a failed FORCE run left re-encrypted pages behind"
+cp "$T/logger-rec.json" "$LREC"
+tools/publish.sh --rerender-all "CI: re-render all" > "$T/out4d.txt" 2>&1 || { cat "$T/out4d.txt"; die "--rerender-all failed"; }
+[ "$(grep -c '^encrypted ' "$T/out4d.txt")" = 5 ] && grep -q "^changed 5 of 5 pages" "$T/out4d.txt" || { cat "$T/out4d.txt"; die "--rerender-all did not re-encrypt every page"; }
+[ "$(git show --name-only --format= HEAD | sort | tr '\n' ' ')" = "G3/SS/CI-Logger/index.html G3/SS/CI-Sample/index.html G3/SS/index.html G3/index.html index.html " ] || die "--rerender-all commit does not hold every page"
+ok "FORCE=1 checks every page (a stale page blocks it); --rerender-all re-encrypts and commits all 5 pages"
+# Undo the asset bump (a renderer change again) and forget the page keys (first run after this change): nothing changed
+git checkout -q assets/css/sh.css
+before=$(git rev-parse HEAD)
+for run in renderer keys; do
+  [ $run = keys ] && rm "$STUDY_HUB_SRC/_state/page_keys.txt"
+  tools/publish.sh "CI: nothing changed ($run)" > "$T/out4e.txt" 2>&1 || { cat "$T/out4e.txt"; die "a publish with nothing changed failed ($run)"; }
+  grep -q "^changed 0 of 5 pages" "$T/out4e.txt" && ! grep -q '^encrypted ' "$T/out4e.txt" && [ "$(git rev-parse HEAD)" = "$before" ] || { cat "$T/out4e.txt"; die "pages became CHANGED ($run)"; }
+done
+[ -s "$STUDY_HUB_SRC/_state/page_keys.txt" ] || die "page keys were not written back"
+ok "a renderer change alone, or missing page keys (first run, raw mirror hash decides), changes no page"
 
 # 6a. Token-only rebuild setup: give the committed sample page a token-shaped value (made up at run time, never real).
 SAMPLE="$STUDY_HUB_SRC/G3/SS/CI-Sample/index.html"

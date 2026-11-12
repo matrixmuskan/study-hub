@@ -38,6 +38,19 @@ def load_manifest(src):
     return items
 
 
+_DIGITS_RE = re.compile(r"(\d+)")
+
+
+def natural_key(text):
+    """Sort key that reads digit runs as numbers, case-insensitive: Chapter 1, 2, ... 10, 11; Part 1 before Part 2."""
+    return [(0, int(t), "") if t.isdigit() else (1, 0, t.casefold()) for t in _DIGITS_RE.split(text or "") if t != ""]
+
+
+def hub_order(it):
+    """Order of a page on the hub pages: grade, subject, test date (pages without one last), then the title, naturally."""
+    return (natural_key(it["grade"]), it["subject"], it.get("test_date") or "9999", natural_key(it["title"]), it["path"])
+
+
 def nice_date(d):
     if not d:
         return ""
@@ -94,7 +107,7 @@ def main():
     src = L.default_src()
     items = load_manifest(src)
     tree = OrderedDict()
-    for it in sorted(items, key=lambda x: (x["grade"], x["subject"], x.get("test_date") or "9999", x["title"])):
+    for it in sorted(items, key=hub_order):
         tree.setdefault(it["grade"], OrderedDict()).setdefault(it["subject"], []).append(it)
     os.makedirs(src, exist_ok=True)
     kid = L.kid_first_name(required=not os.environ.get("CI"))   # fail closed on the box
