@@ -297,12 +297,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "171247b9313fc0fb7ffe5fe21f2626342533882efc7d9b390f73d716bd8463b5",
+    "provenance_sha256": "e643277d24996c1fe772371a3f5cf6f81e8a687f52d2cd103c3ce998815dee66",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 10,
     "n_retests": 7,
-    "built_at": "2026-11-11T20:11:43-08:00"
+    "built_at": "2026-11-11T21:07:57-08:00"
   },
   {
     "grade": "G3",
@@ -342,12 +342,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "9677b474a45520ead6a33d2daeb58d3d97879bb99797f0e866fd7c0e2fd45320",
+    "provenance_sha256": "19d3fba64fc04c781466e4ab1ca80df41de764358b2b212718129986eab4c8a0",
     "n_sources": 1,
     "n_inferred": 0,
-    "n_questions": 53,
-    "n_retests": 0,
-    "built_at": "2026-11-11T15:52:47-08:00"
+    "n_questions": 60,
+    "n_retests": 7,
+    "built_at": "2026-11-11T20:29:09-08:00"
   },
   {
     "grade": "G3",
@@ -453,5 +453,50 @@
     "n_questions": 46,
     "n_retests": 7,
     "built_at": "2026-11-11T20:11:07-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Kangaroo Chapter 6: Cubes and 3-D views",
+    "path": "G3/Kangaroo/Ch6-Cubes/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "4ad15827934095a8c85b7415d543feb29a53d42ea829a823c3e0a79361410904",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 60,
+    "n_retests": 7,
+    "built_at": "2026-11-11T20:29:44-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Kangaroo Chapter 10: Nets and dice",
+    "path": "G3/Kangaroo/Ch10-Nets-Dice/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "d659731bfa83181293ea4f43c497f7d767a3ab92c28606e6d4d48526b4e41a0f",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 41,
+    "n_retests": 7,
+    "built_at": "2026-11-11T20:30:17-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 9: Paths, mazes and codes",
+    "path": "G3/Kangaroo/Ch9-Paths-Codes/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "2eae527a43180ef011bb2a3b805c4581a27059502203d02752fed9cf7b7f9eca",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 60,
+    "n_retests": 7,
+    "built_at": "2026-11-11T20:30:51-08:00"
   }
 ]
