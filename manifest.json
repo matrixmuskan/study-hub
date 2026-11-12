@@ -381,17 +381,17 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 13: Logic 2, Grid Puzzles",
+    "title": "Chapter 13 Part 1: Logic Grid Puzzles (videos)",
     "path": "G3/Kangaroo/Ch13-Logic-Grid-Puzzles/",
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "d5a9c995caa58a8fc7acf39fbebf609038233994b82bdb895f197d42889d9b3d",
+    "provenance_sha256": "079e8a8fd689573d54053026173519e637045fb45f609ad743f434ed530cee25",
     "n_sources": 1,
     "n_inferred": 0,
-    "n_questions": 60,
-    "n_retests": 7,
-    "built_at": "2026-11-11T18:38:20-08:00"
+    "n_questions": 6,
+    "n_retests": 0,
+    "built_at": "2026-11-12T14:53:29-08:00"
   },
   {
     "grade": "G3",
@@ -647,5 +647,20 @@
     "n_questions": 47,
     "n_retests": 0,
     "built_at": "2026-11-12T14:00:34-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 13 Part 2: Logic Grid Puzzles (practice and quiz)",
+    "path": "G3/Kangaroo/Ch13-Logic-Grid-Puzzles-Part2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "aa8950642c053f24173e2c20f099d0a91754165aecf6f47f0ebc0af89ab29f46",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 47,
+    "n_retests": 0,
+    "built_at": "2026-11-12T14:53:28-08:00"
   }
 ]
