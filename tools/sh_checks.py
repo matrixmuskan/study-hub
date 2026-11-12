@@ -4,6 +4,7 @@
 Used by tools/validate.py (CI and publish.sh). Run alone:
   python3 tools/sh_checks.py links  <plaintext_site_root> [page ...]
   python3 tools/sh_checks.py design <file_or_dir> [...]          (CSS, JS, or plaintext HTML)
+  python3 tools/sh_checks.py qimg   <page.html> [...]             (rule R16: question pictures above a quiz)
 """
 import base64, binascii, json, os, re, shutil, subprocess, sys, tempfile, urllib.parse
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -36,6 +37,36 @@ DATA_RE = re.compile(r"data:([a-z0-9.+/-]+)((?:;(?!base64[,;])[a-z0-9.+=-]+)*)(;
 ATTR_RE = re.compile(r"""<([a-z][a-z0-9]*)\b([^>]*)>""", re.I | re.S)
 ATTR_VAL = re.compile(r"""\b(href|src|poster|data)\s*=\s*(["'])(.*?)\2""", re.I | re.S)
 ID_RE = re.compile(r"""\b(?:id|name)\s*=\s*(["'])([^"']+)\1""", re.I)
+
+
+QCAP_RE = re.compile(r"^\s*(?:Question|Q|Keep sharp)\s*(\d+)\b", re.I)
+PANEL_RE = re.compile(r"<section\b[^>]*\bclass=\"[^\"]*\bsh-panel\b[^\"]*\"[^>]*>(.*?)</section>", re.S | re.I)
+FIGCAP_RE = re.compile(r"<figure\b[^>]*>.*?<figcaption>(.*?)</figcaption>\s*</figure>", re.S | re.I)
+QUIZ_DIV_RE = re.compile(r"\bdata-sh-quiz=\"\d+\"")
+
+
+def qimg_problems(h):
+    """Rule R16: a question picture belongs inside its quiz question ("img" on the question), not as a separate image
+    block above the quiz. Flags a figure whose caption starts 'Question <n>', 'Q<n>' or 'Keep sharp <n>' when a quiz
+    comes after it in the same section (tab panel)."""
+    out = []
+    for pm in PANEL_RE.finditer(h):
+        body = pm.group(1)
+        sid = re.search(r"\bid=\"([^\"]+)\"", pm.group(0)[:300])
+        sid = sid.group(1) if sid else "?"
+        quiz_at = [m.start() for m in QUIZ_DIV_RE.finditer(body)]
+        if not quiz_at:
+            continue
+        bad = []
+        for fm in FIGCAP_RE.finditer(body):
+            cap = re.sub(r"<[^>]+>", "", fm.group(1))
+            if QCAP_RE.match(cap) and any(q > fm.end() for q in quiz_at):
+                bad.append(cap.strip()[:40])
+        if bad:
+            out.append("section %s: %d question picture(s) sit above the quiz as separate image blocks (%s). "
+                       "Put each one on its question as \"img\": {\"src\", \"alt\"} (tools/sh_page.py)"
+                       % (sid, len(bad), ", ".join(bad[:3]) + (", ..." if len(bad) > 3 else "")))
+    return out
 
 
 def strip_scripts(h):
@@ -226,9 +257,13 @@ def lint_config():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3 or sys.argv[1] not in ("links", "design"):
+    if len(sys.argv) < 3 or sys.argv[1] not in ("links", "design", "qimg"):
         sys.exit(__doc__)
-    if sys.argv[1] == "links":
+    if sys.argv[1] == "qimg":
+        probs = [(f, pr) for f in sys.argv[2:] for pr in qimg_problems(open(f, encoding="utf-8").read())]
+        for p in probs:
+            print("R16 %s: %s" % p)
+    elif sys.argv[1] == "links":
         probs = check_links(sys.argv[2], set(sys.argv[3:]) or None)
         for p in probs:
             print("BROKEN %s | %s | %s | %s" % p)

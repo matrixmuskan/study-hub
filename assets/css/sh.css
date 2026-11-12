@@ -106,6 +106,9 @@ body.sh{margin:0;font-family:var(--sh-font);font-size:19px;line-height:1.55;colo
 .sh-quiz{display:grid;gap:18px}
 .sh-q{background:var(--sh-surface);border-radius:var(--sh-radius);box-shadow:var(--sh-shadow);padding:26px 28px}
 .sh-q__n{color:var(--sh-ink-3);font-size:15px;font-weight:600;margin-bottom:6px}
+.sh-q__fig{margin:0 0 16px;text-align:center}
+.sh-q__fig img{display:block;margin:0 auto;max-width:100%;height:auto;border-radius:var(--sh-radius-sm);background:var(--sh-surface)}
+.sh-q__fig figcaption{color:var(--sh-ink-3);font-size:15px;line-height:1.4;margin-top:8px}
 .sh-q__text{font-size:21px;font-weight:600;line-height:1.4;margin:0 0 16px;letter-spacing:-.01em}
 .sh-opts{display:grid;gap:10px}
 .sh-opt{appearance:none;text-align:left;width:100%;min-height:56px;padding:14px 18px;border-radius:var(--sh-radius-sm);border:1.5px solid var(--sh-line);background:#fff;font:500 18px/1.35 var(--sh-font);color:var(--sh-ink);cursor:pointer;display:flex;gap:12px;align-items:center;transition:border-color .2s,background .2s}
