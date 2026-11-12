@@ -12,6 +12,8 @@ Usage:  python3 tools/sh_page.py <content.json | content.md> [--src DIR] [--no-m
   "caption": "<optional>"}. It is inlined once (in the page data) and shown directly above that question, also in retry
   rounds. A missing 'alt' stops the build.
   One file over 15 MB stops the build; more than 40 MB of media on one page gives a warning.
+- The provenance record and its build copy are kept in <mirror>/_state/pending_scores/ until tools/publish.sh has
+  passed every check; then publish.sh writes them to study-hub-scores. A failed publish leaves no record there.
 - Then run tools/publish.sh to encrypt and commit.
 See templates/page.example.json and CONTRIBUTING-BOTS.md.
 """
@@ -305,15 +307,17 @@ def main():
     print("page written to", dst)
     extra = None
     if c.get("provenance") and not a.no_provenance:
-        extra = write_provenance(c, path, L.build_id(html_text))
+        extra = write_provenance(c, path, L.build_id(html_text), os.path.join(a.src, "_state", "pending_scores"))
     elif not legacy and not a.no_provenance:
         fail("internal: no provenance written")
     if not a.no_manifest:
         upsert_manifest(c, rel, extra)
 
 
-def write_provenance(c, path, build_id=""):
-    """Write the full provenance record to study-hub-scores (private) and return the public counts and hash."""
+def write_provenance(c, path, build_id="", pending_root=None):
+    """Make the full provenance record and return the public counts and hash. With pending_root (the normal build), the
+    record and its _builds copy go to the pending folder in the mirror; publish.sh writes them to study-hub-scores only
+    after every check passed (sh_scores.py flush). Without it, they go to study-hub-scores at once."""
     import hashlib
     import sh_scores as S
     try:
@@ -322,8 +326,13 @@ def write_provenance(c, path, build_id=""):
         built = P.now_pt().isoformat()
         rec = P.record_bytes(c, path, built, hashlib.sha256(log).hexdigest() if log else "",
                              P.open_row_ids(P.read_log(log.decode("utf-8"))), build_id=build_id)
-        how = S.put(P.scores_path(path), rec, "provenance: %s" % path)
-        S.put(P.build_copy_path(path, built), rec, "build history: %s" % path)   # B5 history
+        if pending_root:
+            how = S.pending_put(pending_root, P.scores_path(path), rec)
+            S.pending_put(pending_root, P.build_copy_path(path, built), rec)   # B5 history, written by publish.sh
+            where += "; written to study-hub-scores by publish.sh after its checks pass"
+        else:
+            how = S.put(P.scores_path(path), rec, "provenance: %s" % path)
+            S.put(P.build_copy_path(path, built), rec, "build history: %s" % path)   # B5 history
     except S.ScoresError as ex:
         fail("provenance not written: %s" % ex)
     f = P.manifest_fields(rec)

@@ -84,6 +84,9 @@ die() { echo "FAIL: $1"; exit 1; }
 
 # 1. good page
 python3 tools/sh_page.py "$T/content/good.json" > "$T/page1.txt" 2>&1 || { cat "$T/page1.txt"; die "sh_page.py failed on the good page"; }
+# provenance order (Gilfoy, Nov 11): sh_page.py keeps the record pending in the mirror; nothing is in study-hub-scores yet
+[ ! -e "$STUDY_HUB_SCORES_DIR/G3/SS/CI-Sample/_provenance.json" ] || die "sh_page.py wrote _provenance.json to study-hub-scores before publish.sh checked the page"
+[ -f "$STUDY_HUB_SRC/_state/pending_scores/G3/SS/CI-Sample/_provenance.json" ] || die "sh_page.py kept no pending provenance record"
 grep -q "format vs 1 school test" "$T/page1.txt" || { cat "$T/page1.txt"; die "sh_page.py printed no format comparison (F1)"; }
 ! grep -q "WARNING: F1" "$T/page1.txt" || { cat "$T/page1.txt"; die "F1 warned on a mock that matches the school test"; }
 before=$(git rev-parse HEAD)
@@ -110,6 +113,8 @@ rec = open(os.path.join(os.environ["STUDY_HUB_SCORES_DIR"], "G3/SS/CI-Sample/_pr
 assert m["provenance_sha256"] == hashlib.sha256(rec).hexdigest() and m["n_sources"] == 1 and m["n_questions"] == 1
 assert "facts.csv" not in json.dumps(m), "source path leaked into the public manifest"
 PY
+[ ! -e "$STUDY_HUB_SRC/_state/pending_scores/G3/SS/CI-Sample/_provenance.json" ] || die "publish.sh left the pending record after writing it"
+ls "$STUDY_HUB_SCORES_DIR/G3/SS/_builds/" | grep -q -- "-CI-Sample.json" || die "publish.sh did not write the build copy (B5 history)"
 ok "good page published, committed with trailer, and decrypts; provenance hash and counts in manifest, record in the score repo"
 
 # 2 and 3. bad pages must be refused
@@ -217,8 +222,10 @@ before=$(git rev-parse HEAD)
 if tools/publish.sh "CI: loop page" > "$T/out6.txt" 2>&1; then cat "$T/out6.txt"; die "publish.sh accepted a page that ignores a school receipt (B4)"; fi
 [ "$(git rev-parse HEAD)" = "$before" ] || die "publish.sh committed the B4 page"
 grep -q "B4: G3/SS/CI-Loop/" "$T/out6.txt" && grep -q "CHECK FAILED" "$T/out6.txt" || { cat "$T/out6.txt"; die "no clear B4 failure"; }
+[ ! -e "$STUDY_HUB_SCORES_DIR/G3/SS/CI-Loop/_provenance.json" ] || die "a failed publish left _provenance.json in study-hub-scores"
+! ls "$STUDY_HUB_SCORES_DIR/G3/SS/_builds/" | grep -q -- "-CI-Loop.json" || die "a failed publish left a build copy in study-hub-scores"
 git checkout -q manifest.json
-ok "page that ignores a school receipt refused by publish.sh (B4)"
+ok "page that ignores a school receipt refused by publish.sh (B4), and no provenance record or build copy reached study-hub-scores"
 rm -rf "$STUDY_HUB_SRC/G3/SS/CI-Loop"   # temp mirror of this test only
 cp "$SAMPLE" "$T/sample-ok.html"
 # 6c. new token AND a content change: still refused by B4 (the exemption does not apply)
@@ -253,6 +260,7 @@ salt = json.loads(D.CFG_RE.search(t).group(1))["staticryptSaltUniqueVariableName
 plain = D.decrypt_html(t, D.hash_password(os.environ["STATICRYPT_PASSWORD"], salt))
 assert plain.count(open(sys.argv[2]).read().strip()) == 1 and "A sample page for the publish test." in plain
 PY2
+[ ! -e "$STUDY_HUB_SCORES_DIR/G3/SS/CI-Loop/_provenance.json" ] || die "a later publish wrote the failed page's stale pending record (the manifest does not point at it)"
 ok "token-only rebuild publishes (TOKEN-ONLY) although B4 fails for the page, and decrypts to the new token"
 # 7. One session per mirror: while one bot holds the lock, sh_page.py and publish.sh of another bot wait, then stop
 tools/sh_lock.sh sleep 8 & LP=$!

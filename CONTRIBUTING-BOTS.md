@@ -142,7 +142,7 @@ The generator puts the token in the page from `STUDY_HUB_SCORES_TOKEN`. It never
 2. Write the content file in your own workspace, for example `/workspace/ss/pages/Ch3-Maps.json`. Add the `provenance` block, and `src` and `retests` on each question (section 11).
 3. Go to the hub repo: `cd /workspace/study-hub`.
 4. Get the latest version: `git pull --rebase`.
-5. Make the page: `python3 tools/sh_page.py /workspace/ss/pages/Ch3-Maps.json`. The script stops if a provenance rule fails. It writes `G3/SS/Ch3-Maps/_provenance.json` to study-hub-scores and prints the counts.
+5. Make the page: `python3 tools/sh_page.py /workspace/ss/pages/Ch3-Maps.json`. The script stops if a provenance rule fails. It makes the record `G3/SS/Ch3-Maps/_provenance.json` and its build copy, keeps them in `<mirror>/_state/pending_scores/`, and prints the counts. `publish.sh` writes them to study-hub-scores only after all its checks pass (`sh_scores.py flush`), so a failed publish leaves no record there.
 6. Make sure that the script wrote the page to `/workspace/study-hub-src/G3/SS/Ch3-Maps/index.html`.
 7. Make sure that the script added or changed the entry in `manifest.json` (with `provenance_sha256` and the counts).
 8. Optional: make a preview with `python3 tools/sh_page.py <file> --out /tmp/preview.html`. Open it in a browser. Delete it after you look at it.
@@ -283,7 +283,7 @@ A short worked example (one quiz, two questions):
 ]}
 ```
 
-`sh_page.py` writes the full record to `study-hub-scores/G3/<Subject>/<Lesson>/_provenance.json` (private). The record is a snapshot taken at build time: `open_rows`, `error_log_sha256` and `built_at` describe the error log at that moment, so they differ from the log at HEAD after rows are added, closed or resolved. That is expected; do not rebuild a page only to refresh them. The public `manifest.json` gets only `provenance_sha256`, `n_sources`, `n_inferred`, `n_questions`, `n_retests`, and `built_at`. Source paths and question text never go into the public repo.
+`sh_page.py` makes the full record for `study-hub-scores/G3/<Subject>/<Lesson>/_provenance.json` (private) and keeps it pending in the mirror; `publish.sh` writes it (and the `_builds` copy) to study-hub-scores after every check and `validate.py` pass. Inside a publish, the checks read a pending record only when `manifest.json` points at it (same sha256). The record is a snapshot taken at build time: `open_rows`, `error_log_sha256` and `built_at` describe the error log at that moment, so they differ from the log at HEAD after rows are added, closed or resolved. That is expected; do not rebuild a page only to refresh them. The public `manifest.json` gets only `provenance_sha256`, `n_sources`, `n_inferred`, `n_questions`, `n_retests`, and `built_at`. Source paths and question text never go into the public repo.
 
 ### 11.2 The error log
 
@@ -301,6 +301,7 @@ A subject can add more columns after these (for example `sense` or `paper`). Rul
 - The open rows that B5 counts:
   - School subject: only `no` rows dated after the last real school test of the subject (the current prep window). The last test is the newest ingested receipt of the subject, or the newest `round=school` row. Older `no` rows are ignored (`plan` lists them so you can close them).
   - Contest subject: every `no` row (cumulative).
+  - Kangaroo chapter pages (`G3/Kangaroo/Ch<n>-.../`, not the Syllabus and not a mock): the open rows of other chapters (by the row's `unit`, else its id, for example `KG-Ch1-q9-...`) do not count. Muskan's rule via Aussie, Nov 11, 2026: a past chapter's misses never carry into a new chapter. `publish.sh` prints a warning that lists them. The rows stay open in the error log; nothing closes them. `plan G3/Kangaroo --pages G3/Kangaroo/Ch<n>-.../` prints the plan for one chapter. The Syllabus and the mocks keep the full rule.
 - Each new page re-tests the open rows in a rotation (rule B5), so a page never has to re-test all of them:
   - (a) The page re-tests at least min(15, open rows), chosen oldest-first: first the open rows that were re-tested least recently (never re-tested comes first), then by row `date`, then by `id`.
   - (b) Every open row is re-tested at least once in any 3 consecutive builds of the subject. A row that was open in the last 2 builds and was re-tested in neither must be re-tested in this build.

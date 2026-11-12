@@ -8,6 +8,8 @@ set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="${STUDY_HUB_SRC:-$(dirname "$REPO")/study-hub-src}"
 export STUDY_HUB_SRC="$SRC"
+# sh_page.py keeps each new provenance record here until every check below passed (then: sh_scores.py flush).
+export STUDY_HUB_PENDING_SCORES="$SRC/_state/pending_scores"
 # R15 (Gilfoy's R14, 2026-11-03): the shared checkout always stays on main, so it never commits or pushes another branch.
 # Worktrees (any other folder) are not affected. The check uses real paths (symlinks and a trailing slash do not
 # matter) and runs before the lock and the build. /workspace/study-hub is always checked; STUDY_HUB_SHARED_CHECKOUT
@@ -131,6 +133,9 @@ if python3 "$REPO/tools/validate.py" --src "$STAGE"; then
 else
   restore; fail "validation"
 fi
+
+# Every check passed: only now write the new provenance records (sh_page.py kept them pending) to study-hub-scores.
+python3 "$REPO/tools/sh_scores.py" flush || { restore; fail "provenance records could not be written to study-hub-scores"; }
 
 git add -A -- ':(glob)G*/**' index.html manifest.json  # only publish outputs; tools/assets changes go through a PR
 case "$CFG_STATE" in *"publish.sh commits it"*) git add -- tools/sh_config.json ;; esac  # attach's legacy_provenance shrink only

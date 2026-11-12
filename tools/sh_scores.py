@@ -3,8 +3,15 @@
 
 Token: STUDY_HUB_SCORES_TOKEN (env or ~/.study-hub.env). It is never printed.
 Test mode: STUDY_HUB_SCORES_DIR=<folder> uses a local folder instead of GitHub (fixtures, no network).
+
+Pending provenance (Gilfoy, Nov 11, 2026): sh_page.py does not write _provenance.json and the _builds copy to
+study-hub-scores. It writes them to <mirror>/_state/pending_scores/<same path> (pending_put). publish.sh exports
+STUDY_HUB_PENDING_SCORES=<that folder>, so get() and tree() inside a publish see a pending record, but only when the
+working manifest.json points at it (its provenance_sha256 is the record's sha256). After every check and validate.py
+pass, publish.sh runs "sh_scores.py flush", which writes those records to study-hub-scores and removes them from the
+pending folder. A publish that fails writes nothing to study-hub-scores.
 """
-import base64, json, os, sys, time, urllib.error, urllib.request
+import base64, hashlib, json, os, sys, time, urllib.error, urllib.request
 
 REPO = "matrixmuskan/study-hub-scores"
 API = "https://api.github.com/repos/" + REPO
@@ -64,8 +71,69 @@ def check_access(write=True):
     return "github " + REPO
 
 
+def pending_dir():
+    return os.environ.get("STUDY_HUB_PENDING_SCORES") or None
+
+
+def pending_put(root, path, data):
+    """sh_page.py: keep a record in the pending folder <root>/<path> (private, mode 600) until publish.sh flushes it."""
+    p = os.path.join(root, path)
+    os.makedirs(os.path.dirname(p), mode=0o700, exist_ok=True)
+    fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "wb") as f:
+        f.write(data if isinstance(data, bytes) else data.encode("utf-8"))
+    return "pending"
+
+
+def pending(manifest=None):
+    """{scores path: bytes} for the pending records that the working manifest.json points at (empty when
+    STUDY_HUB_PENDING_SCORES is not set). A record whose page has no entry, or another hash, is ignored (a failed or
+    abandoned build)."""
+    root = pending_dir()
+    if not root or not os.path.isdir(root):
+        return {}
+    mp = manifest or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "manifest.json")
+    try:
+        want = {it.get("path"): it.get("provenance_sha256") for it in json.load(open(mp, encoding="utf-8"))}
+    except (OSError, ValueError):
+        return {}
+    out = {}
+    for dp, dirs, fs in os.walk(root):
+        for f in fs:
+            if not f.endswith(".json"):
+                continue
+            fp = os.path.join(dp, f)
+            data = open(fp, "rb").read()
+            try:
+                page = json.loads(data).get("page")
+            except (ValueError, AttributeError):
+                continue
+            if page and want.get(page) == hashlib.sha256(data).hexdigest():
+                out[os.path.relpath(fp, root).replace(os.sep, "/")] = data
+    return out
+
+
+def flush(manifest=None):
+    """publish.sh, after every check passed: write the pending records the manifest points at to study-hub-scores,
+    then remove them from the pending folder. Returns [(path, how)]. Raises ScoresError (nothing is removed then)."""
+    done = []
+    for path, data in sorted(pending(manifest).items()):
+        done.append((path, put(path, data, ("build history: %s" if "/_builds/" in path else "provenance: %s")
+                               % json.loads(data)["page"])))
+    for path, _ in done:
+        os.remove(os.path.join(pending_dir(), path))
+    return done
+
+
 def get(path):
-    """Return the file bytes, or None when it does not exist."""
+    """Return the file bytes, or None when it does not exist. Inside a publish, a pending record (see above) wins."""
+    pd = pending(None) if pending_dir() else {}
+    if path in pd:
+        return pd[path]
+    return _get(path)
+
+
+def _get(path):
     if local_dir():
         p = os.path.join(local_dir(), path)
         return open(p, "rb").read() if os.path.isfile(p) else None
@@ -92,7 +160,7 @@ def put(path, data, message):
     """Create or update one file. Returns 'created', 'updated' or 'same'."""
     if isinstance(data, str):
         data = data.encode("utf-8")
-    old = get(path)
+    old = _get(path)
     if old == data:
         return "same"
     if local_dir():
@@ -112,7 +180,12 @@ def put(path, data, message):
 
 
 def tree(prefix=""):
-    """All file paths under prefix."""
+    """All file paths under prefix (inside a publish, plus the pending records that the manifest points at)."""
+    pd = sorted(p for p in pending(None) if p.startswith(prefix)) if pending_dir() else []
+    return sorted(set(_tree(prefix)) | set(pd)) if pd else _tree(prefix)
+
+
+def _tree(prefix=""):
     if local_dir():
         out = []
         base = local_dir()
@@ -128,6 +201,16 @@ def tree(prefix=""):
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["flush"]:
+        if not pending_dir():
+            sys.exit("flush: STUDY_HUB_PENDING_SCORES is not set")
+        try:
+            check_access(write=True)
+            for p, how in flush():
+                print("provenance: %s %s" % (how, p))
+        except ScoresError as ex:
+            sys.exit("PROVENANCE NOT WRITTEN: %s" % ex)
+        sys.exit(0)
     try:
         print("scores access ok:", check_access(write="--read" not in sys.argv))
     except ScoresError as ex:

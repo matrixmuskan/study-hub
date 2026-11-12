@@ -283,6 +283,48 @@ raw, pr = P.attach_record(frag, {"path": "G3/Grammar/Old/", "grade": "G3", "subj
 rec = json.loads(raw)
 check("attach drops closed rows from retests (school test already happened)",
       pr + ([] if rec["questions"][0]["retests"] == ["G-4"] and rec["dropped_closed_retests"] == ["G-1"] else ["got %s" % rec["questions"][0]]))
+
+# ---------- Kangaroo chapter pages: open rows of OTHER chapters do not block B5 (Muskan's rule via Aussie, Nov 11) ----------
+KROWS = [{"id": "KG-Ch1-q9-1-20261111", "date": "2026-11-11", "unit": "Ch1-Mirrors-v2", "round": "game", "resolved": "no"},
+         {"id": "KG-Ch1-q10-1-20261111", "date": "2026-11-11", "unit": "Ch1-Mirrors-v2", "round": "game", "resolved": "no"},
+         {"id": "KG-Ch2-q3-1-20261111", "date": "2026-11-11", "unit": "Ch2-Number-Sense", "round": "game", "resolved": "no"}]
+b = io.StringIO(); x = csv.DictWriter(b, fieldnames=COLS, lineterminator="\n"); x.writeheader()
+for r in KROWS:
+    x.writerow({c: r.get(c, "") for c in COLS})
+KLOG = b.getvalue().encode()
+w("G3/Kangaroo/_error_log.csv", KLOG)
+
+
+def kpage(lesson, retest_ids):
+    c = gpage(lesson, retest_ids)
+    c["subject"] = "Kangaroo"
+    c["provenance"]["results_ingested"], c["provenance"]["patterns_from"] = [], []
+    return c
+
+
+KB = "2026-11-11T22:00:00-08:00"
+kw = []
+pr = P.box_problems(publish(kpage("Ch2-Number-Sense", ["KG-Ch2-q3-1-20261111"]), KB), S, warns=kw)
+check("Kangaroo chapter page: re-tests only its own chapter's open row; Ch1 rows do not block", pr)
+check("Kangaroo chapter page: a WARNING lists the 2 open rows of other chapters",
+      [] if len(kw) == 1 and "KG-Ch1-q9-1-20261111" in kw[0] and "KG-Ch1-q10-1-20261111" in kw[0] and "do not block" in kw[0]
+      else ["got %s" % kw])
+check("Kangaroo chapter page: its own chapter's open row still blocks when it is not re-tested",
+      P.box_problems(publish(kpage("Ch2-Number-Sense", []), KB), S), "B5")
+check("Kangaroo Syllabus keeps the full B5: the Ch1 rows must be re-tested",
+      P.box_problems(publish(kpage("Syllabus", ["KG-Ch2-q3-1-20261111"]), KB), S), "B5")
+check("Kangaroo Syllabus passes when it re-tests every open row",
+      P.box_problems(publish(kpage("Syllabus", [r["id"] for r in KROWS]), KB), S))
+check("Kangaroo: a non-chapter page (team mock) keeps the full B5",
+      P.box_problems(publish(kpage("team-mock-1", ["KG-Ch2-q3-1-20261111"]), KB), S), "B5")
+check("Kangaroo: the error log is not changed by the check (other-chapter rows stay open)",
+      [] if S.get("G3/Kangaroo/_error_log.csv") == KLOG else ["error log changed"])
+check("row_chapter reads the unit, then the id", [] if (P.row_chapter({"unit": "Ch1-Mirrors-v2"}), P.row_chapter({"id": "KG-Ch12-q4-1"}),
+      P.row_chapter({"unit": "team-mock-1", "id": "KG-M1-q3"})) == (1, 12, None) else ["bad row_chapter"])
+check("other_chapter_rows: empty for a non-Kangaroo or non-chapter page",
+      [] if P.other_chapter_rows("G3/Noetic/Ch2-Logic/", KROWS) == [] and P.other_chapter_rows("G3/Kangaroo/Syllabus/", KROWS) == []
+      else ["not empty"])
+
 import shutil
 shutil.rmtree(T)
 print("provenance box-rule tests passed (%d)" % n)

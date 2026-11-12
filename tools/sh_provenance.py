@@ -26,6 +26,8 @@ Rules
         (c) a row that was missed again since the last build (a later attempt missed a question that re-tests it, or
             an "attempt=" note after the last build) must be re-tested now;
         and every retests id is a real row. "python3 tools/sh_provenance.py plan G3/<Subject>" prints what to re-test.
+        Kangaroo chapter pages (G3/Kangaroo/Ch<n>-.../, not the Syllabus or a mock): open rows of OTHER chapters do not
+        count (Muskan's rule via Aussie, Nov 11, 2026); a WARNING lists them, and they stay open in the error log.
     F1  school subjects (tools/sh_config.json "subject_modes" = school): a page with a mock cites patterns_from (past school
         receipts of that teacher and subject, as gmail:<id>). sh_page.py prints a format and difficulty comparison of
         the mock with those receipts (question count, question types, option count, stem length), and publish.sh
@@ -35,6 +37,7 @@ Rules
     B7  (validate.py --src) a page with a quiz has the score logger; a page that keeps results only in localStorage fails.
 
 CLI (box):  python3 tools/sh_provenance.py check [--pages G3/WW/Lesson10/ ...]   (default: every non-legacy page)
+            python3 tools/sh_provenance.py plan G3/<Subject> [--pages G3/Kangaroo/Ch2-Number-Sense/]   (one page: B5 for it)
 """
 import csv, hashlib, io, json, os, re, sys
 from datetime import datetime
@@ -495,8 +498,34 @@ def _norm_q(s):
     return re.sub(r"[^a-z0-9]+", "", s)[:40]
 
 
-def box_problems(entry, S, check_files=True):
-    """B1 to B6 for one manifest entry. S is the sh_scores module (GitHub or local fixture folder)."""
+KANGAROO_CHAPTER_RE = re.compile(r"^G\d+/Kangaroo/Ch(\d+)-[^/]+/$")
+ROW_CHAPTER_RE = re.compile(r"(?:^|[-_/])Ch(\d+)(?=[-_/]|$)", re.I)
+
+
+def row_chapter(r):
+    """Chapter number of an error-log row: from 'unit' (for example Ch1-Mirrors-v2), else from the id (KG-Ch1-q9-...)."""
+    for v in (r.get("unit") or "", r.get("id") or ""):
+        m = ROW_CHAPTER_RE.search(v)
+        if m:
+            return int(m.group(1))
+    return None
+
+
+def other_chapter_rows(path, rows):
+    """Muskan's rule (via Aussie, Nov 11, 2026): a past chapter's misses never carry into a new Kangaroo chapter.
+    For a Kangaroo chapter page (G3/Kangaroo/Ch<n>-.../, not the Syllabus or a mock), the ids of the open rows that do
+    not belong to chapter n. B5 does not count them for this page (a WARNING lists them); the rows stay open in the
+    error log. For any other page: an empty list (B5 unchanged)."""
+    m = KANGAROO_CHAPTER_RE.match(path or "")
+    if not m:
+        return []
+    n = int(m.group(1))
+    return [r["id"] for r in rows if status(r) == "no" and r.get("id") and row_chapter(r) != n]
+
+
+def box_problems(entry, S, check_files=True, warns=None):
+    """B1 to B6 for one manifest entry. S is the sh_scores module (GitHub or local fixture folder).
+    warns: an optional list that gets the warnings (B5 rows of other Kangaroo chapters)."""
     out = []
     path = entry["path"]
     grade, subj = path.split("/")[:2]
@@ -576,7 +605,11 @@ def box_problems(entry, S, check_files=True):
         # B5 (rotation)
         retested = {r for q in qs for r in q.get("retests", [])}
         row_ids = {r.get("id") for r in rows}
-        plan = b5_plan(S, grade, subj, rows, built, page=path, files=files)
+        other = set(other_chapter_rows(path, rows))
+        if other and warns is not None:
+            warns.append("B5 %s: %d open row(s) from other chapters are not re-tested here and do not block "
+                         "(they stay open): %s" % (path, len(other), ", ".join(sorted(other))))
+        plan = b5_plan(S, grade, subj, [r for r in rows if r.get("id") not in other], built, page=path, files=files)
         hit = retested & set(plan["open"])
         if len(hit) < plan["k"]:
             out.append(("B5", "%s: re-tests %d of %d open rows; needs at least %d (min(%d, open rows))"
@@ -811,7 +844,10 @@ def main():
         try:
             S.check_access(write=False)
             rows = read_log((S.get("%s/%s/_error_log.csv" % (grade, subj)) or b"").decode("utf-8"))
-            pl = b5_plan(S, grade, subj, rows, now_pt())
+            other = set(other_chapter_rows(a.pages[0], rows)) if a.pages and len(a.pages) == 1 else set()
+            if other:
+                print("%s: open rows of other chapters, not needed here (they stay open): %s" % (a.pages[0], ", ".join(sorted(other))))
+            pl = b5_plan(S, grade, subj, [r for r in rows if r.get("id") not in other], now_pt())
         except S.ScoresError as ex:
             sys.exit("PLAN FAILED: %s" % ex)
         need = list(dict.fromkeys(pl["oldest"] + pl["due"] + sorted(pl["again"])))
@@ -853,7 +889,10 @@ def main():
             if ok:
                 print("TOKEN-ONLY: %s: %s; learning-loop check (B1-B6) skipped" % (it["path"], why))
                 continue
-        errs += box_problems(it, S, check_files=not a.no_files)
+        bw = []
+        errs += box_problems(it, S, check_files=not a.no_files, warns=bw)
+        for w in bw:
+            print("WARNING: " + w)
         raw = S.get(scores_path(it["path"]))
         if raw:
             lines, probs = f1_report(json.loads(raw), S)

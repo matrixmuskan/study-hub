@@ -100,14 +100,14 @@ check("closed is a valid status, separate from yes", "closed" in P.STATUSES and 
 # every Contents API write is made as Study Hub Bot (never the token owner)
 import sh_scores as SC
 _sent = []
-_saved = (SC.local_dir, SC.get, SC._req)
+_saved = (SC.local_dir, SC.get, SC._get, SC._req)
 SC.local_dir = lambda: None
-SC.get = lambda path: None
+SC.get = SC._get = lambda path: None   # put() reads the real repo with _get (never a pending record)
 SC._req = lambda method, url, body=None, tries=3: (_sent.append((method, body)) or (201, {}))
 try:
     SC.put("G3/T/x.json", b"{}", "test")
 finally:
-    SC.local_dir, SC.get, SC._req = _saved
+    SC.local_dir, SC.get, SC._get, SC._req = _saved
 bot = {"name": "Study Hub Bot", "email": "study-hub-bot@users.noreply.github.com"}
 check("sh_scores.put sets author and committer to Study Hub Bot",
       len(_sent) == 1 and _sent[0][0] == "PUT" and _sent[0][1].get("committer") == bot and _sent[0][1].get("author") == bot)
