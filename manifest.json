@@ -297,12 +297,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "b9e91c8dc67dfaa59ae1f688e7948ae40bb09dc631ac621e50437427f9bf6784",
+    "provenance_sha256": "212db476f670766747794a69993d7891f5a9ad9ca3e3c7236211203afa559370",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 10,
     "n_retests": 7,
-    "built_at": "2026-11-11T18:38:53-08:00"
+    "built_at": "2026-11-11T19:16:27-08:00"
   },
   {
     "grade": "G3",
@@ -408,5 +408,20 @@
     "n_questions": 60,
     "n_retests": 7,
     "built_at": "2026-11-11T18:38:20-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 14: Patterns, multiples and word-problem reasoning",
+    "path": "G3/Kangaroo/Ch14-Patterns-Multiples/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "11a8f88cc0675afd17724f92f646dae9160e59cdb2963f07d2f0b8727974c212",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 60,
+    "n_retests": 7,
+    "built_at": "2026-11-11T19:15:52-08:00"
   }
 ]
