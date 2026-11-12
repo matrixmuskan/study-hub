@@ -396,17 +396,17 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 14: Patterns and Multiples",
+    "title": "Chapter 14 Part 1: Patterns and Multiples (videos)",
     "path": "G3/Kangaroo/Ch14-Patterns-Multiples/",
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "11a8f88cc0675afd17724f92f646dae9160e59cdb2963f07d2f0b8727974c212",
+    "provenance_sha256": "540e7c87ce68f81bb1872bac9d2d729cf4a0e92d94a5bd97a36f9a38550709a1",
     "n_sources": 1,
     "n_inferred": 0,
-    "n_questions": 60,
-    "n_retests": 7,
-    "built_at": "2026-11-11T19:15:52-08:00"
+    "n_questions": 6,
+    "n_retests": 0,
+    "built_at": "2026-11-12T15:32:51-08:00"
   },
   {
     "grade": "G3",
@@ -662,5 +662,20 @@
     "n_questions": 47,
     "n_retests": 0,
     "built_at": "2026-11-12T14:53:28-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 14 Part 2: Patterns and Multiples (practice and quiz)",
+    "path": "G3/Kangaroo/Ch14-Patterns-Multiples-Part2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "c1b0f0cbb9e77f5c7b101724c1266fa4ad7fe26e3ce7f81cd44321c4a156a04e",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 47,
+    "n_retests": 0,
+    "built_at": "2026-11-12T15:32:50-08:00"
   }
 ]
