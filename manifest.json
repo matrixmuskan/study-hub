@@ -297,12 +297,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "7803297933594eec6edaa1e608231df454d1943e7eeeda7b6bbeb679a543b463",
+    "provenance_sha256": "5727dadaf1bcb9c792b8b1c4645a5a127ed6dfd82167180b5d13bfe5760001e5",
     "n_sources": 1,
     "n_inferred": 0,
-    "n_questions": 3,
-    "n_retests": 0,
-    "built_at": "2026-11-11T15:55:36-08:00"
+    "n_questions": 10,
+    "n_retests": 7,
+    "built_at": "2026-11-11T17:38:59-08:00"
   },
   {
     "grade": "G3",
