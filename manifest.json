@@ -297,12 +297,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "5911f3ecfc3ed844c310099a87044050b67552d566ecbc5731dba8d88eaffb13",
+    "provenance_sha256": "8e797f9a5f51fa21129473f3e1d2d8aff0d2156879a254e83df3874f69e80b1c",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 10,
     "n_retests": 7,
-    "built_at": "2026-11-11T19:39:09-08:00"
+    "built_at": "2026-11-11T19:54:52-08:00"
   },
   {
     "grade": "G3",
@@ -423,5 +423,20 @@
     "n_questions": 60,
     "n_retests": 7,
     "built_at": "2026-11-11T19:15:52-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 8: Balance scales and symbol algebra",
+    "path": "G3/Kangaroo/Ch8-Balance-Scales/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "ec9c7759ad528d04fa4f0d6ec47b6252d7eda9ad3d3ae39d5f43095e64259574",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 60,
+    "n_retests": 7,
+    "built_at": "2026-11-11T19:54:16-08:00"
   }
 ]
