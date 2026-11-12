@@ -125,7 +125,8 @@ For a comic, a `.jpg` or `.webp` at about 1200 px wide is usually much smaller t
 6. Add the trap for each question, so the log is useful for the next mock (rule F1):
    - `trap`: the trap type of the question, as a short key or a short phrase (`"opposite"`, `"Other-sense lure"`). The logger sends it as a key (`other-sense-lure`).
    - `traps`: the known wrong answers: `{"B": "opposite"}` for options, `{"90": "Only half of them are even."}` for typed answers. A typed answer that is in `traps` is sent as the value; any other typed word is not sent (a number always is).
-7. Do not put names or private information in questions.
+7. A question that has a picture carries it on the question, never as a separate image block above the quiz: `"img": {"src": "<local image file, or a data:image URI>", "alt": "<what the picture shows, required>", "caption": "<optional, for example Question 3 (3 points)>"}`. `sh_page.py` inlines the file once as a data: URI in the page data, and the quiz shows it directly above that question's text and options, also in every retry round (the same element, no second copy). A missing `alt`, a non-object `img`, an unknown field or a missing file stops the build. `validate.py` rule R16 (`tools/sh_checks.py qimg_problems`) fails a page that has an image block captioned `Question <n>`, `Q<n>` or `Keep sharp <n>` above a quiz in the same section; `tools/test_quiz_img.py` is the headless test, and `tools/sh_browsercheck.py` checks that each question picture renders inside its question and decodes.
+8. Do not put names or private information in questions.
 
 Retry loop (shared runtime, every quiz): after a quiz is marked, "Retry the wrong ones" shows only the questions missed in that round. The questions already right stay on the page, grayed out and locked (disabled, `inert`, `aria-disabled`, out of the tab order). The loop goes on until every question is right, then the page says "All correct in N rounds". "Start over" is a full reset to round 1. Nothing is kept on the device, so a reload mid-loop starts over. Each round is its own logged attempt: `kind` stays the quiz kind (`mock`, `game`, `retest`), and the file also has `attempt_kind` (`first` for round 1, `retry` after) and `round` (1, 2, 3, ...). The score of a retry round counts only that round's questions. Older score files have neither field. `validate.py` rule R14 (`tools/sh_rounds.py`) checks these fields; `tools/test_retry_loop.py` is the headless test (CI).
 
@@ -225,6 +226,8 @@ Do these checks before each push:
 To test the logger privacy in pages: `node tools/test_redact.js <decrypted or staged pages>`. To see the real pages log the trap and the value: `python3 tools/test_logger_pages.py` on the box (it plays a Noetic, a WW and an SS page headless, with nothing sent). It records an attempt full of free text and private words (from `STUDY_HUB_BLOCKLIST` in the env) and checks that only ids, letters, numbers and booleans leave the page, as Study Hub Bot. It prints counts only.
 
 R14 (`tools/sh_rounds.py`): the retry-loop fields. `attempt_kind` is `first` or `retry`, `round` is an int of 1 or more (`first` with round 1, `retry` with round 2 or more), and they come together or not at all. Older score files without them pass. In CI the logger (`assets/js/shlog.js`, run under node) must send them for good input and drop bad input; with `--src` the same runs on each staged page's logger copy; `validate.py --attempts <files or folders>` checks score files.
+
+R16 (`tools/sh_checks.py`, with `--src`): question pictures sit on their question (`"img"`, section 5), not as image blocks captioned `Question <n>`, `Q<n>` or `Keep sharp <n>` above a quiz in the same section.
 
 Provenance (section 11):
 

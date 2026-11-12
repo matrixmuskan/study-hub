@@ -57,7 +57,7 @@ var SH=(function(){
     els.forEach(function(e){io.observe(e)});
   }
 
-  /* Quiz. data: {kind:'game'|'mock'|'retest', mode:'practice'|'test', title, questions:[{id, q, options[], answer(index) | answer_text(string or list), explain, word, sense, topic, trap, traps}]}
+  /* Quiz. data: {kind:'game'|'mock'|'retest', mode:'practice'|'test', title, questions:[{id, q, img{src,alt,caption}, options[], answer(index) | answer_text(string or list), explain, word, sense, topic, trap, traps}]}
      trap: a trap key for the question (lowercase, a-z 0-9 _ -). traps: {option letter or typed answer: trap key}.
      The logger gets, for each missed question: n, id, the picked letter, a value (a typed number, or the trap key of a
      known wrong answer), the trap key, blank and typed. Never the question text or a typed word. */
@@ -85,7 +85,8 @@ var SH=(function(){
       var html=qs.map(function(q,i){
         var body=q.options?'<div class="sh-opts" role="group">'+q.options.map(function(o,k){return '<button type="button" class="sh-opt" data-q="'+i+'" data-k="'+k+'"><span class="sh-opt__k">'+LET[k]+'</span><span>'+esc(o)+'</span></button>'}).join('')+'</div>'
           :'<input class="sh-input" data-q="'+i+'" autocomplete="off" inputmode="'+(q.numeric?'numeric':'text')+'" aria-label="Your answer">'+(mode==='practice'?' <button type="button" class="sh-btn" data-check="'+i+'">Check</button>':'');
-        return '<div class="sh-q" id="'+esc(root.id)+'-q'+i+'" data-qi="'+i+'"><div class="sh-q__n">Question '+(i+1)+' of '+qs.length+'</div><p class="sh-q__text">'+esc(q.q)+'</p>'+body+'<div class="sh-fb" hidden></div></div>';
+        var im=q.img&&q.img.src&&/^data:image\//.test(q.img.src)?'<figure class="sh-q__fig"><img src="'+esc(q.img.src)+'" alt="'+esc(q.img.alt)+'" decoding="async">'+(q.img.caption?'<figcaption>'+esc(q.img.caption)+'</figcaption>':'')+'</figure>':'';
+        return '<div class="sh-q" id="'+esc(root.id)+'-q'+i+'" data-qi="'+i+'"><div class="sh-q__n">Question '+(i+1)+' of '+qs.length+'</div>'+im+'<p class="sh-q__text">'+esc(q.q)+'</p>'+body+'<div class="sh-fb" hidden></div></div>';
       }).join('');
       html='<div class="sh-round" data-round role="status" hidden></div>'+html;
       html+=mode==='test'?'<div class="sh-actions"><button type="button" class="sh-btn" data-finish>Mark my test</button></div>':'';

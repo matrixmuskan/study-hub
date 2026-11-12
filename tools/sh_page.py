@@ -8,6 +8,9 @@ Usage:  python3 tools/sh_page.py <content.json | content.md> [--src DIR] [--no-m
 - When the page has a quiz and "log" is not false, score logging is added and the token placeholder is
   replaced from $STUDY_HUB_SCORES_TOKEN (the token is never printed). Without the token the build stops.
 - image and video blocks read local files and inline them as data: URIs (a page folder holds only index.html).
+- A quiz question may carry its own picture: "img": {"src": "<file or data:image URI>", "alt": "<required>",
+  "caption": "<optional>"}. It is inlined once (in the page data) and shown directly above that question, also in retry
+  rounds. A missing 'alt' stops the build.
   One file over 15 MB stops the build; more than 40 MB of media on one page gives a warning.
 - Then run tools/publish.sh to encrypt and commit.
 See templates/page.example.json and CONTRIBUTING-BOTS.md.
@@ -146,6 +149,20 @@ def render_block(b, base, quizzes, sec_id):
                     fail(f"quiz question {n}: 'answer' must be the index of the right option")
             elif "answer_text" not in q:
                 fail(f"quiz question {n} needs 'options' plus 'answer', or 'answer_text'")
+            if "img" in q:      # optional picture for this question: {"src": file or data:image URI, "alt": text, "caption": text}
+                im = q["img"]
+                if not isinstance(im, dict):
+                    fail(f"quiz question {n} in section '{sec_id}': 'img' must be an object {{\"src\": ..., \"alt\": ...}}")
+                if not str(im.get("alt", "")).strip():
+                    fail(f"quiz question {n} in section '{sec_id}': 'img' needs 'alt' text (what the picture shows)")
+                bad_keys = sorted(set(im) - {"src", "alt", "caption"})
+                if bad_keys:
+                    fail(f"quiz question {n} in section '{sec_id}': unknown 'img' field(s) {', '.join(bad_keys)} (use src, alt, caption)")
+                isrc = im.get("src", "")
+                isrc = isrc if isinstance(isrc, str) and isrc.startswith("data:image/") else data_uri(isrc, base, "quiz question %d image" % n, IMAGE_EXT)
+                q["img"] = {"src": isrc, "alt": str(im["alt"])}
+                if str(im.get("caption", "")).strip():
+                    q["img"]["caption"] = str(im["caption"])
             tm = q.get("traps")
             if tm is not None and (not isinstance(tm, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in tm.items())):
                 fail(f"quiz question {n}: 'traps' must map an option letter or a typed wrong answer to a short text or trap key")

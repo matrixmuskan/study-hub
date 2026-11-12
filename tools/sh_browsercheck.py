@@ -9,6 +9,7 @@ Usage:
 What it does on every page: opens every tab (nav#nav, [role=tab], nav.map), then checks
   - every <a href>: internal targets exist (HTTP 200), '#id' anchors exist in the DOM, no 'undefined' or '${'
   - every <img>, <video>, <audio>, <source>, <track>, <iframe>, poster: loads (img decoded, video readyState >= 1)
+  - every quiz question with an "img" shows that picture inside its own question, above its text, and it decodes
   - no uncaught script errors, no failed requests (4xx/5xx) to the site
 Exit code 1 when anything is broken. The password is never printed.
 """
@@ -52,6 +53,23 @@ COLLECT_JS = r"""async (seenList) => {
           t.addEventListener('load', () => r(true)); t.addEventListener('error', () => r(false)); setTimeout(() => r(t.readyState === 2), 8000); });
       out.media.push({tag: 'track', src: short(t.getAttribute('src')), ok: ok3, why: ok3 ? '' : 'captions did not load'});
     }
+  }
+  // question pictures (sh_page "img" on a quiz question): each one renders inside its own question and decodes
+  let shd = null; try { shd = JSON.parse((document.getElementById('sh-data') || {}).textContent || 'null'); } catch (e) {}
+  const qz = (shd && shd.quizzes) || [];
+  for (let zi = 0; zi < qz.length; zi++) for (let i = 0; i < (qz[zi].questions || []).length; i++) {
+    const q = qz[zi].questions[i];
+    if (!q.img) continue;
+    const key = 'qimg quiz-' + zi + ' Q' + (i + 1);
+    if (seen.has(key)) continue;
+    const qel = document.getElementById('quiz-' + zi + '-q' + i);
+    const im = qel && qel.querySelector(':scope > .sh-q__fig img');
+    const txt = qel && qel.querySelector(':scope > .sh-q__text');
+    const above = !!(im && txt && (im.compareDocumentPosition(txt) & Node.DOCUMENT_POSITION_FOLLOWING));
+    if (im && !(im.complete && im.naturalWidth > 0)) await until(() => im.complete && im.naturalWidth > 0, 8000);
+    const ok = !!im && above && im.complete && im.naturalWidth > 0;
+    out.media.push({tag: 'qimg', src: 'quiz-' + zi + ' Q' + (i + 1), ok,
+      why: ok ? '' : (!qel ? 'question not rendered' : !im ? 'question picture missing' : !above ? 'picture is not above the question text' : 'question picture did not decode')});
   }
   for (const f of document.querySelectorAll('iframe, embed, object')) {
     const src = f.getAttribute('src') || f.getAttribute('data') || '';
