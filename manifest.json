@@ -297,12 +297,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "e2d5e2410bc631ef4eb8491d8e1c41562c06b30f461697cc44903c47226413ca",
+    "provenance_sha256": "ccc5c930319323546928e90d3b09e64818ad09a44e04054187b31bfa5f39462f",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 10,
     "n_retests": 7,
-    "built_at": "2026-11-11T18:01:53-08:00"
+    "built_at": "2026-11-11T18:09:17-08:00"
   },
   {
     "grade": "G3",
@@ -363,5 +363,20 @@
     "n_questions": 60,
     "n_retests": 7,
     "built_at": "2026-11-11T18:01:18-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 11: Shapes: tiling, pieces, area and perimeter",
+    "path": "G3/Kangaroo/Ch11-Shapes-Tiling/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "f241ef8df82ff3efb476b840ca42b604f2dd9c366476920c847e79859e5b3d7e",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 60,
+    "n_retests": 7,
+    "built_at": "2026-11-11T18:08:43-08:00"
   }
 ]
