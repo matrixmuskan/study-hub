@@ -57,7 +57,7 @@ fi
 # Stage: plaintext with live tokens, so private (0700) and always deleted
 umask 077
 STAGE="$(mktemp -d "${TMPDIR:-/tmp}/sh-stage.XXXXXX")"
-trap 'rm -rf "$STAGE"' EXIT
+trap 'rm -rf "$STAGE" "${SCORES_SNAP:-}"' EXIT
 python3 "$REPO/tools/sh_stage.py" "$SRC" "$STAGE" >/dev/null
 
 mapfile -t PAGES < <(cd "$STAGE" && find . -name '*.html' -type f | sed 's|^\./||' | sort)
@@ -87,6 +87,13 @@ python3 "$REPO/tools/sh_checks.py" design "$STAGE" || fail "design standard (see
 PROV_PAGES=()
 for p in "${CHANGED[@]}"; do [[ "$p" =~ ^G[0-9]+/[^/]+/[^/]+/index\.html$ ]] && PROV_PAGES+=("${p%index.html}"); done
 if [ "${#PROV_PAGES[@]}" -gt 0 ]; then
+  # One shallow clone (about 2 s) instead of one GitHub API call per score file (15+ min through the proxy).
+  if [ -z "${STUDY_HUB_SCORES_DIR:-}" ] && [ -n "${STUDY_HUB_SCORES_TOKEN:-}" ]; then
+    SCORES_SNAP=$(mktemp -d /tmp/sh-scores.XXXXXX); chmod 700 "$SCORES_SNAP"
+    if timeout 120 git clone -q --depth 1 "https://x-access-token:${STUDY_HUB_SCORES_TOKEN}@github.com/matrixmuskan/study-hub-scores.git" "$SCORES_SNAP/r" >/dev/null 2>&1; then
+      export STUDY_HUB_SCORES_READ_DIR="$SCORES_SNAP/r"; echo "scores: read snapshot $(git -C "$SCORES_SNAP/r" rev-parse --short HEAD)"
+    else echo "scores: snapshot clone failed, reading through the API"; fi
+  fi
   python3 "$REPO/tools/sh_provenance.py" check --stage "$STAGE" --pages "${PROV_PAGES[@]}" || fail "provenance or learning-loop rules (see above)"
 fi
 if [ "${#CHANGED[@]}" -gt 0 ]; then

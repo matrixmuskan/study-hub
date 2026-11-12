@@ -36,6 +36,12 @@ def local_dir():
     return os.environ.get("STUDY_HUB_SCORES_DIR") or None
 
 
+def read_dir():
+    """Read-only snapshot (a shallow clone made by publish.sh). Reads come from it; writes still go to GitHub."""
+    d = os.environ.get("STUDY_HUB_SCORES_READ_DIR")
+    return d if d and os.path.isdir(d) else None
+
+
 def _req(method, url, body=None, tries=3):
     tok = _token()
     if not tok:
@@ -134,8 +140,8 @@ def get(path):
 
 
 def _get(path):
-    if local_dir():
-        p = os.path.join(local_dir(), path)
+    if local_dir() or read_dir():
+        p = os.path.join(local_dir() or read_dir(), path)
         return open(p, "rb").read() if os.path.isfile(p) else None
     st, d = _req("GET", API + "/contents/" + urllib.request.quote(path))
     if st == 404:
@@ -186,9 +192,9 @@ def tree(prefix=""):
 
 
 def _tree(prefix=""):
-    if local_dir():
+    if local_dir() or read_dir():
         out = []
-        base = local_dir()
+        base = local_dir() or read_dir()
         for root, dirs, fs in os.walk(os.path.join(base, prefix)):
             dirs[:] = [d for d in dirs if d != ".git"]
             for f in fs:
