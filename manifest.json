@@ -306,17 +306,17 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 3: Counting Smart",
+    "title": "Chapter 3 Part 1: Counting Smart (videos)",
     "path": "G3/Kangaroo/Ch3-Counting-Smart/",
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "f25faadad187cb89287c6f477185346f23c4e5783918d446a4d07218314489c6",
+    "provenance_sha256": "b46083f9d4e334d725962ee31e230713f1f9ad54d8bbf0fdda9746f1c7b4126d",
     "n_sources": 1,
     "n_inferred": 0,
-    "n_questions": 60,
-    "n_retests": 7,
-    "built_at": "2026-11-11T19:38:35-08:00"
+    "n_questions": 6,
+    "n_retests": 0,
+    "built_at": "2026-11-11T22:45:32-08:00"
   },
   {
     "grade": "G3",
@@ -497,5 +497,20 @@
     "n_questions": 47,
     "n_retests": 0,
     "built_at": "2026-11-11T22:21:33-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 3 Part 2: Counting Smart (practice and quiz)",
+    "path": "G3/Kangaroo/Ch3-Counting-Smart-Part2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "e58e4e6ea24ff781251fe6a52f65af17fbc73cc18418baa34ddfb3bab27b2ead",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 47,
+    "n_retests": 0,
+    "built_at": "2026-11-11T22:45:30-08:00"
   }
 ]
