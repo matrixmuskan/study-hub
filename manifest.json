@@ -411,17 +411,17 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 8: Balance Scales",
+    "title": "Chapter 8 Part 1: Balance Scales (videos)",
     "path": "G3/Kangaroo/Ch8-Balance-Scales/",
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "ec9c7759ad528d04fa4f0d6ec47b6252d7eda9ad3d3ae39d5f43095e64259574",
+    "provenance_sha256": "3e3cee5d6e7bd4dab3fba55a5372eb86af57286e4039efb376a7728c88c7fa47",
     "n_sources": 1,
     "n_inferred": 0,
-    "n_questions": 60,
-    "n_retests": 7,
-    "built_at": "2026-11-11T19:54:16-08:00"
+    "n_questions": 6,
+    "n_retests": 0,
+    "built_at": "2026-11-12T13:07:36-08:00"
   },
   {
     "grade": "G3",
@@ -587,5 +587,20 @@
     "n_questions": 47,
     "n_retests": 0,
     "built_at": "2026-11-12T13:01:24-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 8 Part 2: Balance Scales (practice and quiz)",
+    "path": "G3/Kangaroo/Ch8-Balance-Scales-Part2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "3bcafab2c4964e5de88b667a0c1abe238a5ada3c25d7377aced6bbfed2cc3c40",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 47,
+    "n_retests": 0,
+    "built_at": "2026-11-12T13:07:34-08:00"
   }
 ]
