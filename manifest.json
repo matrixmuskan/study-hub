@@ -297,12 +297,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "ccc5c930319323546928e90d3b09e64818ad09a44e04054187b31bfa5f39462f",
+    "provenance_sha256": "e9acec41d6ff563bee2acc082568316a20f54c3f26fe5026c40b065a8d9f83ad",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 10,
     "n_retests": 7,
-    "built_at": "2026-11-11T18:09:17-08:00"
+    "built_at": "2026-11-11T18:25:31-08:00"
   },
   {
     "grade": "G3",
@@ -378,5 +378,20 @@
     "n_questions": 60,
     "n_retests": 7,
     "built_at": "2026-11-11T18:08:43-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 12: Logic I, truth, order, sets and steps",
+    "path": "G3/Kangaroo/Ch12-Logic-Truth-Order/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "0a65d4c7eef2b48d22d77ef734b6a86061c18ef605b8e7b4c7f55341a9f910d2",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 60,
+    "n_retests": 7,
+    "built_at": "2026-11-11T18:24:58-08:00"
   }
 ]
