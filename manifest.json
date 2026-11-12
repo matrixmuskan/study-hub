@@ -307,17 +307,17 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 2: Number sense and calculation chains",
+    "title": "Chapter 2 Part 1: Number sense and calculation chains",
     "path": "G3/Kangaroo/Ch2-Number-Sense/",
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "2b78f73845d374bfc293cb0659855ca11ea45723aa9ca63cad865a71ed4a63af",
+    "provenance_sha256": "a65c62cd777ae79a2f25c71219200556d66762538de2a73517aef4aba3bc7561",
     "n_sources": 1,
-    "n_inferred": 1,
-    "n_questions": 60,
-    "n_retests": 7,
-    "built_at": "2026-11-11T19:24:58-08:00"
+    "n_inferred": 0,
+    "n_questions": 6,
+    "n_retests": 0,
+    "built_at": "2026-11-11T22:21:35-08:00"
   },
   {
     "grade": "G3",
@@ -498,5 +498,20 @@
     "n_questions": 60,
     "n_retests": 7,
     "built_at": "2026-11-11T20:30:51-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 2 Part 2: Number sense, practice and mastery quiz",
+    "path": "G3/Kangaroo/Ch2-Number-Sense-Part2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "b8f9410d82a02d20704adabbe32fae8be092681f5976290502108cac83ba1bf6",
+    "n_sources": 1,
+    "n_inferred": 1,
+    "n_questions": 47,
+    "n_retests": 0,
+    "built_at": "2026-11-11T22:21:33-08:00"
   }
 ]
