@@ -297,12 +297,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "618623cb199ce37e376260057ffec95e6832d44f53bbdddc288a74e5985b44bc",
+    "provenance_sha256": "e2d5e2410bc631ef4eb8491d8e1c41562c06b30f461697cc44903c47226413ca",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 10,
     "n_retests": 7,
-    "built_at": "2026-11-11T17:46:36-08:00"
+    "built_at": "2026-11-11T18:01:53-08:00"
   },
   {
     "grade": "G3",
@@ -357,11 +357,11 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "f066a146fee8dc428c81fa85b42fe1d3286e8d90a79f8dceaf7f798dd875b48e",
+    "provenance_sha256": "9cb848588bc5ae763c3b03f0c9f33c7f364948a90104da725d3fc935c19a9f2d",
     "n_sources": 1,
     "n_inferred": 0,
-    "n_questions": 53,
-    "n_retests": 0,
-    "built_at": "2026-11-11T15:55:25-08:00"
+    "n_questions": 60,
+    "n_retests": 7,
+    "built_at": "2026-11-11T18:01:18-08:00"
   }
 ]
