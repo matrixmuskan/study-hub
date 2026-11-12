@@ -441,17 +441,17 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 6: Cubes and 3-D Views",
+    "title": "Chapter 6 Part 1: Cubes (videos)",
     "path": "G3/Kangaroo/Ch6-Cubes/",
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "4ad15827934095a8c85b7415d543feb29a53d42ea829a823c3e0a79361410904",
+    "provenance_sha256": "9313f3523903d236fbcb97edcb37e304b1f92e65f088cc4a9b8357addd9c0b8c",
     "n_sources": 1,
     "n_inferred": 0,
-    "n_questions": 60,
-    "n_retests": 7,
-    "built_at": "2026-11-11T20:29:44-08:00"
+    "n_questions": 6,
+    "n_retests": 0,
+    "built_at": "2026-11-11T23:11:47-08:00"
   },
   {
     "grade": "G3",
@@ -542,5 +542,20 @@
     "n_questions": 33,
     "n_retests": 0,
     "built_at": "2026-11-11T23:09:03-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 6 Part 2: Cubes (practice and quiz)",
+    "path": "G3/Kangaroo/Ch6-Cubes-Part2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "0f2d4c4efc2b881f770734448bd0e8af3fc0b3b07d25a48d25bc1d846ee2ebd6",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 47,
+    "n_retests": 0,
+    "built_at": "2026-11-11T23:11:45-08:00"
   }
 ]
