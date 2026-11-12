@@ -26,8 +26,9 @@ With --src: the staged or mirror plaintext pages also must carry the template ma
   R10 Links (tools/sh_checks.py): every internal href/src/poster resolves, every '#id' anchor exists, every data: URI
       decodes with the right MIME type, every video has playable H.264/VP9/AV1 + AAC/Opus streams (ffprobe), and
       every manifest page is linked from its subject hub page.
-  R16 Question pictures (tools/sh_checks.py): a picture captioned 'Question <n>', 'Q<n>' or 'Keep sharp <n>' must not
-      sit as a separate image block above a quiz in the same section. Put it on the question ("img"), see sh_page.py.
+  R16 Question pictures (tools/sh_checks.py qimg_report): a picture captioned 'Question <n>', 'Q<n>' or 'Keep sharp <n>'
+      as a separate image block above a quiz in the same section is a WARNING (older layout, move it to "img" on the
+      question, see sh_page.py). It FAILS when the same page also has a question with "img" (half moved).
   R7  (also) no base64 (any offset) or hex encoding of a private word in any plaintext file or page.
   B8  (with --src, box) every question id in a page's provenance record (study-hub-scores) is an id the page's logger
       sends (sh-data: q<quiz>-<n> or the question's own id), so logged misses join to their sources.
@@ -279,8 +280,10 @@ def main():
                         err("R14", f"plaintext {rel}: {pr}")
                 for pr in C.design_problems(t, is_html=True):
                     err("R9", f"plaintext {rel}: {pr}")
-                for pr in C.qimg_problems(t):
+                r16f, r16w = C.qimg_report(t)
+                for pr in r16f:
                     err("R16", f"plaintext {rel}: {pr}")
+                warnings.extend(f"R16 {rel}: {pr}" for pr in r16w)
                 if L.CONTENT_RE.match(rel):
                     for pr in b7_problems(t):
                         if P.is_legacy(rel[: -len("index.html")]):

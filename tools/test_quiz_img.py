@@ -7,8 +7,9 @@ Builds throwaway pages with sh_page.build() (made-up questions, two tiny generat
   renderer (headless Chromium): the picture of question 1 is inside question 1, directly above its text and options,
     and decodes; a question without 'img' has no picture; after 'Mark my test' with question 1 wrong, Retry keeps the
     picture on question 1 (same element, still decoded) and question 2 is locked.
-  R16 (tools/sh_checks.py qimg_problems): an old-style page (image blocks 'Question 1 ...' above the quiz) fails, the
-    new page passes, and a captioned picture in a section without a quiz passes.
+  R16 (tools/sh_checks.py qimg_problems, qimg_report): an old-style page (image blocks 'Question 1 ...' above the quiz)
+    is found and is a WARNING; the new page passes; a captioned picture in a section without a quiz passes; a page that
+    has 'img' on a question AND a leftover question picture block above the quiz FAILS.
   browsercheck: tools/sh_browsercheck.py on the new page reports every question picture as loaded (exit 0).
 Browser: Playwright's Chromium, else /usr/bin/google-chrome. Usage: python3 tools/test_quiz_img.py
 """
@@ -89,6 +90,17 @@ def main():
     po, pn = C.qimg_problems(old), C.qimg_problems(h)
     check("R16: old layout (picture block above the quiz) fails", len(po) == 1 and "mastery" in po[0], str(po))
     check("R16: new layout passes (captioned picture in a section without a quiz is fine)", pn == [], str(pn))
+    fo, wo = C.qimg_report(old)
+    check("R16 report: older layout only (no 'img' anywhere) is a WARNING, not a FAIL", fo == [] and len(wo) == 1, str((fo, wo)))
+    fn, wn = C.qimg_report(h)
+    check("R16 report: new layout has no FAIL and no WARNING", fn == [] and wn == [], str((fn, wn)))
+    mixed = content(d)
+    mixed["sections"][1]["blocks"].insert(0, {"type": "image", "src": "q2.png", "alt": "Picture for question 2",
+                                              "caption": "Question 2 (3 points)"})
+    _, mx, _ = build(d, mixed)
+    fm, wm = C.qimg_report(mx)
+    check("R16 report: a page with 'img' AND a leftover question picture block above the quiz FAILS",
+          len(fm) == 1 and "mixes" in fm[0] and wm == [], str((fm, wm)))
 
     site = os.path.join(d, "site")
     page_path = os.path.join(site, rel)

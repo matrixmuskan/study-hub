@@ -69,6 +69,31 @@ def qimg_problems(h):
     return out
 
 
+def page_has_qimg(h):
+    """True when the page's sh-data has at least one quiz question with its own picture ("img")."""
+    m = L.SH_DATA_RE.search(h)
+    if not m:
+        return False
+    try:
+        d = json.loads(m.group(1).replace("<\\/", "</"))
+    except ValueError:
+        return False
+    return any(isinstance(q, dict) and q.get("img") for z in (d.get("quizzes") or []) for q in (z.get("questions") or []))
+
+
+def qimg_report(h):
+    """Rule R16 as validate.py applies it. Returns (fails, warns).
+    A page that still uses only separate question picture blocks (the older layout: every Kangaroo chapter and the
+    Syllabus up to Nov 11, 2026) gets a WARNING until it is moved to "img". A page that already uses "img" on a
+    question AND still has a question picture block above a quiz is half moved: that FAILS."""
+    probs = qimg_problems(h)
+    if not probs:
+        return [], []
+    if page_has_qimg(h):
+        return ["page mixes per-question \"img\" with leftover question picture blocks: " + p for p in probs], []
+    return [], ["older layout, move to \"img\": " + p for p in probs]
+
+
 def strip_scripts(h):
     return re.sub(r"<script\b.*?</script>", "", h, flags=re.S | re.I)
 
@@ -260,7 +285,12 @@ if __name__ == "__main__":
     if len(sys.argv) < 3 or sys.argv[1] not in ("links", "design", "qimg"):
         sys.exit(__doc__)
     if sys.argv[1] == "qimg":
-        probs = [(f, pr) for f in sys.argv[2:] for pr in qimg_problems(open(f, encoding="utf-8").read())]
+        probs = []
+        for f in sys.argv[2:]:
+            fl, wn = qimg_report(open(f, encoding="utf-8").read())
+            probs += [(f, pr) for pr in fl]
+            for pr in wn:
+                print("WARNING R16 %s: %s" % (f, pr))
         for p in probs:
             print("R16 %s: %s" % p)
     elif sys.argv[1] == "links":
