@@ -297,12 +297,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "8e797f9a5f51fa21129473f3e1d2d8aff0d2156879a254e83df3874f69e80b1c",
+    "provenance_sha256": "171247b9313fc0fb7ffe5fe21f2626342533882efc7d9b390f73d716bd8463b5",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 10,
     "n_retests": 7,
-    "built_at": "2026-11-11T19:54:52-08:00"
+    "built_at": "2026-11-11T20:11:43-08:00"
   },
   {
     "grade": "G3",
@@ -438,5 +438,20 @@
     "n_questions": 60,
     "n_retests": 7,
     "built_at": "2026-11-11T19:54:16-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Kangaroo Chapter 5: Folding, punching and cutting",
+    "path": "G3/Kangaroo/Ch5-Folding/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "8200b97d3eb5a326a592c34250563638dbe57fc9c3649a26e4edc86f79ea58fa",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 46,
+    "n_retests": 7,
+    "built_at": "2026-11-11T20:11:07-08:00"
   }
 ]
