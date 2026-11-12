@@ -366,17 +366,17 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 12: Logic 1, Truth and Order",
+    "title": "Chapter 12 Part 1: Logic, Truth and Order (videos)",
     "path": "G3/Kangaroo/Ch12-Logic-Truth-Order/",
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "0a65d4c7eef2b48d22d77ef734b6a86061c18ef605b8e7b4c7f55341a9f910d2",
+    "provenance_sha256": "439877e635d1870cfa0766be2d563fca258b8efdff7315df52b23489bd1281d2",
     "n_sources": 1,
     "n_inferred": 0,
-    "n_questions": 60,
-    "n_retests": 7,
-    "built_at": "2026-11-11T18:24:58-08:00"
+    "n_questions": 6,
+    "n_retests": 0,
+    "built_at": "2026-11-12T14:00:36-08:00"
   },
   {
     "grade": "G3",
@@ -632,5 +632,20 @@
     "n_questions": 30,
     "n_retests": 0,
     "built_at": "2026-11-12T13:38:50-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 12 Part 2: Logic, Truth and Order (practice and quiz)",
+    "path": "G3/Kangaroo/Ch12-Logic-Truth-Order-Part2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "657cf1398b2c994ccdd4c8efe810195e7a280d1bb0040e0bef2f97cd5886b215",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 47,
+    "n_retests": 0,
+    "built_at": "2026-11-12T14:00:34-08:00"
   }
 ]
