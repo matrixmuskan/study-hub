@@ -321,17 +321,17 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 4: Turns, Layers and Patterns",
+    "title": "Chapter 4 Part 1: Turns (videos)",
     "path": "G3/Kangaroo/Ch4-Turns/",
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "19d3fba64fc04c781466e4ab1ca80df41de764358b2b212718129986eab4c8a0",
+    "provenance_sha256": "3927476811821e8d127ed3351efc34e8caad4956538a080ee32eb6b849c9117f",
     "n_sources": 1,
     "n_inferred": 0,
-    "n_questions": 60,
-    "n_retests": 7,
-    "built_at": "2026-11-11T20:29:09-08:00"
+    "n_questions": 6,
+    "n_retests": 0,
+    "built_at": "2026-11-11T23:06:30-08:00"
   },
   {
     "grade": "G3",
@@ -512,5 +512,20 @@
     "n_questions": 47,
     "n_retests": 0,
     "built_at": "2026-11-11T23:01:11-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 4 Part 2: Turns (practice and quiz)",
+    "path": "G3/Kangaroo/Ch4-Turns-Part2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "7656e9f35a66b89970a7e80dd57282205a538f00116f5c367401fe714d9e836c",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 47,
+    "n_retests": 0,
+    "built_at": "2026-11-11T23:06:29-08:00"
   }
 ]
