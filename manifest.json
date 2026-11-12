@@ -297,12 +297,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "e9acec41d6ff563bee2acc082568316a20f54c3f26fe5026c40b065a8d9f83ad",
+    "provenance_sha256": "b9e91c8dc67dfaa59ae1f688e7948ae40bb09dc631ac621e50437427f9bf6784",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 10,
     "n_retests": 7,
-    "built_at": "2026-11-11T18:25:31-08:00"
+    "built_at": "2026-11-11T18:38:53-08:00"
   },
   {
     "grade": "G3",
@@ -393,5 +393,20 @@
     "n_questions": 60,
     "n_retests": 7,
     "built_at": "2026-11-11T18:24:58-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 13: Logic II, grid and placement puzzles",
+    "path": "G3/Kangaroo/Ch13-Logic-Grid-Puzzles/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "d5a9c995caa58a8fc7acf39fbebf609038233994b82bdb895f197d42889d9b3d",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 60,
+    "n_retests": 7,
+    "built_at": "2026-11-11T18:38:20-08:00"
   }
 ]
