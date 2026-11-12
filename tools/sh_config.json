@@ -18,8 +18,6 @@
   },
   "legacy_provenance_note": "Pages built before provenance (Nov 1, 2026). Grandfathered: validate.py warns for each. This list may only shrink. A rebuilt page with a provenance block leaves the list.",
   "legacy_provenance": [
-    "G3/Kangaroo/Ch1-Mirror-Magic/",
-    "G3/Kangaroo/Ch2-Number-Power/",
     "G3/LA/LWW-Final-Q2/",
     "G3/LA/LWW-Final/",
     "G3/Noetic/Ch1-Overlaps-Counting/",
