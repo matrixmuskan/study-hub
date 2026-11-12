@@ -456,17 +456,17 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 10: Nets and Dice",
+    "title": "Chapter 10 Part 1: Nets and Dice (videos)",
     "path": "G3/Kangaroo/Ch10-Nets-Dice/",
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "d659731bfa83181293ea4f43c497f7d767a3ab92c28606e6d4d48526b4e41a0f",
+    "provenance_sha256": "c41244d0b52d2d322ece87df2401d5353e73d49857f6deb180c25c6f05635b83",
     "n_sources": 1,
     "n_inferred": 0,
-    "n_questions": 41,
-    "n_retests": 7,
-    "built_at": "2026-11-11T20:30:17-08:00"
+    "n_questions": 6,
+    "n_retests": 0,
+    "built_at": "2026-11-12T13:38:51-08:00"
   },
   {
     "grade": "G3",
@@ -617,5 +617,20 @@
     "n_questions": 47,
     "n_retests": 0,
     "built_at": "2026-11-12T13:31:20-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 10 Part 2: Nets and Dice (practice and quiz)",
+    "path": "G3/Kangaroo/Ch10-Nets-Dice-Part2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "4ecb106a42c85df88e08f5c24384362770b0e2264996a1c48c97a6ed0fbe5851",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 30,
+    "n_retests": 0,
+    "built_at": "2026-11-12T13:38:50-08:00"
   }
 ]
