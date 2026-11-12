@@ -351,17 +351,17 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 11: Shapes, Tiling and Area",
+    "title": "Chapter 11 Part 1: Shapes and Tiling (videos)",
     "path": "G3/Kangaroo/Ch11-Shapes-Tiling/",
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "f241ef8df82ff3efb476b840ca42b604f2dd9c366476920c847e79859e5b3d7e",
+    "provenance_sha256": "1819fefbbedcd6e70be6cf26a5f00fea6576d778a303e580afca40a21ceaa582",
     "n_sources": 1,
     "n_inferred": 0,
-    "n_questions": 60,
-    "n_retests": 7,
-    "built_at": "2026-11-11T18:08:43-08:00"
+    "n_questions": 6,
+    "n_retests": 0,
+    "built_at": "2026-11-12T13:31:21-08:00"
   },
   {
     "grade": "G3",
@@ -602,5 +602,20 @@
     "n_questions": 47,
     "n_retests": 0,
     "built_at": "2026-11-12T13:07:34-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 11 Part 2: Shapes and Tiling (practice and quiz)",
+    "path": "G3/Kangaroo/Ch11-Shapes-Tiling-Part2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "86ca1ca3a55b66274af7c979de1a6f4f54abac4531d77b1d17fbc4eea94e5b16",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 47,
+    "n_retests": 0,
+    "built_at": "2026-11-12T13:31:20-08:00"
   }
 ]
