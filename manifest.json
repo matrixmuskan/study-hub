@@ -109,22 +109,6 @@
   },
   {
     "grade": "G3",
-    "subject": "Kangaroo",
-    "title": "Chapter 1: Mirror Magic",
-    "path": "G3/Kangaroo/Ch1-Mirror-Magic/",
-    "test_date": "",
-    "added_by": "Aussie"
-  },
-  {
-    "grade": "G3",
-    "subject": "Kangaroo",
-    "title": "Chapter 2: Number Power",
-    "path": "G3/Kangaroo/Ch2-Number-Power/",
-    "test_date": "",
-    "added_by": "Aussie"
-  },
-  {
-    "grade": "G3",
     "subject": "LA",
     "title": "LWW Final: Question 4 coach (pick a moment, evidence, plan, traps, timed practice)",
     "path": "G3/LA/LWW-Final/",
@@ -232,7 +216,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Kangaroo Team Mock 1",
+    "title": "Team Mock Test 1",
     "path": "G3/Kangaroo/team-mock-1/",
     "test_date": "2026-11-18",
     "added_by": "Aussie",
@@ -247,7 +231,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Kangaroo Team Mock 2",
+    "title": "Team Mock Test 2",
     "path": "G3/Kangaroo/team-mock-2/",
     "test_date": "2026-11-18",
     "added_by": "Aussie",
@@ -277,7 +261,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 1: Mirrors, flips and symmetry",
+    "title": "Chapter 1: Mirrors and Reflections",
     "path": "G3/Kangaroo/Ch1-Mirrors-v2/",
     "test_date": "",
     "added_by": "Aussie",
@@ -292,22 +276,22 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Math Kangaroo: the full syllabus",
+    "title": "Syllabus",
     "path": "G3/Kangaroo/Syllabus/",
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "e643277d24996c1fe772371a3f5cf6f81e8a687f52d2cd103c3ce998815dee66",
+    "provenance_sha256": "78593be21562d20bf842b01f285eaf9bcdf0e3268f28cbeeed3c1fc5f4ddd1fc",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 10,
     "n_retests": 7,
-    "built_at": "2026-11-11T21:07:57-08:00"
+    "built_at": "2026-11-11T22:38:38-08:00"
   },
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 2 Part 1: Number sense and calculation chains",
+    "title": "Chapter 2 Part 1: Number Sense (videos)",
     "path": "G3/Kangaroo/Ch2-Number-Sense/",
     "test_date": "",
     "added_by": "Aussie",
@@ -322,7 +306,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 3: Counting smart",
+    "title": "Chapter 3: Counting Smart",
     "path": "G3/Kangaroo/Ch3-Counting-Smart/",
     "test_date": "",
     "added_by": "Aussie",
@@ -337,7 +321,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Kangaroo Chapter 4: Turns, layers and patterns",
+    "title": "Chapter 4: Turns, Layers and Patterns",
     "path": "G3/Kangaroo/Ch4-Turns/",
     "test_date": "",
     "added_by": "Aussie",
@@ -352,7 +336,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 7: Time, calendar and measurement",
+    "title": "Chapter 7: Time, Calendar and Measurement",
     "path": "G3/Kangaroo/Ch7-Time-Measurement/",
     "test_date": "",
     "added_by": "Aussie",
@@ -367,7 +351,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 11: Shapes: tiling, pieces, area and perimeter",
+    "title": "Chapter 11: Shapes, Tiling and Area",
     "path": "G3/Kangaroo/Ch11-Shapes-Tiling/",
     "test_date": "",
     "added_by": "Aussie",
@@ -382,7 +366,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 12: Logic I, truth, order, sets and steps",
+    "title": "Chapter 12: Logic 1, Truth and Order",
     "path": "G3/Kangaroo/Ch12-Logic-Truth-Order/",
     "test_date": "",
     "added_by": "Aussie",
@@ -397,7 +381,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 13: Logic II, grid and placement puzzles",
+    "title": "Chapter 13: Logic 2, Grid Puzzles",
     "path": "G3/Kangaroo/Ch13-Logic-Grid-Puzzles/",
     "test_date": "",
     "added_by": "Aussie",
@@ -412,7 +396,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 14: Patterns, multiples and word-problem reasoning",
+    "title": "Chapter 14: Patterns and Multiples",
     "path": "G3/Kangaroo/Ch14-Patterns-Multiples/",
     "test_date": "",
     "added_by": "Aussie",
@@ -427,7 +411,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 8: Balance scales and symbol algebra",
+    "title": "Chapter 8: Balance Scales",
     "path": "G3/Kangaroo/Ch8-Balance-Scales/",
     "test_date": "",
     "added_by": "Aussie",
@@ -442,7 +426,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Kangaroo Chapter 5: Folding, punching and cutting",
+    "title": "Chapter 5: Folding, Punching and Cutting",
     "path": "G3/Kangaroo/Ch5-Folding/",
     "test_date": "",
     "added_by": "Aussie",
@@ -457,7 +441,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Kangaroo Chapter 6: Cubes and 3-D views",
+    "title": "Chapter 6: Cubes and 3-D Views",
     "path": "G3/Kangaroo/Ch6-Cubes/",
     "test_date": "",
     "added_by": "Aussie",
@@ -472,7 +456,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Kangaroo Chapter 10: Nets and dice",
+    "title": "Chapter 10: Nets and Dice",
     "path": "G3/Kangaroo/Ch10-Nets-Dice/",
     "test_date": "",
     "added_by": "Aussie",
@@ -487,7 +471,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 9: Paths, mazes and codes",
+    "title": "Chapter 9: Paths, Mazes and Codes",
     "path": "G3/Kangaroo/Ch9-Paths-Codes/",
     "test_date": "",
     "added_by": "Aussie",
@@ -502,7 +486,7 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 2 Part 2: Number sense, practice and mastery quiz",
+    "title": "Chapter 2 Part 2: Number Sense (practice and quiz)",
     "path": "G3/Kangaroo/Ch2-Number-Sense-Part2/",
     "test_date": "",
     "added_by": "Aussie",
