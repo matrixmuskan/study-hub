@@ -336,17 +336,17 @@
   {
     "grade": "G3",
     "subject": "Kangaroo",
-    "title": "Chapter 7: Time, Calendar and Measurement",
+    "title": "Chapter 7 Part 1: Time and Measurement (videos)",
     "path": "G3/Kangaroo/Ch7-Time-Measurement/",
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "9cb848588bc5ae763c3b03f0c9f33c7f364948a90104da725d3fc935c19a9f2d",
+    "provenance_sha256": "2fdbaf13ecd3374d72b38c97d58b3705f01c3541b04629da76694b8bcc5839e9",
     "n_sources": 1,
     "n_inferred": 0,
-    "n_questions": 60,
-    "n_retests": 7,
-    "built_at": "2026-11-11T18:01:18-08:00"
+    "n_questions": 6,
+    "n_retests": 0,
+    "built_at": "2026-11-11T23:14:26-08:00"
   },
   {
     "grade": "G3",
@@ -557,5 +557,20 @@
     "n_questions": 47,
     "n_retests": 0,
     "built_at": "2026-11-11T23:11:45-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 7 Part 2: Time and Measurement (practice and quiz)",
+    "path": "G3/Kangaroo/Ch7-Time-Measurement-Part2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "171dc74ea41ee6d80e1aecf9a196ef837b6156c9e5437994063dbe80890152ec",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 47,
+    "n_retests": 0,
+    "built_at": "2026-11-11T23:14:24-08:00"
   }
 ]
