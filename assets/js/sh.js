@@ -179,6 +179,17 @@ var SH=(function(){
       }
     }catch(e){try{root.textContent='This quiz could not load.'}catch(_){}}
   }
+  // Captions under the player (not on top of the picture), so they never hide text drawn in the video.
+  // The track stays "hidden" (cues still fire); native captions come back only in fullscreen.
+  function cues(){$$('.sh-video video').forEach(function(v){
+    var t=v.textTracks&&v.textTracks[0];if(!t||v.getAttribute('data-sh-cues'))return;v.setAttribute('data-sh-cues','1');
+    var box=document.createElement('div');box.className='sh-cues';box.setAttribute('aria-hidden','true');v.insertAdjacentElement('afterend',box);
+    var fs=function(){return document.fullscreenElement===v||document.webkitFullscreenElement===v||v.webkitDisplayingFullscreen};
+    var sync=function(){var f=fs();t.mode=f?'showing':'hidden';box.style.visibility=f?'hidden':''};
+    t.addEventListener('cuechange',function(){var c=t.activeCues;box.textContent=c&&c.length?Array.prototype.map.call(c,function(x){return x.text}).join(' '):''});
+    document.addEventListener('fullscreenchange',sync);document.addEventListener('webkitfullscreenchange',sync);
+    v.addEventListener('webkitbeginfullscreen',function(){t.mode='showing'});v.addEventListener('webkitendfullscreen',sync);
+    sync()})}
   function boot(){
     try{
       var page=null,el=document.getElementById('sh-data');
@@ -192,7 +203,7 @@ var SH=(function(){
         if(SHLog.allow)SHLog.allow({ids:ids,traps:traps,sections:secs,values:vals,build:page.build});
         SHLog.init({grade:page.grade,subject:page.subject,lesson:page.id,token:page.token})}catch(e){}}
       $$('[data-sh-quiz]').forEach(function(q){var i=+q.getAttribute('data-sh-quiz');if(page&&page.quizzes&&page.quizzes[i])quiz(q,page.quizzes[i],page)});
-      tabs();dates();filters();reveal();
+      tabs();dates();filters();reveal();cues();
     }catch(e){}
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
