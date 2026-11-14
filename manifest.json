@@ -248,15 +248,15 @@
     "subject": "WW",
     "title": "Lesson 10 (likely, not yet confirmed): Word Quest",
     "path": "G3/WW/Lesson10/",
-    "test_date": "2026-11-12",
+    "test_date": "2026-11-19",
     "added_by": "Worldy",
     "template": "sh-2",
-    "provenance_sha256": "034978a2618703afc6571b4fb60138882f2218ee74c10bb7d7d79df061748b6c",
-    "n_sources": 12,
+    "provenance_sha256": "3de326fd6d7a509af2266e84bf92f1170bb7ef7b0206f60c76366be2f2803802",
+    "n_sources": 13,
     "n_inferred": 0,
     "n_questions": 36,
     "n_retests": 0,
-    "built_at": "2026-11-10T17:11:42-08:00"
+    "built_at": "2026-11-13T17:07:50-08:00"
   },
   {
     "grade": "G3",
