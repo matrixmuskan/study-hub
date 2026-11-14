@@ -677,5 +677,20 @@
     "n_questions": 47,
     "n_retests": 0,
     "built_at": "2026-11-12T15:32:50-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "WW",
+    "title": "Lesson 11 (backup, not school-confirmed): Word Quest",
+    "path": "G3/WW/Lesson11/",
+    "test_date": "2026-11-19",
+    "added_by": "Worldy",
+    "template": "sh-2",
+    "provenance_sha256": "4788222b08a44541c635a613b570fe4f8b6e05f0612659c665d1d4c44dfb2ddf",
+    "n_sources": 13,
+    "n_inferred": 0,
+    "n_questions": 36,
+    "n_retests": 0,
+    "built_at": "2026-11-13T17:34:44-08:00"
   }
 ]
