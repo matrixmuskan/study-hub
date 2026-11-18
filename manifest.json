@@ -692,5 +692,20 @@
     "n_questions": 36,
     "n_retests": 0,
     "built_at": "2026-11-13T20:27:28-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "LA",
+    "title": "Number the Stars: Chapter 2 (Who Is the Man Who Rides Past?)",
+    "path": "G3/LA/Number-the-Stars-Ch02/",
+    "test_date": "",
+    "added_by": "Booky",
+    "template": "sh-2",
+    "provenance_sha256": "0fa59ef99651be88817f3a6045c4c9cb83df8e18c80e508ce99a52a67075901e",
+    "n_sources": 13,
+    "n_inferred": 0,
+    "n_questions": 20,
+    "n_retests": 0,
+    "built_at": "2026-11-17T20:53:30-08:00"
   }
 ]
