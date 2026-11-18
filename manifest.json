@@ -707,5 +707,20 @@
     "n_questions": 20,
     "n_retests": 0,
     "built_at": "2026-11-17T20:53:30-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "LA",
+    "title": "Number the Stars: Chapter 3 (Where Is Mrs. Hirsch?)",
+    "path": "G3/LA/Number-the-Stars-Ch03/",
+    "test_date": "",
+    "added_by": "Booky",
+    "template": "sh-2",
+    "provenance_sha256": "81ac81df6a766320234a213126783f5b73ceb0ffb36ccb39a1c9bcf01475a76e",
+    "n_sources": 15,
+    "n_inferred": 0,
+    "n_questions": 20,
+    "n_retests": 0,
+    "built_at": "2026-11-18T13:49:27-08:00"
   }
 ]

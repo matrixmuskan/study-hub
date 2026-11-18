@@ -34,7 +34,7 @@
   "receipt_subjects": [
     ["(?i)\\bWW\\b|wordly wise|vocab test", "WW"],
     ["(?i)social studies|geography|\\bSS\\b|\\bCYK\\b|minoans", "SS"],
-    ["(?i)lion,? the witch|\\bLWW\\b", "LA"],
+    ["(?i)lion,? the witch|\\bLWW\\b|number the stars", "LA"],
     ["(?i)noetic", "Noetic"],
     ["(?i)kangaroo", "Kangaroo"]
   ],
