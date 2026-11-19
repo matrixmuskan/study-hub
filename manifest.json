@@ -731,11 +731,11 @@
     "test_date": "2026-11-19",
     "added_by": "Naughty",
     "template": "sh-2",
-    "provenance_sha256": "f82a3db3d73c3b560598e6565ea9bb2b06e12c0e18ee69b045bc09439550691e",
+    "provenance_sha256": "3a8f922175ec096bd1808959cabcedb5095f43edbf365faabd12fe3576a4e129",
     "n_sources": 6,
     "n_inferred": 0,
     "n_questions": 20,
     "n_retests": 0,
-    "built_at": "2026-11-18T17:04:37-08:00"
+    "built_at": "2026-11-18T17:13:22-08:00"
   }
 ]
