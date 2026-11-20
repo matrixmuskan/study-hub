@@ -737,5 +737,35 @@
     "n_questions": 20,
     "n_retests": 0,
     "built_at": "2026-11-18T17:13:22-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "LA",
+    "title": "Number the Stars: Chapter 4 (It Will Be a Long Night)",
+    "path": "G3/LA/Number-the-Stars-Ch04/",
+    "test_date": "",
+    "added_by": "Booky",
+    "template": "sh-2",
+    "provenance_sha256": "dae5f50c8e25cb2e3314b23404df7211436374758811112f189076e9f4560b59",
+    "n_sources": 15,
+    "n_inferred": 0,
+    "n_questions": 20,
+    "n_retests": 0,
+    "built_at": "2026-11-19T16:32:14-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "LA",
+    "title": "Number the Stars: Chapter 5 (Who Is the Dark-Haired One?)",
+    "path": "G3/LA/Number-the-Stars-Ch05/",
+    "test_date": "",
+    "added_by": "Booky",
+    "template": "sh-2",
+    "provenance_sha256": "ef667bf29172e00fc88369a9357e7063b1ad1564d374bb50ca6291e2b74526d4",
+    "n_sources": 16,
+    "n_inferred": 0,
+    "n_questions": 20,
+    "n_retests": 0,
+    "built_at": "2026-11-19T16:32:14-08:00"
   }
 ]
