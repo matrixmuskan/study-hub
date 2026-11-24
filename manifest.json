@@ -767,5 +767,20 @@
     "n_questions": 20,
     "n_retests": 0,
     "built_at": "2026-11-19T16:51:13-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "LA",
+    "title": "Number the Stars: Chapter 6 (Is the Weather Good for Fishing?)",
+    "path": "G3/LA/Number-the-Stars-Ch06/",
+    "test_date": "",
+    "added_by": "Booky",
+    "template": "sh-2",
+    "provenance_sha256": "8ae4a33288fa6b5af456073b489d8fd4277012c3cb96d11f477702cd256da58a",
+    "n_sources": 16,
+    "n_inferred": 0,
+    "n_questions": 20,
+    "n_retests": 0,
+    "built_at": "2026-11-24T09:33:02-08:00"
   }
 ]
