@@ -812,5 +812,35 @@
     "n_questions": 6,
     "n_retests": 0,
     "built_at": "2026-11-24T15:46:48-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 16 Part 2: Word Problems II (practice and quiz)",
+    "path": "G3/Kangaroo/Ch16-Word-Problems-II-Part2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "60042182e5e958c7127ce4368e3d803cbea7a375c5d1602558ad6da6e83b6565",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 47,
+    "n_retests": 0,
+    "built_at": "2026-11-24T15:50:27-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 16 Part 1: Word Problems II (videos)",
+    "path": "G3/Kangaroo/Ch16-Word-Problems-II/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "9e68dc026185c2c9009cc02449b9b4258eddb63112af83bf277196d63f2948cb",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 6,
+    "n_retests": 0,
+    "built_at": "2026-11-24T15:50:28-08:00"
   }
 ]
