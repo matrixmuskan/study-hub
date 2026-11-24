@@ -281,12 +281,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "78593be21562d20bf842b01f285eaf9bcdf0e3268f28cbeeed3c1fc5f4ddd1fc",
+    "provenance_sha256": "f97cf244e3d0b1613aa3a6a7d047f899df2cc1bcbf08d14c67cc0946b7b74c9c",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 10,
     "n_retests": 7,
-    "built_at": "2026-11-11T22:38:38-08:00"
+    "built_at": "2026-11-24T15:46:50-08:00"
   },
   {
     "grade": "G3",
@@ -782,5 +782,35 @@
     "n_questions": 20,
     "n_retests": 0,
     "built_at": "2026-11-24T09:58:09-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 15 Part 2: Number Rules, Money and Sequences (practice and quiz)",
+    "path": "G3/Kangaroo/Ch15-Number-Rules-Money-Part2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "c0be73350ce87a68439e22864d12e7bc3691eaed0d63b1997dddba52af52d836",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 47,
+    "n_retests": 0,
+    "built_at": "2026-11-24T15:46:46-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 15 Part 1: Number Rules, Money and Sequences (videos)",
+    "path": "G3/Kangaroo/Ch15-Number-Rules-Money/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "95c9c80d939299e44177e863a91cd982e101437a8d785be2e2a1a372295a8766",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 6,
+    "n_retests": 0,
+    "built_at": "2026-11-24T15:46:48-08:00"
   }
 ]
