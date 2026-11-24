@@ -776,11 +776,11 @@
     "test_date": "",
     "added_by": "Booky",
     "template": "sh-2",
-    "provenance_sha256": "101e71958ca9efe67aedc508e271345c6edd5d6322319413eeb94bd4025bfc55",
+    "provenance_sha256": "9586a711975305e27264f506fb5e9bdfbefb8fa2ebec348e2776ce2d4640ad9f",
     "n_sources": 16,
     "n_inferred": 0,
     "n_questions": 20,
     "n_retests": 0,
-    "built_at": "2026-11-24T09:37:39-08:00"
+    "built_at": "2026-11-24T09:41:11-08:00"
   }
 ]
