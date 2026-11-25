@@ -67,7 +67,9 @@ var SHLog=(function(){
   var MODES=['practice','test','mastery','game','mock','retest','all','fix-it','all questions'];
   var NUMK=['answered','blank','round','redoRound','practice','score','total','part','checklistDone','checklistTotal',
     'comprehensionPoints','writingPoints','words','sentences','timerMinutes','minutesUsed','planOpen','fixNextFilled',
-    'allMastered','masteredTotal','wordsTotal','stars','seconds','readingComprehension','organization','wordChoice','conventions'];
+    'allMastered','masteredTotal','wordsTotal','stars','seconds','readingComprehension','organization','wordChoice','conventions',
+    'timeUp','answeredAtTimeUp','scoreAfterTime'];
+  var SOURCES=['study-paper'];var PAPER_RE=/^US(?:19|20)\d\d-G\d{1,2}-\d{1,2}$/;   // study papers: a fixed source and a paper label like US2007-G3-4, never free text
   var OBJK=['rubric','partScores'];
   var GEN=/^(?:q\d{1,2}|mock|game|retest|quiz|test|attempt|check)-(?:p\d{1,2}-)?\d{1,3}$/;
   TRAPS.forEach(function(t){REG.traps[t]=1});
@@ -103,6 +105,8 @@ var SHLog=(function(){
     Object.keys(d).forEach(function(k){var v=d[k];
       if(NUMK.indexOf(k)>=0&&(typeof v==='number'&&isFinite(v)||typeof v==='boolean'))o[k]=v;
       else if(k==='mode'&&MODES.indexOf(v)>=0)o[k]=v;
+      else if(k==='source'&&SOURCES.indexOf(v)>=0)o[k]=v;
+      else if(k==='paper'&&typeof v==='string'&&PAPER_RE.test(v))o[k]=v;
       else if(k==='section'&&typeof v==='string'&&(REG.sections[v]||v===''))o[k]=v;
       else if(OBJK.indexOf(k)>=0&&v&&typeof v==='object')o[k]=Array.isArray(v)?v.slice(0,20).map(function(x){return facts(x,depth+1)}):facts(v,depth+1)});
     return o}
