@@ -281,12 +281,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "390349105a96973fc7dbe9f246de92c337f3a42a8a6a05c4874ec3ded4da62eb",
+    "provenance_sha256": "d6199f83e02b840cfb619a6552f5c85fdeaec075619cd042f8522657e662cba5",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 10,
     "n_retests": 7,
-    "built_at": "2026-11-24T16:25:11-08:00"
+    "built_at": "2026-11-24T16:39:02-08:00"
   },
   {
     "grade": "G3",
@@ -872,5 +872,35 @@
     "n_questions": 6,
     "n_retests": 0,
     "built_at": "2026-11-24T16:25:09-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 18 Part 2: Shapes and Solids II (practice and quiz)",
+    "path": "G3/Kangaroo/Ch18-Shapes-Solids-II-Part2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "edce70acd26510fbb9440f6c7be0c0888423a1b95d201863b001ab2f916f44ca",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 47,
+    "n_retests": 0,
+    "built_at": "2026-11-24T16:38:59-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 18 Part 1: Shapes and Solids II (videos)",
+    "path": "G3/Kangaroo/Ch18-Shapes-Solids-II/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "5bbef0091b0ab76660ce0308ec6153dd47ab1ab90999c0a14953f96b21e04365",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 6,
+    "n_retests": 0,
+    "built_at": "2026-11-24T16:39:01-08:00"
   }
 ]
