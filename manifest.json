@@ -941,11 +941,11 @@
     "test_date": "",
     "added_by": "Booky",
     "template": "sh-2",
-    "provenance_sha256": "08725148bc6f4251f04c4e11f93bbc77aa33190580c3e0a8be2225cf06d8b115",
+    "provenance_sha256": "60cd4affd36f94eae65d58376a0d3b6608cdfcd4ffa9a7bba227203a4a3adfca",
     "n_sources": 17,
     "n_inferred": 0,
     "n_questions": 20,
     "n_retests": 0,
-    "built_at": "2026-11-25T09:33:13-08:00"
+    "built_at": "2026-11-25T09:40:25-08:00"
   }
 ]
