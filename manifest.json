@@ -281,12 +281,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "fa17712cc4bdae81296c5e0d9763aab772801e985f0ba6a926600062b6fb1606",
+    "provenance_sha256": "cafcc7ddf0a28a96b0d1da1eaf1425688571127b700a2fbe07cd64d55d824c51",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 10,
     "n_retests": 7,
-    "built_at": "2026-11-24T17:24:33-08:00"
+    "built_at": "2026-11-24T22:11:03-08:00"
   },
   {
     "grade": "G3",
@@ -917,5 +917,20 @@
     "n_questions": 41,
     "n_retests": 0,
     "built_at": "2026-11-24T17:24:32-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Study papers: 2007",
+    "path": "G3/Kangaroo/Study-papers-2007/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "c50db497b59d3cc506fe5f298613e79dd6b69aea1629e89f64edafec0bef7695",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 24,
+    "n_retests": 0,
+    "built_at": "2026-11-24T22:11:02-08:00"
   }
 ]
