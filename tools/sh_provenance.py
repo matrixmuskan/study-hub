@@ -500,6 +500,7 @@ def _norm_q(s):
 
 KANGAROO_CHAPTER_RE = re.compile(r"^G\d+/Kangaroo/Ch(\d+)-[^/]+/$")
 ROW_CHAPTER_RE = re.compile(r"(?:^|[-_/])Ch(\d+)(?=[-_/]|$)", re.I)
+KANGAROO_NO_CARRY_PAGES = ("G3/Kangaroo/Appendix-Misc/",)   # one extra page (Gilfoy, Nov 24, 2026); nothing else
 
 
 def row_chapter(r):
@@ -514,8 +515,12 @@ def row_chapter(r):
 def other_chapter_rows(path, rows):
     """Muskan's rule (via Aussie, Nov 11, 2026): a past chapter's misses never carry into a new Kangaroo chapter.
     For a Kangaroo chapter page (G3/Kangaroo/Ch<n>-.../, not the Syllabus or a mock), the ids of the open rows that do
-    not belong to chapter n. B5 does not count them for this page (a WARNING lists them); the rows stay open in the
+    not belong to chapter n. For a page in KANGAROO_NO_CARRY_PAGES (only the appendix): every open row. B5 does not count them for this page (a WARNING lists them); the rows stay open in the
     error log. For any other page: an empty list (B5 unchanged)."""
+    if (path or "") in KANGAROO_NO_CARRY_PAGES:
+        # Gilfoy, Nov 24, 2026: the Kangaroo appendix is new content, not a chapter; no past chapter's misses carry into it.
+        # Exactly these pages; KANGAROO_CHAPTER_RE is unchanged. The rows stay open and stay in the Syllabus retests.
+        return [r["id"] for r in rows if status(r) == "no" and r.get("id")]
     m = KANGAROO_CHAPTER_RE.match(path or "")
     if not m:
         return []
