@@ -281,12 +281,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "f97cf244e3d0b1613aa3a6a7d047f899df2cc1bcbf08d14c67cc0946b7b74c9c",
+    "provenance_sha256": "390349105a96973fc7dbe9f246de92c337f3a42a8a6a05c4874ec3ded4da62eb",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 10,
     "n_retests": 7,
-    "built_at": "2026-11-24T15:46:50-08:00"
+    "built_at": "2026-11-24T16:25:11-08:00"
   },
   {
     "grade": "G3",
@@ -842,5 +842,35 @@
     "n_questions": 6,
     "n_retests": 0,
     "built_at": "2026-11-24T15:50:28-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 17 Part 2: Time and Measurement II (practice and quiz)",
+    "path": "G3/Kangaroo/Ch17-Time-Measurement-II-Part2/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "37b68dcd271e750789b68c073ea9691c31d141de3ebc640e002a3936b9d599f2",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 47,
+    "n_retests": 0,
+    "built_at": "2026-11-24T16:25:08-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Chapter 17 Part 1: Time and Measurement II (videos)",
+    "path": "G3/Kangaroo/Ch17-Time-Measurement-II/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "8d0d282adfc6dc68d79a18e15784c4a04add2ea5a36c75b61e773884db5e352d",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 6,
+    "n_retests": 0,
+    "built_at": "2026-11-24T16:25:09-08:00"
   }
 ]
