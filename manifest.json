@@ -281,12 +281,12 @@
     "test_date": "",
     "added_by": "Aussie",
     "template": "sh-2",
-    "provenance_sha256": "d6199f83e02b840cfb619a6552f5c85fdeaec075619cd042f8522657e662cba5",
+    "provenance_sha256": "fa17712cc4bdae81296c5e0d9763aab772801e985f0ba6a926600062b6fb1606",
     "n_sources": 1,
     "n_inferred": 0,
     "n_questions": 10,
     "n_retests": 7,
-    "built_at": "2026-11-24T16:39:02-08:00"
+    "built_at": "2026-11-24T17:24:33-08:00"
   },
   {
     "grade": "G3",
@@ -902,5 +902,20 @@
     "n_questions": 6,
     "n_retests": 0,
     "built_at": "2026-11-24T16:39:01-08:00"
+  },
+  {
+    "grade": "G3",
+    "subject": "Kangaroo",
+    "title": "Appendix: Misc one-off puzzles",
+    "path": "G3/Kangaroo/Appendix-Misc/",
+    "test_date": "",
+    "added_by": "Aussie",
+    "template": "sh-2",
+    "provenance_sha256": "84c85169bbcc3949f4ddbde502033dcd5776841e3eb3e031f362f087bec934dc",
+    "n_sources": 1,
+    "n_inferred": 0,
+    "n_questions": 41,
+    "n_retests": 0,
+    "built_at": "2026-11-24T17:24:32-08:00"
   }
 ]
